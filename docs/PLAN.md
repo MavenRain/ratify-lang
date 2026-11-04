@@ -17,10 +17,11 @@ the readings of the request, the route, the slices and the open questions.
 "design sec N" is section N of the design. Section 14 lists the questions
 for the USER. A reading that is not ruled stays a recommendation.
 
-Status: S2 (kernel port): the Cubical TT kernel of permit-lang 3d47120 is
-in, without R0, the affine layer and the permit domain (Q-S0-10 (a),
-Q-S2-1 (a)). Section 1 has the rulings. Next: S3 (R0 and the Wasm writer,
-permit-lang 3d47120..18deea2).
+Status: S3 (no trap): the Cubical TT kernel of permit-lang 3d47120 and R0
+from permit-lang 18deea2 are in, without the affine layer and the permit
+domain (Q-S0-10 (a), Q-S2-1 (a)). The Wasm writer emits no trap form.
+Section 1 has the rulings. Next: S4 (`Party`, `Committee`, `Approvals`,
+`Counts`, `count`; section 12).
 
 ## 1. Rulings
 
@@ -115,7 +116,8 @@ Other sources of a trap and their reading:
   `REFUSE_PARTIAL` (permit-lang f9d8a15 docs/PLAN.md line 182).
 - The Wasm writer emits no `unreachable`, puts a guard before each `div_u`
   and `rem_u`, and gives each `br_table` a default that runs the last arm.
-  A C tool `test/notraptool.c` checks each module (permit-lang f9d8a15
+  The entry sets a Flag argument above 1 to 1 (`flag_norm` in
+  `src/wasm.c`, permit-lang 18deea2). A C tool `test/notraptool.c` checks each module (permit-lang f9d8a15
   docs/PLAN.md lines 186 and 210; port from permit-lang).
 - The kit gate row "a trap is equal to a trap" changes: R0 makes a trap a
   failure on each target (permit-lang f9d8a15 docs/PLAN.md lines 188 to
@@ -367,7 +369,7 @@ fits. Each item has one deliverable, one slice and one gate.
 | Source | What | Where |
 |---|---|---|
 | lang-template 5265a2a | the tcc-wasm kit | `hosts/tcc-wasm` |
-| permit-lang 3d47120, 18deea2, f9d8a15 | 3d47120 (S2, Q-S0-10 (a), Q-S2-1 (a)): the kernel without R0, the affine layer and the domain words: `src/front/` (ast.h, check.c, check.h, core.h, eval.c, front.c, front.h, lexer.c, lexer.h, parser.c), `src/main.c`, `test/fronttool.c`, `test/pathtool.c`, `test/review.sh`, `test/gate.sh`, `domain/domain.lang` and the kernel rows. 18deea2 (S3): the R0 reading, `REFUSE_PARTIAL`, `src/wasmop.h`, the no-trap Wasm writer, `test/notraptool.c`, the trap row. f9d8a15: A1 to A6; the C99 Wasm engine (Q-S0-11 (a)) | docs/PLAN.md lines 147 to 212, 214, 628 to 641 (f9d8a15); S2 surveyed the kernel; S3 and S10 survey the rest |
+| permit-lang 3d47120, 18deea2, f9d8a15 | 3d47120 (S2, Q-S0-10 (a), Q-S2-1 (a)): the kernel without R0, the affine layer and the domain words: `src/front/` (ast.h, check.c, check.h, core.h, eval.c, front.c, front.h, lexer.c, lexer.h, parser.c), `src/main.c`, `test/fronttool.c`, `test/pathtool.c`, `test/review.sh`, `test/gate.sh`, `domain/domain.lang` and the kernel rows. 18deea2 (S3): the R0 reading, `REFUSE_PARTIAL`, `src/wasmop.h`, the no-trap Wasm writer, `test/notraptool.c`, the trap row; taken at S3 by hand (57 paths take the 18deea2 file, 2 are deleted, 10 are merged; the Wasm and differential rows stay in S3, permit-lang moved them to its S8). f9d8a15: A1 to A6; the C99 Wasm engine (Q-S0-11 (a)) | docs/PLAN.md lines 147 to 212, 214, 628 to 641 (f9d8a15); S2 surveyed the kernel and S3 the R0 port; S10 surveys the rest |
 | quorum-lang be2c329 | R1 former table, ballots, the FHE route, the Wasm replica; src/crypto and `test/tallytool.c` (Q-S0-9 (b)); the host-import ABI (Q-S1-1 (a)) | docs/PLAN.md lines 73 to 177, 352 to 523, 524 to 572, 574 |
 | orbit-lang 2162fb2 | the orbit projection and the Lan facts (UAT `orbitProjection`, `Aggregation`) | docs/PLAN.md lines 48 to 62 |
 
@@ -380,8 +382,8 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S0 | Seed from tcc-wasm, DESIGN.md and the design HTML, this plan, README table, AGENTS.md; gate EXIT 0; seed commit; private repo | DONE |
 | S1 | The USER rules section 14 and Q-S1-1 to Q-S1-3. Section 1 has the rulings. | DONE |
 | S2 | Port the Cubical TT kernel (8.1, Q-S0-10 (a), Q-S2-1 (a)): permit-lang 3d47120, no affine layer, no R0. Gate: 29 examples, 17 parse refusals, 154 check refusals, 10 kit-only refusals, 1 time hint, 78 evals, 1 build refusal; the review, domain and path regressions pass. Mutants M1 (path ends), M2 (glue face), M3 (universe level): KILLED. | DONE |
-| S3 | Port permit-lang 3d47120..18deea2: R0 in the kernel and the Wasm writer, `REFUSE_PARTIAL`, `src/wasmop.h`, `test/notraptool.c`, the trap row (OI-6). `src/front/lower.c`, `src/wasm.c` and `src/ir.h` come back into the build, with the IR rows, the 13 Wasm modules and the differential cases (OI-12). | NEXT |
-| S4 | `Party`, `Committee`, `Approvals`, `Counts`, `count`; G_P derived; TCM-A; `REFUSE_ORBIT`, `REFUSE_BOUND`. | |
+| S3 | Port permit-lang 3d47120..18deea2: R0 in the kernel and the Wasm writer, `REFUSE_PARTIAL`, `src/wasmop.h`, `test/notraptool.c`, the trap row (OI-6). `src/front/lower.c`, `src/wasm.c` and `src/ir.h` come back into the build, with the IR rows, the Wasm modules and the differential cases (OI-12). Gate: 30 examples, 17 parse refusals, 158 check refusals, 10 kit-only refusals, 1 time hint, 79 evals, 1 build, 1 ir lowered, 5 ir refusals, 2 ir lowerings, 4 notrap modules, 7 notrap bad rows, 10 spine evals, 33 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1, M2 (`REFUSE_PARTIAL`), M3 (the div guard of the no-trap tool), M4 (`flag_norm`): KILLED. M5 (the `br_table` default) and M6 (the IF condition): equivalent. | DONE |
+| S4 | `Party`, `Committee`, `Approvals`, `Counts`, `count`; G_P derived; TCM-A; `REFUSE_ORBIT`, `REFUSE_BOUND`. | NEXT |
 | S5 | `Rule`, `and`, `or`, the minimal accepting vectors; O3, O4, O5; `REFUSE_RULE`, `REFUSE_HONEST`, `REFUSE_FORK`; TCM-B. | |
 | S6 | `Policy`, `Decision`, `authorize`, `Amendment`, `Log` (CM), `System` (CC), `policyAt`; TCM-E, O2, O10; `REFUSE_FIXPOINT`, `REFUSE_ARROW`, `REFUSE_CLOCK`. | |
 | S7 | The crypto layer (Q-S0-9 (b), Q-S1-1 (a), Q-S1-3 (a)): `Enc`, `Share`, `Proof`, `Protocol` and their operations; port quorum-lang src/crypto and add Schnorr on BN254 G1; the test tool and the crypto rows (section 10); the ASSUMED rows; `REFUSE_APPROX`. | |
@@ -414,7 +416,10 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
 - OI-5 The output leaks what the rule implies (design sec 13). T4 states it
   for each rule. At T1 the output also leaks the count vector c (Q-S1-2
   (a)). T2 gives the one-bit output.
-- OI-6 The kit row "a trap is equal to a trap" (section 2). S3 changes it.
+- OI-6 CLOSED at S3. The kit row "a trap is equal to a trap" (section 2)
+  is gone: in the Wasm and differential rows a `trap` line is a FAIL. The
+  row `pick 2 4 9` gives 4 and does not trap: the entry sets a Flag
+  argument of 2 or more to 1 (`flag_norm`, mutant M4 kills it).
 - OI-7 The view equations hold only up to indistinguishability and need a
   computational model (design sec 13). They stay ASSUMED.
 - OI-8 The class-preserving group action is new Lean work on the UAT side
@@ -430,7 +435,11 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
 - OI-12 The gate gap from S2 to S3 (Q-S2-1 (a)). `src/front/lower.c`,
   `src/wasm.c` and `src/ir.h` are out of the build, and `langc build` gives
   `REFUSE_LOWER` "target pending S3". Until S3 the gate has no IR rows, no
-  Wasm modules and no differential cases. S3 closes it.
+  Wasm modules and no differential cases. CLOSED at S3: the gate has the
+  IR rows, 33 Wasm modules and 998 differential cases with 0 mismatches.
+  The kit had 13 modules and 813 cases. The list now holds the 30
+  examples, `test/ir/natops.lang`, `test/ir/block.lang` and `test/ir/proof-trap.lang`;
+  `natops.lang` gives 610 cases and `examples/entries.lang` 310.
 
 ## 14. Questions for the USER (S0)
 

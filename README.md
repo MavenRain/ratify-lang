@@ -10,8 +10,12 @@ log and checks the certificates. No program can have a runtime error. The
 design is a denotational design over Unified Aggregation Theory
 (`design/DESIGN.md`).
 
-ratify-lang comes from lang-template with the tcc-wasm host. Status: S0
-(seed). `docs/PLAN.md` gives the plan, and its section 14 gives the open
+ratify-lang comes from lang-template with the tcc-wasm host. Status: S3
+(no trap): the Cubical TT kernel of permit-lang 3d47120 and R0 from
+permit-lang 18deea2: total Nat operations, `REFUSE_PARTIAL`, and a Wasm
+writer that emits no trap form (`test/notraptool.c` checks each built
+module). The ratify-lang types, refusals and targets do not exist yet.
+`docs/PLAN.md` gives the plan, and its section 14 gives the open
 questions.
 
 ## When to reach for ratify-lang
