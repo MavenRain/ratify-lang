@@ -4000,6 +4000,156 @@ static int law_type(Machine *m, uint32_t level, uint32_t trunc, const Value *t) 
   return t != NULL && (t->kind == VAL_PATHP || is_family(t, trunc));
 }
 
+/* Q-S4-2 (a). 1 if the core term T has an elim, a fold or a projection of
+   the family FAM (the three cases of law_uses). */
+static int orbit_uses(const Machine *m, uint32_t fam, const Core *t) {
+  uint32_t i;
+  if (t == NULL)
+    return 0;
+  switch (t->kind) {
+  case CORE_VAR:
+  case CORE_NAT:
+  case CORE_UNIV:
+  case CORE_IZERO:
+  case CORE_IONE:
+  case CORE_GLOBAL:
+    return 0;
+  case CORE_LAM:
+  case CORE_PI:
+  case CORE_SIGMA:
+  case CORE_APP:
+  case CORE_PLAM:
+  case CORE_INEG:
+  case CORE_IMEET:
+  case CORE_IJOIN:
+    return orbit_uses(m, fam, t->a) || orbit_uses(m, fam, t->b);
+  case CORE_PATHP:
+  case CORE_PAPP:
+    return orbit_uses(m, fam, t->a) || orbit_uses(m, fam, t->b) || orbit_uses(m, fam, t->args[0]) || orbit_uses(m, fam, t->args[1]);
+  case CORE_OP:
+    break;
+  }
+  if ((t->op == OP_FOLD_FAMILY && t->inst == fam) || (t->op == OP_ELIM && t->field == fam + 1u) || (t->op == OP_PROJ && m->ctors[t->inst].family == fam))
+    return 1;
+  for (i = 0; i < t->argc; i++) {
+    if (orbit_uses(m, fam, t->args[i]))
+      return 1;
+  }
+  return 0;
+}
+
+/* Q-S4-2 (a): 1 if the type, the quoted type or the body reads the family
+   Approvals. The domain defs count and actP are not program defs. */
+static int orbit_read(const Machine *m, const Core *type, const Core *quoted, const Core *body) {
+  uint32_t fam = find_family(m, "Approvals");
+  return fam != NO_FAMILY && (orbit_uses(m, fam, type) || orbit_uses(m, fam, quoted) || orbit_uses(m, fam, body));
+}
+
+/* Q-S0-4 (a), Q-S4-3 (a): the largest count space of a closed committee. */
+#define COUNT_SPACE_BOUND 1048576u
+
+static uint32_t bound_ctor(const Machine *m, const char *name) {
+  uint32_t i;
+  for (i = 0; i < m->ctor_count; i++) {
+    if (m->ctors[i].name != NULL && strcmp(m->ctors[i].name, name) == 0)
+      return i;
+  }
+  return UINT32_MAX;
+}
+
+/* The number of szS in the Size value V, at most CAP. Sets *OPEN when the
+   spine ends in a neutral value. */
+static uint64_t size_count(const Value *v, uint32_t zero, uint32_t succ, uint64_t cap, int *open) {
+  uint64_t n = 0;
+  while (v != NULL && val_is(v, OP_CTOR) && v->inst == succ && v->argc > 0u) {
+    if (n < cap)
+      n++;
+    v = v->args[v->argc - 1u];
+  }
+  if (!(v != NULL && val_is(v, OP_CTOR) && v->inst == zero))
+    *open = 1;
+  return n;
+}
+
+/* The count space of the Committee value V: the product of the n_j + 1,
+   saturated at COUNT_SPACE_BOUND + 1. 0 for an open committee. */
+static uint64_t count_space(const Machine *m, const Value *v) {
+  uint32_t nil = bound_ctor(m, "cmNil");
+  uint32_t cls = bound_ctor(m, "cmClass");
+  uint32_t zero = bound_ctor(m, "sz0");
+  uint32_t succ = bound_ctor(m, "szS");
+  uint64_t space = 1;
+  uint64_t cap = (uint64_t)COUNT_SPACE_BOUND + 1u;
+  int open = 0;
+  while (v != NULL && val_is(v, OP_CTOR) && v->inst == cls && v->argc >= 2u) {
+    uint64_t factor = size_count(v->args[v->argc - 2u], zero, succ, cap, &open) + 1u;
+    space = space * factor < cap ? space * factor : cap;
+    v = v->args[v->argc - 1u];
+  }
+  if (open || !(v != NULL && val_is(v, OP_CTOR) && v->inst == nil))
+    return 0;
+  return space;
+}
+
+static int space_over(const Machine *m, const Value *v) {
+  return count_space(m, v) > COUNT_SPACE_BOUND;
+}
+
+/* Q-S4-3 (a): 1 when the type T names Party, Approvals or Counts at a
+   closed committee above the bound. The walk enters closures at fresh
+   variables and the arguments of type formers, not constructor values. */
+static int bound_over(Machine *m, uint32_t level, const uint32_t *fams, const Value *t) {
+  uint32_t i;
+  if (t == NULL)
+    return 0;
+  switch (t->kind) {
+  case VAL_PI:
+  case VAL_SIGMA:
+    return bound_over(m, level, fams, t->dom) || bound_over(m, level + 1u, fams, closure_apply(m, t, val_var(m, level)));
+  case VAL_LAM:
+    return bound_over(m, level + 1u, fams, closure_apply(m, t, val_var(m, level)));
+  case VAL_PLAM:
+    return bound_over(m, level + 1u, fams, closure_apply(m, t, val_ivar(m, level)));
+  case VAL_PATHP:
+    if (bound_over(m, level + 1u, fams, closure_apply(m, t, val_ivar(m, level))))
+      return 1;
+    break;
+  case VAL_APP:
+  case VAL_PAPP:
+    if (bound_over(m, level, fams, t->dom) || bound_over(m, level, fams, t->arg))
+      return 1;
+    break;
+  case VAL_OP:
+    if (t->op == OP_CTOR)
+      return 0;
+    if (t->op == OP_FAMILY && t->argc > 0u && (t->inst == fams[0] || t->inst == fams[1] || t->inst == fams[2]) && space_over(m, t->args[t->argc - 1u]))
+      return 1;
+    break;
+  case VAL_STUCK:
+    break;
+  case VAL_NAT:
+  case VAL_UNIV:
+  case VAL_VAR:
+  case VAL_IVAL:
+    return 0;
+  }
+  for (i = 0; i < t->argc; i++) {
+    if (bound_over(m, level, fams, t->args[i]))
+      return 1;
+  }
+  return 0;
+}
+
+/* Q-S4-3 (a): each closed committee in the def type, and the value of a
+   def of type Committee. */
+static int bound_def(Checker *c, const Value *tv, const Core *body) {
+  uint32_t fams[3];
+  fams[0] = find_family(c->m, "Party");
+  fams[1] = find_family(c->m, "Approvals");
+  fams[2] = find_family(c->m, "Counts");
+  return bound_over(c->m, c->level, fams, tv) || (is_family(tv, find_family(c->m, "Committee")) && space_over(c->m, here(c, body)));
+}
+
 /* Register a checked body, including the closed label cores retained by
    cocell_shape. Both callers obtain BODY from the term checker. */
 static int check_def_body(Checker *c, const Decl *d, const Value *tv, const Core *syntax_type, const Core *body) {
@@ -4022,6 +4172,12 @@ static int check_def_body(Checker *c, const Decl *d, const Value *tv, const Core
   law = program ? law_uses(m, trunc, syntax_type) || law_uses(m, trunc, tc) || law_uses(m, trunc, body) : d->is_law;
   if (law && guest(c) && !law_type(m, c->level, trunc, tv))
     return FAIL(c, "REFUSE_LAW", "%s uses a law-only name (decrypt, observe, an elim, fold or projection of a sealed family) but its type is not a law (a Path or Trunc1 codomain); rule O7", d->name);
+  /* Q-S4-2 (a): a guest program reads an approval set only through count. */
+  if (program && guest(c) && !law_type(m, c->level, trunc, tv) && orbit_read(m, syntax_type, tc, body))
+    return FAIL(c, "REFUSE_ORBIT", "%s reads an approval set by an elim, a fold or a projection of Approvals; read approvals only through count, and to give a party a veto, put it in a class of its own; Q-S4-2", d->name);
+  /* Q-S4-3 (a): the count space of a closed committee is at most 2^20. */
+  if (program && guest(c) && bound_def(c, tv, body))
+    return FAIL(c, "REFUSE_BOUND", "%s has a closed committee with a count space (the product of each class size plus one) above 2^20; Q-S0-4", d->name);
   info->name = d->name;
   info->origin = d->origin;
   info->body = body;

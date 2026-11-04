@@ -1,0 +1,3 @@
+-- REFUSE_BOUND (Q-S4-3 (a)): 21 classes of one party give 2^21 count vectors, above 2^20.
+def one : Size := szS sz0
+def over : Committee := cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmNil)))))))))))))))))))))

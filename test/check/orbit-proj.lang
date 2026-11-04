@@ -1,0 +1,4 @@
+-- REFUSE_ORBIT (Q-S4-2 (a)), the projection form: Approvals has two constructors, so its field apBits is not a guest name, and a named-party read through a projection does not elaborate.
+def one : Size := szS sz0
+def solo : Committee := cmClass one cmNil
+def soloVote : Approvals solo -> Sum Unit Unit := fun (S : Approvals solo) => apBits S (posFirst sz0)

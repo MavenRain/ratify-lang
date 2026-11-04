@@ -17,11 +17,13 @@ the readings of the request, the route, the slices and the open questions.
 "design sec N" is section N of the design. Section 14 lists the questions
 for the USER. A reading that is not ruled stays a recommendation.
 
-Status: S3 (no trap): the Cubical TT kernel of permit-lang 3d47120 and R0
-from permit-lang 18deea2 are in, without the affine layer and the permit
-domain (Q-S0-10 (a), Q-S2-1 (a)). The Wasm writer emits no trap form.
-Section 1 has the rulings. Next: S4 (`Party`, `Committee`, `Approvals`,
-`Counts`, `count`; section 12).
+Status: S4 (the committee words): the Cubical TT kernel of permit-lang
+3d47120 and R0 from permit-lang 18deea2 are in, without the affine layer
+and the permit domain (Q-S0-10 (a), Q-S2-1 (a)). The Wasm writer emits no
+trap form. The domain has `Committee`, `Party`, `Approvals`, `Counts` and
+`count`, and the kernel gives `REFUSE_ORBIT` and `REFUSE_BOUND` (Q-S4-1 to
+Q-S4-4 (a)). Section 1 has the rulings. Next: S5 (`Rule`, `and`, `or`,
+the minimal accepting vectors; section 12).
 
 ## 1. Rulings
 
@@ -51,6 +53,10 @@ Section 1 has the rulings. Next: S4 (`Party`, `Committee`, `Approvals`,
 | 2026-11-03 | Q-S1-2 (a) "Counts c at T1 (Recommended)": T1 sums the ballots of each class, decrypts the count vector c and applies the rule in the clear. The T1 output leaks c, not only b. T2 gives the one-bit output of design sec 9 stage 3. Edits: section 6 (View rows), 8.2 (T1, T4), 13 (OI-5). | USER, S1 |
 | 2026-11-03 | Q-S1-3 (a) "Schnorr BN254 + keccak (Recommended)": Schnorr signatures on BN254 G1 with a keccak-256 challenge; keccak-256 for the entry hash. Edits: section 4.1 (`Certificate`), 8.2, 12 (S7). | USER, S1 |
 | 2026-11-03 | Q-S2-1 (a) "Accept until S3 (Recommended)": S2 ports permit-lang 3d47120, the kernel without R0, the affine layer and the domain words. lower.c, wasm.c and ir.h stay out of the build until S3. `langc build` gives `REFUSE_LOWER` "target pending S3". The IR rows, the Wasm modules and the differential cases come back at S3 (the permit-lang Q-S2-3 (a) ruling). Edits: sections 11, 12, 13. | USER, S2 |
+| 2026-11-04 | Q-S4-1 (a) "Domain families": `Committee`, `Party`, `Approvals` and `Counts` are families in `domain/domain.lang`, not kernel types. `posWeaken`, `countBits` and `count` are domain definitions. G_P is derived: `Perm` gives one word of adjacent swaps for each class, and `actP` applies the words to an approval set. Edits: section 12. | USER, S4 |
+| 2026-11-04 | Q-S4-2 (a) "Seal Approvals": a program definition that is not a law and reads `Approvals` (a fold, an elim or a projection in the syntax type, the quoted type or the body) gives `REFUSE_ORBIT`. A program uses the domain definitions `count` and `actP`. Edits: section 12. | USER, S4 |
+| 2026-11-04 | Q-S4-3 (a) "Def types + Committee defs": `REFUSE_BOUND` checks the type of each program definition and each definition of type `Committee`. A type that names `Party`, `Approvals` or `Counts` at a closed committee whose count space (the product of n_j + 1) is above 2^20 is refused, and so is a `Committee` value with such a space. An open committee is not refused. Edits: section 12. | USER, S4 |
+| 2026-11-04 | Q-S4-4 (a) "By construction + refl rows": TCM-A holds by construction: a `Perm` has no word across two classes, and `count` counts each class. `examples/committee.lang` has the closed `refl` rows `tcmSwap`, `tcmLift` and `tcmVeto` (`count c (actP c w S) = count c S`), and `figThree` and `vetoTwo` pin the counts 3 of 4 and (2, 0). Edits: section 12. | USER, S4 |
 
 The (a) rulings keep the readings of sections 2 to 11; those sections now
 cite the ruled option. The rows for Q-S0-9 (b), Q-S0-13 (b) and Q-S1-1 to
@@ -383,8 +389,8 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S1 | The USER rules section 14 and Q-S1-1 to Q-S1-3. Section 1 has the rulings. | DONE |
 | S2 | Port the Cubical TT kernel (8.1, Q-S0-10 (a), Q-S2-1 (a)): permit-lang 3d47120, no affine layer, no R0. Gate: 29 examples, 17 parse refusals, 154 check refusals, 10 kit-only refusals, 1 time hint, 78 evals, 1 build refusal; the review, domain and path regressions pass. Mutants M1 (path ends), M2 (glue face), M3 (universe level): KILLED. | DONE |
 | S3 | Port permit-lang 3d47120..18deea2: R0 in the kernel and the Wasm writer, `REFUSE_PARTIAL`, `src/wasmop.h`, `test/notraptool.c`, the trap row (OI-6). `src/front/lower.c`, `src/wasm.c` and `src/ir.h` come back into the build, with the IR rows, the Wasm modules and the differential cases (OI-12). Gate: 30 examples, 17 parse refusals, 158 check refusals, 10 kit-only refusals, 1 time hint, 79 evals, 1 build, 1 ir lowered, 5 ir refusals, 2 ir lowerings, 4 notrap modules, 7 notrap bad rows, 10 spine evals, 33 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1, M2 (`REFUSE_PARTIAL`), M3 (the div guard of the no-trap tool), M4 (`flag_norm`): KILLED. M5 (the `br_table` default) and M6 (the IF condition): equivalent. | DONE |
-| S4 | `Party`, `Committee`, `Approvals`, `Counts`, `count`; G_P derived; TCM-A; `REFUSE_ORBIT`, `REFUSE_BOUND`. | NEXT |
-| S5 | `Rule`, `and`, `or`, the minimal accepting vectors; O3, O4, O5; `REFUSE_RULE`, `REFUSE_HONEST`, `REFUSE_FORK`; TCM-B. | |
+| S4 | `Party`, `Committee`, `Approvals`, `Counts`, `count`; G_P derived; TCM-A; `REFUSE_ORBIT`, `REFUSE_BOUND`. The four words are families in `domain/domain.lang`, with the definitions `posWeaken`, `countBits` and `count`; G_P is `Perm` and `actP` (Q-S4-1 (a)). `REFUSE_ORBIT`: a program definition that is not a law reads `Approvals` (Q-S4-2 (a)). `REFUSE_BOUND`: a definition type, or a definition of type `Committee`, at a closed committee with a count space above 2^20 (Q-S4-3 (a)). TCM-A: by construction, and the closed `refl` rows `tcmSwap`, `tcmLift` and `tcmVeto` in `examples/committee.lang` (Q-S4-4 (a)). Rule R4: the domain name `count` clashed with three guest names, so `examples/formers.lang` has `counted`, and `examples/state-no-history.lang` and `test/check/state-boundary.lang` have the state field `stateCount`. Gate: 32 examples, 17 parse refusals, 162 check refusals, 10 kit-only refusals, 1 time hint, 81 evals, 1 build, 1 ir lowered, 5 ir refusals, 2 ir lowerings, 4 notrap modules, 7 notrap bad rows, 10 spine evals, 35 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1 (the bound compare), M2 (the factor n_j + 1), M3 (the elim case of `orbit_uses`), M4 (the approval arm of `countBits`): KILLED. | DONE |
+| S5 | `Rule`, `and`, `or`, the minimal accepting vectors; O3, O4, O5; `REFUSE_RULE`, `REFUSE_HONEST`, `REFUSE_FORK`; TCM-B. | NEXT |
 | S6 | `Policy`, `Decision`, `authorize`, `Amendment`, `Log` (CM), `System` (CC), `policyAt`; TCM-E, O2, O10; `REFUSE_FIXPOINT`, `REFUSE_ARROW`, `REFUSE_CLOCK`. | |
 | S7 | The crypto layer (Q-S0-9 (b), Q-S1-1 (a), Q-S1-3 (a)): `Enc`, `Share`, `Proof`, `Protocol` and their operations; port quorum-lang src/crypto and add Schnorr on BN254 G1; the test tool and the crypto rows (section 10); the ASSUMED rows; `REFUSE_APPROX`. | |
 | S8 | `Certificate`, `Verdict`, `Reason`, `verify`, equivocation evidence. | |
@@ -440,6 +446,12 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
   The kit had 13 modules and 813 cases. The list now holds the 30
   examples, `test/ir/natops.lang`, `test/ir/block.lang` and `test/ir/proof-trap.lang`;
   `natops.lang` gives 610 cases and `examples/entries.lang` 310.
+- OI-13 `REFUSE_ORBIT` (S4) also walks the quoted type of a definition.
+  The quote unfolds `count c S` on an open `S` to an elim on `Approvals`,
+  so a definition that is not a law and has `count c S` in its type gives
+  `REFUSE_ORBIT` (S4 probe). (a), recommended: S5 `Rule` does not put
+  `count c S` in the type of a definition that is not a law. (b): S5
+  drops the quoted-type walk of `REFUSE_ORBIT`.
 
 ## 14. Questions for the USER (S0)
 

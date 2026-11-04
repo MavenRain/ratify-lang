@@ -272,3 +272,49 @@ family Signal := sigQuiet | sigLoud (loudLevel : Nat)
 and Window := winOpen | winShut (shutFor : Nat)
 family Hop := hopEnd | hopNext (nextEcho : Echo)
 and Echo := echoBack (backHop : Hop)
+-- The committee (S4, design section 4, USER ruling Q-S4-1 (a)): the sizes
+-- of the classes 1 to k. Parties in one class are interchangeable. A field
+-- name is a core name (rule R4), so the fields have the prefixes cm, pt,
+-- ap and ct.
+family Committee := cmNil | cmClass (cmSize : Size) (cmRest : Committee)
+-- A party: a position in the first class, or a party of the rest.
+family Party : Committee -> Type 0 := ptHere (ptSize : Size) (ptRest : Committee) (ptAt : Pos ptSize) : Party (cmClass ptSize ptRest)
+  | ptThere (ptOfSize : Size) (ptOfRest : Committee) (ptOf : Party ptOfRest) : Party (cmClass ptOfSize ptOfRest)
+-- An approval set: a bit map for each class. inr unit is an approval and
+-- inl unit is no approval (a missing ballot counts as no approval). A
+-- guest program reads an approval set only through count (REFUSE_ORBIT,
+-- Q-S4-2 (a)).
+family Approvals : Committee -> Type 0 := apNil : Approvals cmNil
+  | apClass (apSize : Size) (apRest : Committee) (apBits : Pos apSize -> Sum Unit Unit) (apTail : Approvals apRest) : Approvals (cmClass apSize apRest)
+-- A count vector: Pos (szS n) has n + 1 values, so 0 <= c_j <= n_j holds
+-- by type, and the count space has the product of the n_j + 1 values.
+family Counts : Committee -> Type 0 := ctNil : Counts cmNil
+  | ctClass (ctSize : Size) (ctRest : Committee) (ctValue : Pos (szS ctSize)) (ctTail : Counts ctRest) : Counts (cmClass ctSize ctRest)
+-- posWeaken keeps the value of a position. countBits counts the approvals
+-- of a bit map: an approval at the head gives posNext, no approval gives
+-- posWeaken.
+def posWeaken : (n : Size) -> Pos n -> Pos (szS n) :=
+  fun (n : Size) (p : Pos n) => elim (fun (k : Size) (q : Pos k) => Pos (szS k))
+    (fun (m : Size) => posFirst (szS m))
+    (fun (m : Size) (q : Pos m) (ih : Pos (szS m)) => posNext (szS m) ih) p
+def countBits : (n : Size) -> (Pos n -> Sum Unit Unit) -> Pos (szS n) :=
+  fun (n : Size) => elim (fun (k : Size) => (Pos k -> Sum Unit Unit) -> Pos (szS k))
+    (fun (b : Pos sz0 -> Sum Unit Unit) => posFirst sz0)
+    (fun (m : Size) (ih : (Pos m -> Sum Unit Unit) -> Pos (szS m)) => fun (b : Pos (szS m) -> Sum Unit Unit) =>
+      either (fun (u : Unit) => posWeaken (szS m) (ih (fun (p : Pos m) => b (posNext m p))))
+        (fun (u : Unit) => posNext (szS m) (ih (fun (p : Pos m) => b (posNext m p)))) (b (posFirst m))) n
+-- count P S = (|S intersect class_j|) for j = 1 .. k (design section 5).
+def count : (c : Committee) -> Approvals c -> Counts c :=
+  fun (c : Committee) (S : Approvals c) => elim (fun (k : Committee) (T : Approvals k) => Counts k) ctNil
+    (fun (n : Size) (r : Committee) (b : Pos n -> Sum Unit Unit) (t : Approvals r) (ih : Counts r) => ctClass n r (countBits n b) ih) S
+-- G_P (design section 4): the permutations that map each class to itself,
+-- one word of adjacent swaps for each class (a large elim on Committee).
+-- A Perm has no word across two classes. actP applies actW to each class,
+-- so count c (actP c w S) = count c S (TCM-A).
+def Perm : Committee -> Type 0 :=
+  fun (c : Committee) => elim (fun (k : Committee) => Type 0) Unit (fun (n : Size) (r : Committee) (h : Type 0) => Prod (Word n) h) c
+def actP : (c : Committee) -> Perm c -> Approvals c -> Approvals c :=
+  fun (c : Committee) (w : Perm c) (S : Approvals c) => elim (fun (k : Committee) (T : Approvals k) => Perm k -> Approvals k)
+    (fun (u : Perm cmNil) => apNil)
+    (fun (n : Size) (r : Committee) (b : Pos n -> Sum Unit Unit) (t : Approvals r) (ih : Perm r -> Approvals r) =>
+      fun (v : Perm (cmClass n r)) => apClass n r (actW n (first v) b) (ih (second v))) S w

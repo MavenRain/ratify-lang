@@ -3,14 +3,19 @@
 Instructions for agents that work in this repository. DRAFT at S0. Slice
 S17 makes this file final.
 
-## State at S3
+## State at S4
 
 - The code is the Cubical TT kernel of permit-lang 3d47120 (S2) and R0
   from permit-lang 18deea2 (S3): `langc` (C99, TinyCC) and its domain in
   `domain/`. The Wasm writer `src/wasm.c` is in the build and emits no
   trap form, and `test/notraptool.c` checks each built module. The gate
   keeps the Wasm and differential rows.
-- The ratify-lang types, refusals and targets are a plan only:
+- S4 adds the committee words to `domain/domain.lang` (`Committee`,
+  `Party`, `Approvals`, `Counts`, `count`, `Perm`, `actP`) and two
+  refusals to `src/front/check.c` (`REFUSE_ORBIT`, `REFUSE_BOUND`). A
+  domain definition name is a core name (rule R4): a new one can refuse
+  an old guest example with `REFUSE_NAME`. Run the full gate.
+- The other ratify-lang types, refusals and targets are a plan only:
   `docs/PLAN.md` sections 4 to 8 and section 12.
 
 ## What ratify-lang is

@@ -1,7 +1,8 @@
 # Domain slot
 
-In S3 the domain is the kernel prelude, ported from permit-lang 3d47120,
-and the IR test families of permit-lang 18deea2.
+In S4 the domain is the kernel prelude, ported from permit-lang 3d47120,
+the IR test families of permit-lang 18deea2, and the committee words of
+ratify-lang S4.
 `domain/domain.lang` holds the domain. At build time, `tcc -run
 gen/embed.c` copies it into `build/domain.c`, so the domain is part of
 `build/langc`. `langc` loads the domain first, then the program.
@@ -56,6 +57,31 @@ uses `natMul`, and the kernel has no `natMul`.
 
 Many kernel rows in `examples/`, `test/check/` and `test/eval/expect.txt`
 use these names.
+
+## The committee words
+
+S4 adds the committee words of `docs/PLAN.md` section 4.1 (Q-S4-1 (a)).
+Each name in this file is a core name, so the fields of each family have
+a prefix.
+
+| Name | Kind | Prefix | Meaning |
+|---|---|---|---|
+| `Committee` | family | `cm` | `cmNil`, or `cmClass` with the class size `cmSize : Size` and the rest `cmRest` |
+| `Party` | family on `Committee` | `pt` | `ptHere`, a `Pos n` in the first class, or `ptThere`, a party of the rest |
+| `Approvals` | family on `Committee` | `ap` | `apNil`, or `apClass` with `apBits : Pos n -> Sum Unit Unit` for the class; `inr unit` is an approval, `inl unit` is a missing ballot |
+| `Counts` | family on `Committee` | `ct` | `ctNil`, or `ctClass` with `ctValue : Pos (szS n)`, so 0 <= c_j <= n_j by type |
+| `posWeaken` | definition | | `(n : Size) -> Pos n -> Pos (szS n)` |
+| `countBits` | definition | | the count of one class, an elim on `Size` over the bit map |
+| `count` | definition | | `(c : Committee) -> Approvals c -> Counts c` |
+| `Perm` | definition | | G_P: a large elim on `Committee`, one `Word` of adjacent swaps for each class |
+| `actP` | definition | | `(c : Committee) -> Perm c -> Approvals c -> Approvals c`, `actW` on each class |
+
+A program definition that is not a law and reads `Approvals` (a fold, an
+elim or a projection) gives `REFUSE_ORBIT`. A program uses `count` and
+`actP` instead. A definition type that names `Party`, `Approvals` or
+`Counts` at a closed committee whose count space is above 2^20 gives
+`REFUSE_BOUND`. See `examples/committee.lang` and
+`examples/bound-edge.lang`.
 
 ## The IR test families
 

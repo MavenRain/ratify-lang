@@ -153,8 +153,49 @@ static int internal_print_refused(const char *type, const char *body) {
   return ok;
 }
 
+/* The count bound inspects closed indices even inside paths and neutral
+   type families, while an open index remains available to generic code. */
+static int committee_bounds(void) {
+  const char *prelude =
+    "family Size := sz0 | szS (szPred : Size)\n"
+    "family Committee := cmNil | cmClass (cmSize : Size) (cmRest : Committee)\n"
+    "family Party : Committee -> Type 0 := ptEmpty : Party cmNil\n"
+    "family Approvals : Committee -> Type 0 := apNil : Approvals cmNil\n"
+    "family Counts : Committee -> Type 0 := ctNil : Counts cmNil\n"
+    "def grow : Committee -> Committee := fun r => cmClass (szS sz0) r\n"
+    "def grow7 : Committee -> Committee := fun r => grow (grow (grow (grow (grow (grow (grow r))))))\n"
+    "def extend : Committee -> Committee := fun r => grow7 (grow7 (grow7 r))\n";
+  int ok = 1;
+  ok &= checked_in(prelude,
+    "def hidden : Path (Type 0) (Counts (extend cmNil)) (Counts (extend cmNil)) := refl",
+    ORIGIN_PROGRAM, CHECK_GUEST, "REFUSE_BOUND");
+  ok &= checked_in(prelude,
+    "def hidden : Path (Party (extend cmNil) -> Unit) "
+    "(fun (p : Party (extend cmNil)) => unit) (fun (p : Party (extend cmNil)) => unit) := refl",
+    ORIGIN_PROGRAM, CHECK_GUEST, "REFUSE_BOUND");
+  ok &= checked_in(prelude,
+    "def hidden : (s : Sum Unit Unit) -> "
+    "(either (fun (u : Unit) => Approvals (extend cmNil)) (fun (u : Unit) => Unit) s) -> Unit := "
+    "fun (s : Sum Unit Unit) (x : either (fun (u : Unit) => Approvals (extend cmNil)) "
+    "(fun (u : Unit) => Unit) s) => unit",
+    ORIGIN_PROGRAM, CHECK_GUEST, "REFUSE_BOUND");
+  ok &= checked_in(prelude,
+    "def openKeep : (tail : Committee) -> Counts (extend tail) -> Unit := "
+    "fun (tail : Committee) (x : Counts (extend tail)) => unit",
+    ORIGIN_PROGRAM, CHECK_GUEST, NULL);
+  ok &= checked_in(prelude,
+    "def openKeep : (n : Size) -> Counts (extend (cmClass n cmNil)) -> Unit := "
+    "fun (n : Size) (x : Counts (extend (cmClass n cmNil))) => unit",
+    ORIGIN_PROGRAM, CHECK_GUEST, NULL);
+  ok &= checked_in(prelude,
+    "def small : Path (Type 0) (Counts cmNil) (Counts cmNil) := refl",
+    ORIGIN_PROGRAM, CHECK_GUEST, NULL);
+  return ok;
+}
+
 int main(void) {
   int ok = 1;
+  ok &= committee_bounds();
   ok &= checked_fixture("test/ir/lazy.lang");
   ok &= checked_fixture("test/ir/proof-trap.lang");
   /* Diagnostics can print binders while constructor slots are still unnamed. */

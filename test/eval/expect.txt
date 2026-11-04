@@ -77,3 +77,5 @@ cocell dupAt1 => szS sz0
 oppos lenEmpty => 0
 oppos lenOne => 1
 oppos lenTwo => 2
+committee figure => ctClass (szS (szS (szS (szS sz0)))) cmNil (posNext (szS (szS (szS (szS sz0)))) (posNext (szS (szS (szS sz0))) (posNext (szS (szS sz0)) (posFirst (szS sz0))))) ctNil
+committee vetoed => ctClass (szS (szS (szS sz0))) (cmClass (szS sz0) cmNil) (posNext (szS (szS (szS sz0))) (posNext (szS (szS sz0)) (posFirst (szS sz0)))) (ctClass (szS sz0) cmNil (posFirst (szS sz0)) ctNil)

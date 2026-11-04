@@ -1,10 +1,12 @@
 # ratify-lang status
 
-The build implements slice S3 of `docs/PLAN.md`: the Cubical TT kernel,
-ported from permit-lang 3d47120, and R0 in the kernel and the Wasm
-writer, ported from permit-lang 18deea2, without the affine layer and the
-permit domain (Q-S0-10 (a), Q-S2-1 (a)). It does not complete M0. The
-next slice is S4: `Party`, `Committee`, `Approvals`, `Counts`, `count`.
+The build implements slice S4 of `docs/PLAN.md`: the Cubical TT kernel,
+ported from permit-lang 3d47120, R0 in the kernel and the Wasm writer,
+ported from permit-lang 18deea2, and the committee words `Committee`,
+`Party`, `Approvals`, `Counts` and `count` (Q-S4-1 to Q-S4-4 (a)). The
+affine layer and the permit domain are not in the build (Q-S0-10 (a),
+Q-S2-1 (a)). It does not complete M0. The next slice is S5: `Rule`,
+`and`, `or`, the minimal accepting vectors.
 
 ## Implemented
 
@@ -25,22 +27,37 @@ next slice is S4: `Party`, `Committee`, `Approvals`, `Counts`, `count`.
 - The IR lowering (`src/front/lower.c`, `src/ir.h`) and the Wasm writer
   `src/wasm.c`. The writer emits no trap form; `test/notraptool.c` checks
   each built module. The entry sets a Flag argument above 1 to 1.
-- The gate: 30 examples, 17 parse refusals, 158 check refusals, 10
-  kit-only refusals, 1 time hint, 79 evals, 1 build, 1 ir lowered, 5 ir
+- S4: the committee words in `domain/domain.lang`. `Committee` is a list
+  of classes (`cmNil`, `cmClass`). `Party`, `Approvals` and `Counts` are
+  families on a committee. `count` gives the count of each class of an
+  approval set. `Perm` (one word of adjacent swaps for each class) and
+  `actP` give G_P. `examples/committee.lang` has the TCM-A rows `tcmSwap`,
+  `tcmLift` and `tcmVeto` as closed `refl` paths.
+- S4: two refusals in `src/front/check.c`. `REFUSE_ORBIT`: a program
+  definition that is not a law reads `Approvals`. `REFUSE_BOUND`: a
+  definition type names `Party`, `Approvals` or `Counts` at a closed
+  committee whose count space (the product of n_j + 1) is above 2^20, or
+  a definition of type `Committee` has such a value.
+- S4: the domain definition `count` is a core name (rule R4). Three guest
+  names changed: `count` in `examples/formers.lang` is now `counted`, and
+  the state field `count` in `examples/state-no-history.lang` and
+  `test/check/state-boundary.lang` is now `stateCount`.
+- The gate: 32 examples, 17 parse refusals, 162 check refusals, 10
+  kit-only refusals, 1 time hint, 81 evals, 1 build, 1 ir lowered, 5 ir
   refusals, 2 ir lowerings, 4 notrap modules, 7 notrap bad rows, 10 spine
-  evals, 33 Wasm modules valid, 998 differential cases with 0 mismatches;
+  evals, 35 Wasm modules valid, 998 differential cases with 0 mismatches;
   the review, domain and path regressions. The C runner also checks the
   restored unused-field and proof-transport fixtures; each differential
   module passes `build/notraptool`.
 
 ## Remaining M0 work
 
-1. S4: `Party`, `Committee`, `Approvals`, `Counts`, `count`; G_P
-   derived; TCM-A; `REFUSE_ORBIT`, `REFUSE_BOUND`. It needs the S3 commit
-   first.
-2. S5 to S8: the rest of the policy layer of `docs/PLAN.md` section 12
-   (`Rule`, `Policy`, the crypto layer, `Certificate`). Each slice needs
-   the slice before it.
+1. S5: `Rule`, `and`, `or`, the minimal accepting vectors; O3, O4, O5;
+   `REFUSE_RULE`, `REFUSE_HONEST`, `REFUSE_FORK`; TCM-B. It needs the S4
+   commit first.
+2. S6 to S8: the rest of the policy layer of `docs/PLAN.md` section 12
+   (`Policy`, the crypto layer, `Certificate`). Each slice needs the
+   slice before it.
 3. S9 to S19: the targets T1 to T4, A1 to A6 and the close.
 
 ## Known limits

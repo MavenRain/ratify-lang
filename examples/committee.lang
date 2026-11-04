@@ -1,0 +1,27 @@
+-- The committee words (S4, PLAN section 4.1, design sections 4 and 5), guest mode.
+-- fig is the figure of design section 4: one class of 4 parties, and parties 1, 2 and 3 approve.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def yes : Sum Unit Unit := inr unit
+def no : Sum Unit Unit := inl unit
+def fig : Committee := cmClass four cmNil
+def figSet : Approvals fig := apClass four cmNil (consP three yes (consP two yes (consP one yes (consP sz0 no (fun (p : Pos sz0) => no))))) apNil
+def figure : Counts fig := count fig figSet
+-- The count is 3 of 4.
+def figThree : Path (Counts fig) figure (ctClass four cmNil (posNext four (posNext three (posNext two (posFirst one)))) ctNil) := refl
+-- TCM-A on closed values: a swap word and a lift word do not change the count.
+def figSwap : Perm fig := pair (wordSwap two (wordNil four)) unit
+def figLift : Perm fig := pair (wordLift three (wordSwap one (wordNil three)) (wordNil four)) unit
+def tcmSwap : Path (Counts fig) (count fig (actP fig figSwap figSet)) figure := refl
+def tcmLift : Path (Counts fig) (count fig (actP fig figLift figSet)) figure := refl
+-- A veto is a class of its own (design section 4): a class of 3 and a veto class of 1.
+def veto : Committee := cmClass three (cmClass one cmNil)
+def vetoParty : Party veto := ptThere three (cmClass one cmNil) (ptHere one cmNil (posFirst sz0))
+def vetoSet : Approvals veto := apClass three (cmClass one cmNil) (consP two yes (consP one no (consP sz0 yes (fun (p : Pos sz0) => no))))
+  (apClass one cmNil (consP sz0 no (fun (p : Pos sz0) => no)) apNil)
+def vetoed : Counts veto := count veto vetoSet
+def vetoTwo : Path (Counts veto) vetoed (ctClass three (cmClass one cmNil) (posNext three (posNext two (posFirst one))) (ctClass one cmNil (posFirst one) ctNil)) := refl
+def vetoSwap : Perm veto := pair (wordSwap one (wordNil three)) (pair (wordNil one) unit)
+def tcmVeto : Path (Counts veto) (count veto (actP veto vetoSwap vetoSet)) vetoed := refl

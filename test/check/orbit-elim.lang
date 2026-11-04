@@ -1,0 +1,4 @@
+-- REFUSE_ORBIT (Q-S4-2 (a)): a named-party test reads the approval bits by an elim of Approvals.
+def firstVote : (c : Committee) -> Approvals c -> Sum Unit Unit :=
+  fun (c : Committee) (S : Approvals c) => elim (fun (k : Committee) (T : Approvals k) => Sum Unit Unit) (inl unit)
+    (fun (n : Size) (r : Committee) (b : Pos n -> Sum Unit Unit) (t : Approvals r) (ih : Sum Unit Unit) => ih) S
