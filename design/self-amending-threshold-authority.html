@@ -1,0 +1,653 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Self-Amending Threshold Authority</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Spectral:wght@500;600&display=swap">
+<style>
+/* Layout: a report column near 68ch beside a sticky contents rail on wide screens; one column under 900px. */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --ink: #151b27;
+  --muted: #566073;
+  --rule: #d5dae3;
+  --accent: #2c4b9c;
+  --accent-soft: #e4e9f6;
+  --code-bg: #eaedf3;
+  --ok: #1c7350;
+  --ok-soft: #dff0e7;
+  --bad: #a8322a;
+  --bad-soft: #f6e2df;
+  --warn: #8d5c08;
+  --warn-soft: #f5ead5;
+  --display: "Spectral", "Iowan Old Style", Georgia, serif;
+  --body: "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --math: "IBM Plex Mono", "STIX Two Math", "Cambria Math", "Apple Symbols", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f131a;
+    --surface: #161b24;
+    --ink: #e4e7ee;
+    --muted: #98a1b3;
+    --rule: #2a313d;
+    --accent: #93abee;
+    --accent-soft: #1c2640;
+    --code-bg: #1a202a;
+    --ok: #62c79d;
+    --ok-soft: #15291f;
+    --bad: #ef8a80;
+    --bad-soft: #2e1817;
+    --warn: #e0b257;
+    --warn-soft: #2c2312;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f131a;
+  --surface: #161b24;
+  --ink: #e4e7ee;
+  --muted: #98a1b3;
+  --rule: #2a313d;
+  --accent: #93abee;
+  --accent-soft: #1c2640;
+  --code-bg: #1a202a;
+  --ok: #62c79d;
+  --ok-soft: #15291f;
+  --bad: #ef8a80;
+  --bad-soft: #2e1817;
+  --warn: #e0b257;
+  --warn-soft: #2c2312;
+  color-scheme: dark;
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.62;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+}
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.wrap { max-width: 1140px; margin: 0 auto; }
+
+.hero { padding-block: 56px 36px; border-bottom: 1px solid var(--rule); }
+.eyebrow { font: 500 12px/1.4 var(--mono); letter-spacing: .09em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+h1 { font: 600 clamp(2.1rem, 5.4vw, 3.2rem)/1.06 var(--display); letter-spacing: -0.012em; margin: 0 0 18px; text-wrap: balance; }
+.lede { font-size: 1.1rem; max-width: 68ch; margin: 0 0 28px; }
+.thesis { margin: 0 0 26px; padding: 20px 22px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; max-width: 72ch; }
+.thesis-eq { font: 500 clamp(1rem, 2.5vw, 1.3rem)/1.5 var(--math); color: var(--accent); overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+.thesis figcaption { margin-top: 10px; color: var(--muted); font-size: .95rem; max-width: 68ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 10px 32px; margin: 0; font-size: .9rem; }
+.meta div { min-width: 0; }
+.meta dt { font: 500 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.meta dd { margin: 2px 0 0; }
+
+.layout { display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 56px; padding-block: 36px 88px; }
+.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; font-size: .86rem; }
+.toc-title { font: 500 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 8px; }
+.toc ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 1px; }
+.toc a { display: grid; grid-template-columns: 2.1em minmax(0, 1fr); color: var(--muted); text-decoration: none; padding: 3px 0; }
+.toc a:hover { color: var(--accent); }
+.toc .n { font-family: var(--mono); font-size: .78rem; padding-top: .12em; }
+
+main { min-width: 0; max-width: 780px; }
+section { padding-block: 4px 30px; border-top: 1px solid var(--rule); }
+section:first-child { border-top: 0; }
+h2 { font: 600 1.62rem/1.2 var(--display); margin: 30px 0 14px; text-wrap: balance; display: flex; gap: .55em; align-items: baseline; }
+h2 .n { font: 500 .82rem/1 var(--mono); color: var(--accent); flex: none; }
+h3 { font: 600 1.04rem/1.35 var(--body); margin: 24px 0 8px; text-wrap: balance; }
+p, li { max-width: 68ch; }
+p { margin: 0 0 14px; }
+ul, ol { padding-left: 1.3em; margin: 0 0 16px; display: grid; gap: 6px; }
+code { font-family: var(--mono); font-size: .86em; background: var(--code-bg); padding: .08em .34em; border-radius: 3px; overflow-wrap: anywhere; }
+pre { font-family: var(--math); font-size: .84rem; line-height: 1.62; background: var(--code-bg); color: var(--ink); padding: 14px 16px; border-radius: 6px; overflow-x: auto; margin: 12px 0 18px; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+.c { color: var(--muted); }
+
+.table-wrap { overflow-x: auto; margin: 12px 0 22px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; min-width: 600px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+th { font: 500 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+td.wrapcode code { white-space: normal; }
+
+.box { background: var(--accent-soft); border-radius: 6px; padding: 14px 18px; margin: 18px 0; }
+.box-title { font: 500 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin: 0 0 6px; }
+.box p:last-child { margin-bottom: 0; }
+
+.laws { display: grid; gap: 14px; margin: 16px 0 8px; }
+.law { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 18px 4px; min-width: 0; }
+.law-name { font: 500 12px/1.4 var(--mono); color: var(--accent); letter-spacing: .03em; margin: 0 0 2px; }
+.law pre { margin: 8px 0 12px; }
+
+.chip { display: inline-block; font: 500 11.5px/1 var(--mono); padding: 5px 9px; border-radius: 999px; white-space: nowrap; }
+.chip-ad { background: var(--ok-soft); color: var(--ok); }
+.chip-ai { background: var(--bad-soft); color: var(--bad); }
+.chip-si { background: var(--warn-soft); color: var(--warn); }
+
+.stages { list-style: none; padding: 0; margin: 16px 0 22px; display: grid; gap: 0; counter-reset: stage; }
+.stages li { counter-increment: stage; display: grid; grid-template-columns: 2.4em minmax(0, 1fr); gap: 0 10px; padding: 14px 0; border-top: 1px solid var(--rule); max-width: none; }
+.stages li:first-child { border-top: 0; }
+.stages li::before { content: counter(stage); font: 500 .9rem/1.6 var(--mono); color: var(--accent); }
+.stages h4 { font: 600 .98rem/1.4 var(--body); margin: 0 0 4px; }
+.stages .who { font: 500 11px/1.4 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-left: 6px; }
+.stages p { margin: 0 0 6px; }
+.stages pre { margin: 6px 0 0; padding: 8px 12px; }
+
+.figure { margin: 18px 0 24px; }
+.svg-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 6px; }
+.svg-wrap svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.figure figcaption { color: var(--muted); font-size: .9rem; margin-top: 8px; max-width: 68ch; }
+.svg-head { font: 500 12px var(--mono); fill: var(--muted); }
+.svg-row { font: 500 11px var(--mono); fill: var(--muted); }
+.pill { fill: var(--surface); stroke: var(--rule); stroke-width: 1.2; }
+.pill-acc { fill: var(--ok-soft); stroke: var(--ok); stroke-width: 1.2; }
+.pill-t { font: 11px var(--mono); fill: var(--ink); }
+.orbit { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 4; }
+.thr { stroke: var(--accent); stroke-width: 1.4; stroke-dasharray: 5 4; fill: none; }
+.thr-t { font: 500 12px var(--mono); fill: var(--accent); }
+.val-f { font: 500 12px var(--mono); fill: var(--muted); }
+.val-t { font: 600 12px var(--mono); fill: var(--ok); }
+.orb-t { font: 12px var(--math); fill: var(--ink); }
+
+.sources li { font-size: .93rem; }
+.small { font-size: .9rem; color: var(--muted); }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 24px 72px; }
+  .toc { position: static; border-bottom: 1px solid var(--rule); padding-bottom: 16px; }
+  .toc ol { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  .hero { padding-block: 36px 28px; }
+}
+</style>
+
+<div class="wrap">
+<header class="hero">
+  <p class="eyebrow">Denotational design report · 3 November 2026</p>
+  <h1>Self-Amending Threshold Authority</h1>
+  <p class="lede">An off-chain system that authorizes an action when enough of a committee approves it. Zero-knowledge proofs (ZK), fully homomorphic encryption (FHE) and multi-party computation (MPC) keep each ballot private. The system changes its own rules through the same quorum process. This report fixes what the system means before it says how to build it, in the denotational design style of Conal Elliott. It also requires every decision to be an aggregation in the sense of unified-aggregation-theory (UAT).</p>
+  <figure class="thesis">
+    <div class="thesis-eq">⟦authorize P a S⟧ = (Lan<sub>p</sub> F<sub>P</sub>)⟨S⟩ = accept<sub>P</sub>(count<sub>P</sub> S)</div>
+    <figcaption>The meaning of a decision is the left Kan extension of the policy's choice rule F<sub>P</sub> along the orbit projection p. UAT proves that this Kan extension exists exactly when F<sub>P</sub> is constant on orbits, and that its value at ⟨S⟩ is F<sub>P</sub>(S). The cryptography may change who learns the value. It may not change the value.</figcaption>
+  </figure>
+  <dl class="meta">
+    <div><dt>Status</dt><dd>Specification. Nothing is built or compiled.</dd></div>
+    <div><dt>UAT source</dt><dd><a href="https://github.com/MavenRain/unified-aggregation-theory">MavenRain/unified-aggregation-theory</a> at <code>feb1089</code></dd></div>
+    <div><dt>Scope</dt><dd>Off-chain. No ledger, no shared clock.</dd></div>
+  </dl>
+</header>
+
+<div class="layout">
+<nav class="toc" aria-label="Contents">
+  <p class="toc-title">Contents</p>
+  <ol>
+    <li><a href="#summary"><span class="n">1</span><span>Summary</span></a></li>
+    <li><a href="#method"><span class="n">2</span><span>Method</span></a></li>
+    <li><a href="#uat"><span class="n">3</span><span>What UAT supplies</span></a></li>
+    <li><a href="#domains"><span class="n">4</span><span>Semantic domains</span></a></li>
+    <li><a href="#operations"><span class="n">5</span><span>Operations</span></a></li>
+    <li><a href="#morphisms"><span class="n">6</span><span>Type class morphisms</span></a></li>
+    <li><a href="#regimes"><span class="n">7</span><span>The three regimes</span></a></li>
+    <li><a href="#amendment"><span class="n">8</span><span>Self-amendment</span></a></li>
+    <li><a href="#implementation"><span class="n">9</span><span>Implementation</span></a></li>
+    <li><a href="#offchain"><span class="n">10</span><span>Off-chain consequences</span></a></li>
+    <li><a href="#obligations"><span class="n">11</span><span>Proof obligations</span></a></li>
+    <li><a href="#lean"><span class="n">12</span><span>Lean sketch</span></a></li>
+    <li><a href="#risks"><span class="n">13</span><span>Open questions</span></a></li>
+    <li><a href="#sources"><span class="n">14</span><span>Sources</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="summary">
+  <h2><span class="n">1</span>Summary</h2>
+  <ul>
+    <li><b>A policy means a committee split into classes, plus a rule on counts.</b> Parties in one class are interchangeable. The rule reads only how many parties in each class approve. A rule that reads only counts is constant on the orbits of the class-preserving permutation group, by construction. UAT then gives existence and uniqueness of the aggregation.</li>
+    <li><b>Every decision is binary.</b> It lands in the discrete category on <code>Bool</code>. Over a discrete target UAT proves the Schelling-Ising regime is empty, so every decision is in the Arrow-Debreu regime.</li>
+    <li><b>Amendments pass one at a time, as keep-or-adopt.</b> The current policy's amend rule judges each one. The system never ranks three or more options, so Arrow's theorem (UAT's <code>arrow_impossibility_regime</code>) never applies.</li>
+    <li><b>A history means a path in a free category.</b> Time is log height, a natural number. The old rule always judges the new rule. This answers Ross's paradox of self-amendment without a fixpoint.</li>
+    <li><b>ZK, FHE and MPC live only in the implementation.</b> Each one must satisfy one equation against the meaning (a type class morphism) and one view equation for privacy. CKKS satisfies the FHE equation only approximately, so the design excludes it.</li>
+    <li><b>Without a ledger, quorum intersection prevents forks.</b> Any two sets that the amend rule accepts must share more than f parties. For a plain t-of-n rule this is <code>2t &gt; n + f</code>.</li>
+  </ul>
+</section>
+
+<section id="method">
+  <h2><span class="n">2</span>Method</h2>
+  <p>Conal Elliott's denotational design starts from meaning, not from mechanism. It has four steps.</p>
+  <ol>
+    <li><b>Choose a model for each type.</b> The model is a plain mathematical object. It is the specification.</li>
+    <li><b>Define each operation by an equation on models.</b> The equations are compositional: the meaning of a compound term comes from the meanings of its parts.</li>
+    <li><b>Make the meaning function a homomorphism.</b> If a type claims an algebraic structure (monoid, functor, category, lattice), the meaning function must preserve it. Elliott calls this the type class morphism principle: "the instance's meaning follows the meaning's instance." The laws then hold for the implementation because they hold for the model.</li>
+    <li><b>Derive or verify the implementation.</b> The implementation must equal the meaning. Two implementations with the same meaning are interchangeable.</li>
+  </ol>
+  <p>This design uses two meaning functions.</p>
+  <ul>
+    <li><code>⟦·⟧</code> gives what the system decides.</li>
+    <li><code>view<sub>O</sub></code> gives what an observer O learns. Privacy is the requirement that <code>view<sub>O</sub></code> is a function of a declared leakage, up to computational indistinguishability, written <code>≈</code>.</li>
+  </ul>
+  <p>The second function is the ideal-functionality method of MPC, read as semantics. The ideal functionality is the denotation. A secure protocol is one implementation of it.</p>
+  <div class="box">
+    <p class="box-title">What the meaning leaves out</p>
+    <p>Messages, rounds, network delay, ciphertext noise, key material, signature bytes, gossip and storage. These belong to the implementation. If a choice among them changes a decision, the implementation is wrong.</p>
+  </div>
+</section>
+
+<section id="uat">
+  <h2><span class="n">3</span>What UAT supplies</h2>
+  <p>UAT is a Lean 4 formalization with no <code>sorry</code> and no Mathlib dependency. Its central definition is one line:</p>
+  <pre><code>Aggregation act F := LeftKanExtension (orbitProjection act) F</code></pre>
+  <p>Here <code>act : GAction G C</code> is an action of a symmetry group G on a configuration category C. <code>orbitProjection act : C ⥤ C//G</code> sends each configuration to its orbit. <code>F : C ⥤ D</code> is a choice rule. UAT sorts every pair <code>(act, F)</code> into one of three regimes. In Arrow-Impossibility no aggregation exists. In Arrow-Debreu one exists and all of them agree on objects. In Schelling-Ising several exist and two of them differ on some object.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>UAT name</th><th>Statement</th><th>Use in this design</th></tr></thead>
+    <tbody>
+      <tr><td><code>Aggregation act F</code></td><td>Left Kan extension of F along the orbit projection</td><td>Meaning of every decision</td></tr>
+      <tr><td><code>OrbitConstant act F</code></td><td><code>∀ g x, F(g·x) = F(x)</code></td><td>The obligation every rule meets</td></tr>
+      <tr><td><code>aggregation_nonempty_iff_orbitConstant</code></td><td>Into <code>Discrete α</code>, an aggregation exists if and only if F is orbit-constant</td><td>Decisions exist</td></tr>
+      <tr><td><code>aggregation_obj_eq_rule</code></td><td>Every aggregation into <code>Discrete α</code> sends <code>⟨x⟩</code> to <code>F(x)</code></td><td>The decision equals the rule's value</td></tr>
+      <tr><td><code>aggregation_obj_unique</code></td><td>Any two aggregations into <code>Discrete α</code> agree on objects</td><td>Decisions are functions</td></tr>
+      <tr><td><code>not_schelling_ising_discrete</code></td><td>The Schelling-Ising regime is empty over a discrete target</td><td>No multi-valued decisions</td></tr>
+      <tr><td><code>arrow_impossibility_regime</code></td><td>For m ≥ 2 voters and 3 or more alternatives, every Pareto and IIA social welfare function has no aggregation under S<sub>m</sub></td><td>Why amendments stay binary</td></tr>
+      <tr><td><code>trichotomy</code></td><td>Every <code>(act, F)</code> is in some regime</td><td>Classification of failure modes (§7)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box">
+    <p class="box-title">Definition: UAT-respecting</p>
+    <p>A system respects UAT when every decision it publishes is <code>L.functor.obj ⟨S⟩</code> for some <code>L : Aggregation act F</code>, where <code>act</code> is a declared group action on the configuration category, the target of F is discrete, and F carries an <code>OrbitConstant</code> proof. By <code>aggregation_obj_eq_rule</code> the published value is then <code>F(S)</code>, whatever L the implementation realizes.</p>
+  </div>
+  <p>Two limits of UAT matter here. First, UAT's Arrow-Debreu regime means object-uniqueness of the aggregation, not the general-equilibrium existence theorem. The UAT README states this limit. Second, UAT has the symmetric group <code>SymmetricGroup n</code> and <code>Z2Group</code>, but not the class-preserving subgroups this design needs (§4). That group action is new work (obligation O1).</p>
+</section>
+
+<section id="domains">
+  <h2><span class="n">4</span>Semantic domains</h2>
+  <p>Each type gets a model. The left column names a type of the system. The middle column is its meaning.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Type</th><th>Meaning</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Party</td><td>An element of a finite set</td><td></td></tr>
+      <tr><td>Committee</td><td>A finite set of parties split into classes 1 to k, with sizes n<sub>1</sub> to n<sub>k</sub></td><td>Parties in one class are interchangeable</td></tr>
+      <tr><td>G<sub>P</sub></td><td>Permutations of the committee that map each class to itself: S<sub>n₁</sub> × ... × S<sub>nₖ</sub></td><td>The declared symmetry</td></tr>
+      <tr><td>Approvals</td><td>A subset S of the committee, as an object of <code>Discrete(2<sup>Committee</sup>)</code>, with <code>σ·S = σ[S]</code></td><td>A missing ballot counts as no approval</td></tr>
+      <tr><td>Counts</td><td>A vector c with <code>0 ≤ c<sub>j</sub> ≤ n<sub>j</sub></code></td><td>Orbits of G<sub>P</sub> on approval sets match count vectors one to one</td></tr>
+      <tr><td>Rule</td><td>A monotone <code>accept : Counts → Bool</code> with <code>accept(0) = false</code> and <code>accept(n) = true</code></td><td>Reads only counts</td></tr>
+      <tr><td>Policy</td><td>Committee, authorize rule, amend rule, fault bound f, with O4 and O5 (§11)</td><td>A value carries its proofs</td></tr>
+      <tr><td>Decision</td><td>An object of <code>Discrete Bool</code></td><td>Binary and discrete</td></tr>
+      <tr><td>Log P Q</td><td>A path from P to Q in the graph whose edges are accepted amendments</td><td>Free category</td></tr>
+      <tr><td>System</td><td>A function <code>Nat → Policy</code> from log height to policy</td><td>Elliott's behavior, with time as height</td></tr>
+      <tr><td>Enc<sub>pk</sub> a</td><td>a</td><td>Decryption is the meaning function</td></tr>
+      <tr><td>Share<sub>t,n</sub> s</td><td>s</td><td></td></tr>
+      <tr><td>Proof<sub>R</sub> x</td><td>The proposition <code>∃w. R(x, w)</code></td><td></td></tr>
+      <tr><td>Protocol for f</td><td>f</td><td>The ideal functionality</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure class="figure">
+    <div class="svg-wrap">
+    <svg viewBox="0 0 660 276" role="img" aria-labelledby="orbit-title orbit-desc">
+      <title id="orbit-title">Orbit projection for a 3-of-4 rule</title>
+      <desc id="orbit-desc">Sixteen approval sets of a four-party committee grouped into five orbits by count. Counts 3 and 4 are accepted.</desc>
+      <text class="svg-head" x="130" y="22" text-anchor="middle">k = 0</text>
+      <text class="svg-head" x="250" y="22" text-anchor="middle">k = 1</text>
+      <text class="svg-head" x="370" y="22" text-anchor="middle">k = 2</text>
+      <text class="svg-head" x="490" y="22" text-anchor="middle">k = 3</text>
+      <text class="svg-head" x="610" y="22" text-anchor="middle">k = 4</text>
+      <text class="thr-t" x="436" y="22">t = 3</text>
+
+      <text class="svg-row" x="12" y="114">approval</text>
+      <text class="svg-row" x="12" y="130">sets</text>
+      <text class="svg-row" x="12" y="234">orbit</text>
+      <text class="svg-row" x="12" y="262">accept</text>
+
+      <rect class="orbit" x="96" y="34" width="68" height="170" rx="8"/>
+      <rect class="orbit" x="216" y="34" width="68" height="170" rx="8"/>
+      <rect class="orbit" x="336" y="34" width="68" height="170" rx="8"/>
+      <rect class="orbit" x="456" y="34" width="68" height="170" rx="8"/>
+      <rect class="orbit" x="576" y="34" width="68" height="170" rx="8"/>
+
+      <rect class="pill" x="104" y="109" width="52" height="20" rx="10"/><text class="pill-t" x="130" y="123" text-anchor="middle">∅</text>
+
+      <rect class="pill" x="224" y="70" width="52" height="20" rx="10"/><text class="pill-t" x="250" y="84" text-anchor="middle">a</text>
+      <rect class="pill" x="224" y="96" width="52" height="20" rx="10"/><text class="pill-t" x="250" y="110" text-anchor="middle">b</text>
+      <rect class="pill" x="224" y="122" width="52" height="20" rx="10"/><text class="pill-t" x="250" y="136" text-anchor="middle">c</text>
+      <rect class="pill" x="224" y="148" width="52" height="20" rx="10"/><text class="pill-t" x="250" y="162" text-anchor="middle">d</text>
+
+      <rect class="pill" x="344" y="44" width="52" height="20" rx="10"/><text class="pill-t" x="370" y="58" text-anchor="middle">ab</text>
+      <rect class="pill" x="344" y="70" width="52" height="20" rx="10"/><text class="pill-t" x="370" y="84" text-anchor="middle">ac</text>
+      <rect class="pill" x="344" y="96" width="52" height="20" rx="10"/><text class="pill-t" x="370" y="110" text-anchor="middle">ad</text>
+      <rect class="pill" x="344" y="122" width="52" height="20" rx="10"/><text class="pill-t" x="370" y="136" text-anchor="middle">bc</text>
+      <rect class="pill" x="344" y="148" width="52" height="20" rx="10"/><text class="pill-t" x="370" y="162" text-anchor="middle">bd</text>
+      <rect class="pill" x="344" y="174" width="52" height="20" rx="10"/><text class="pill-t" x="370" y="188" text-anchor="middle">cd</text>
+
+      <rect class="pill-acc" x="464" y="70" width="52" height="20" rx="10"/><text class="pill-t" x="490" y="84" text-anchor="middle">abc</text>
+      <rect class="pill-acc" x="464" y="96" width="52" height="20" rx="10"/><text class="pill-t" x="490" y="110" text-anchor="middle">abd</text>
+      <rect class="pill-acc" x="464" y="122" width="52" height="20" rx="10"/><text class="pill-t" x="490" y="136" text-anchor="middle">acd</text>
+      <rect class="pill-acc" x="464" y="148" width="52" height="20" rx="10"/><text class="pill-t" x="490" y="162" text-anchor="middle">bcd</text>
+
+      <rect class="pill-acc" x="584" y="109" width="52" height="20" rx="10"/><text class="pill-t" x="610" y="123" text-anchor="middle">abcd</text>
+
+      <line class="thr" x1="430" y1="30" x2="430" y2="268"/>
+
+      <text class="orb-t" x="130" y="234" text-anchor="middle">⟨0⟩</text>
+      <text class="orb-t" x="250" y="234" text-anchor="middle">⟨1⟩</text>
+      <text class="orb-t" x="370" y="234" text-anchor="middle">⟨2⟩</text>
+      <text class="orb-t" x="490" y="234" text-anchor="middle">⟨3⟩</text>
+      <text class="orb-t" x="610" y="234" text-anchor="middle">⟨4⟩</text>
+
+      <text class="val-f" x="130" y="262" text-anchor="middle">false</text>
+      <text class="val-f" x="250" y="262" text-anchor="middle">false</text>
+      <text class="val-f" x="370" y="262" text-anchor="middle">false</text>
+      <text class="val-t" x="490" y="262" text-anchor="middle">true</text>
+      <text class="val-t" x="610" y="262" text-anchor="middle">true</text>
+    </svg>
+    </div>
+    <figcaption>A committee {a, b, c, d} in one class, so G<sub>P</sub> = S<sub>4</sub>. Its 16 approval sets fall into 5 orbits of sizes 1, 4, 6, 4, 1, one orbit per count. A 3-of-4 rule is constant on each orbit, so its Kan extension along the orbit projection exists and equals the rule. Fork check for the same rule as an amend rule: 2·3 − 4 = 2, which exceeds f for f ≤ 1.</figcaption>
+  </figure>
+
+  <div class="box">
+    <p class="box-title">Vetoes and named roles</p>
+    <p>A rule that treats one party differently from the others in its class is not orbit-constant. By UAT no aggregation exists for it. A policy can still give a party a veto or a special role, but it must put that party in a class of its own. The asymmetry is then part of the declared group G<sub>P</sub>, and every verifier sees it.</p>
+  </div>
+</section>
+
+<section id="operations">
+  <h2><span class="n">5</span>Operations and their meanings</h2>
+  <h3>Policy layer</h3>
+<pre><code><span class="c">-- per-class approval counts</span>
+count<sub>P</sub> : Approvals P → Counts P
+count<sub>P</sub> S = ( |S ∩ class<sub>j</sub>| )  for j = 1 .. k
+
+<span class="c">-- the choice rule UAT aggregates</span>
+F<sub>P</sub> : Discrete(Approvals P) ⥤ Discrete Bool
+F<sub>P</sub> = discrete (accept<sub>P</sub> ∘ count<sub>P</sub>)
+
+⟦authorize P a S⟧ = (Lan<sub>p</sub> F<sub>P</sub>)⟨S⟩ = accept<sub>P</sub>(count<sub>P</sub> S)
+
+<span class="c">-- an amendment edge exists only when the amend rule accepts</span>
+Amendment P P' = { S : Approvals P | amend<sub>P</sub>(count<sub>P</sub> S) = true }
+
+⟦nil P⟧        = id<sub>P</sub>
+⟦cons e log⟧   = ⟦log⟧ ∘ ⟦e⟧
+
+policyAt : Nat → Policy
+policyAt 0       = P₀
+policyAt (h + 1) = target of entry h, an Amendment (policyAt h) P'</code></pre>
+  <p><code>count<sub>P</sub></code> is invariant under G<sub>P</sub>: a permutation that keeps each class in place keeps the number of approvers in each class. This one fact discharges UAT's orbit-constancy obligation for every rule. Then <code>aggregation_obj_eq_rule</code> turns the middle term of the authorize equation into the right term, for any aggregation L.</p>
+  <p>Authorizations do not extend the log. An authorization is a certificate judged at a height h. Only accepted amendments become log entries.</p>
+
+  <h3>Cryptographic layer</h3>
+<pre><code>⟦enc pk a⟧            = a
+⟦eval g c₁ … cₘ⟧      = g(⟦c₁⟧, …, ⟦cₘ⟧)
+⟦share t n s⟧         = s
+⟦reconstruct T xs⟧    = s                    when |T| ≥ t
+⟦reshare C C' t' xs⟧  = ⟦xs⟧                 <span class="c">same secret, new holders</span>
+⟦prove R x w⟧         = R(x, w)
+⟦run π x₁ … xₙ⟧       = f<sub>π</sub>(x₁, …, xₙ)</code></pre>
+  <h3>View equations</h3>
+<pre><code>view<sub>O</sub>(run π xs)          ≈ Sim<sub>O</sub>(xs restricted to O, f<sub>π</sub>(xs))
+view<sub>V</sub>(prove R x w)       ≈ Sim<sub>V</sub>(x)                   when R(x, w)
+view<sub>O</sub>(reconstruct T xs)  is independent of s            when |T ∩ O| &lt; t</code></pre>
+  <p>The first block holds with equality. The view equations hold up to <code>≈</code> under named assumptions: the hardness assumption of the FHE scheme, the soundness and zero-knowledge of the proof system, and the corruption bound f.</p>
+</section>
+
+<section id="morphisms">
+  <h2><span class="n">6</span>Type class morphisms</h2>
+  <p>Each law below says that a meaning function preserves a structure. The implementation inherits the law once it meets the equation in §5.</p>
+  <div class="laws">
+    <div class="law">
+      <p class="law-name">TCM-A · Equivariance (morphism of G-sets)</p>
+<pre><code>⟦authorize P a (σ·S)⟧ = ⟦authorize P a S⟧     for all σ ∈ G<sub>P</sub></code></pre>
+      <p>This is UAT's <code>OrbitConstant</code>, stated as a morphism from approval sets to <code>Bool</code> with the trivial action. It holds for every rule because <code>count<sub>P</sub>(σ·S) = count<sub>P</sub>(S)</code>.</p>
+    </div>
+    <div class="law">
+      <p class="law-name">TCM-B · Lattice of rules</p>
+<pre><code>⟦r ∧ r'⟧ = ⟦r⟧ ∧ ⟦r'⟧          ⟦r ∨ r'⟧ = ⟦r⟧ ∨ ⟦r'⟧</code></pre>
+      <p>Rules combine pointwise on counts. Orbit-constancy, monotonicity, <code>accept(0) = false</code>, <code>accept(n) = true</code> and O4 survive both operations. O5 survives <code>∧</code> only: two accepting sets of <code>r ∨ r'</code> can come from different sides and share too few parties. An amendment that builds an amend rule with <code>∨</code> must check O5 again.</p>
+    </div>
+    <div class="law">
+      <p class="law-name">TCM-C · Circuit homomorphism (FHE)</p>
+<pre><code>dec(eval g c₁ … cₙ) = g(dec c₁, …, dec cₙ)     where g = accept<sub>P</sub> ∘ count<sub>P</sub></code></pre>
+      <p>Decryption is the meaning function for ciphertexts, and evaluation must commute with it. Exact schemes (BFV, BGV, TFHE) meet the equation while the circuit stays inside the noise budget or is bootstrapped. CKKS meets it only up to an error term, so it would need a per-circuit error bound near the threshold. The design excludes CKKS.</p>
+    </div>
+    <div class="law">
+      <p class="law-name">TCM-D · Category of protocols (MPC)</p>
+<pre><code>⟦π ∘ ρ⟧ ≈ ⟦π⟧ ∘ ⟦ρ⟧          ⟦id⟧ = id</code></pre>
+      <p>The meaning of a protocol is its ideal functionality. Canetti's universal composition theorem says this meaning function preserves composition for UC-secure protocols. Each stage in §9 can then be proved alone.</p>
+    </div>
+    <div class="law">
+      <p class="law-name">TCM-E · Free category of logs</p>
+<pre><code>⟦append log₁ log₂⟧ = ⟦log₂⟧ ∘ ⟦log₁⟧          ⟦nil P⟧ = id<sub>P</sub></code></pre>
+      <p>The meaning of a log is the move from its start policy to its end policy. A verifier can check a log in segments, keep a checkpoint, and resume from it.</p>
+    </div>
+  </div>
+</section>
+
+<section id="regimes">
+  <h2><span class="n">7</span>The three regimes in this system</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>UAT regime</th><th>Where it appears here</th><th>Basis</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="chip chip-ad">Arrow-Debreu</span><br><code>IsArrowDebreuRegime</code></td>
+        <td>Every authorization and every amendment decision. The target is <code>Discrete Bool</code> and the rule reads only counts.</td>
+        <td>Theorem: <code>aggregation_nonempty_iff_orbitConstant</code> gives existence, <code>aggregation_obj_unique</code> gives uniqueness. Target T1 in §12.</td>
+      </tr>
+      <tr>
+        <td><span class="chip chip-ai">Arrow-Impossibility</span><br><code>IsArrowImpossibilityRegime</code></td>
+        <td>A rule that singles out a party inside its class. A ranked choice among 3 or more amendment options under Pareto and IIA. The policy language cannot express the first. The amendment process never asks the second.</td>
+        <td>Theorem: <code>lan_implies_orbit_constant</code> for the first, <code>arrow_impossibility_regime</code> for the second.</td>
+      </tr>
+      <tr>
+        <td><span class="chip chip-si">Schelling-Ising</span><br><code>IsSchellingIsingRegime</code></td>
+        <td>Cannot occur for decisions, because the target is discrete. Its analog in the system is a fork: two policies both accepted at one height. A second analog is the set of policies that would ratify themselves, which can have several members. The design never asks for such a fixpoint.</td>
+        <td>Theorem for decisions: <code>not_schelling_ising_discrete</code>. The fork analog is a design reading, not a UAT theorem. O5 and O11 prevent forks.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Why amendments stay binary</h3>
+  <p>Suppose the amend process ranked three or more pending proposals with a rule that is Pareto and IIA. Arrow's theorem forces a dictator. Under the full group S<sub>n</sub> that rule has no aggregation, by <code>arrow_impossibility_regime</code>. Under a smaller G<sub>P</sub> a dictator rule is orbit-constant only if the dictator is alone in a class. O4 then rejects it for any f ≥ 1, because a single approval would be accepted.</p>
+  <p>The design avoids both outcomes by keeping each decision to two options. For two options, May's theorem says simple majority is the only rule that is anonymous, neutral and positively responsive. A threshold above majority keeps anonymity and monotonicity and gives up neutrality on purpose: denial is the default.</p>
+</section>
+
+<section id="amendment">
+  <h2><span class="n">8</span>Self-amendment</h2>
+  <p>Alf Ross asked in 1969 whether a constitution's amendment clause can be used to amend itself. Peter Suber's Nomic is a game whose rules include the rule for changing rules. This design answers the question with time.</p>
+  <ul>
+    <li><b>The amend rule is data.</b> It sits inside P and can change.</li>
+    <li><b>The old rule judges the new rule.</b> An amendment at height h is judged by <code>amend</code> of <code>policyAt h</code>. The new amend rule applies from height h + 1. No step refers to its own result, so no fixpoint is needed.</li>
+    <li><b>The type entrenches the invariants.</b> Monotonicity, <code>accept(0) = false</code>, <code>accept(n) = true</code>, O4, O5, the binary discrete target and the count-only rule are fields of the type <code>Policy</code>. A proposal that breaks one cannot be constructed, so nobody can vote on it. There is no entrenchment clause for an amendment to target.</li>
+    <li><b>Order is part of the meaning.</b> Binary amendments in sequence depend on their order. The meaning of a log is a path, so the order is explicit. This is the cost of avoiding Arrow. §13 lists who controls the order as an open question.</li>
+    <li><b>Committees can change.</b> A new policy can have a new committee. The implementation then reshares the FHE key and the signing keys, with <code>⟦reshare⟧ = id</code> on the secret. The view equation for resharing says that, after it, old members' shares tell them nothing about later ballots (proactive secret sharing).</li>
+  </ul>
+  <p>Elliott's functional reactive programming gives the shape of the system's meaning: a behavior, a function from time to value. Here time is log height and the value is the policy. Because <code>policyAt (h + 1)</code> reads only <code>policyAt h</code> and entry h, the definition is causal and total.</p>
+</section>
+
+<section id="implementation">
+  <h2><span class="n">9</span>Implementation derived from the meaning</h2>
+  <p>Each stage names the equation it must meet. The stages run in this order for one decision.</p>
+  <ol class="stages">
+    <li><div><h4>Key setup <span class="who">MPC</span></h4>
+      <p>The committee runs distributed key generation for a threshold FHE key.</p>
+      <pre><code>⟦dkg⟧ = (pk, share t n sk)     fewer than t parties learn nothing about sk</code></pre></div></li>
+    <li><div><h4>Ballot <span class="who">FHE + ZK</span></h4>
+      <p>Party i encrypts its bit v<sub>i</sub>, binds it to the height h and the digest of the request or of P′, signs it, and proves R<sub>ballot</sub>.</p>
+      <pre><code>⟦c<sub>i</sub>⟧ = v<sub>i</sub></code></pre></div></li>
+    <li><div><h4>Tally <span class="who">FHE</span></h4>
+      <p>Anyone evaluates the rule on the ciphertexts. A missing ballot is the trivial public encryption of 0, so a missing ballot can only lower the count.</p>
+      <pre><code>c<sub>out</sub> = eval (accept<sub>P</sub> ∘ count<sub>P</sub>) c₁ … cₙ       ⟦c<sub>out</sub>⟧ = accept<sub>P</sub>(count<sub>P</sub> S)   by TCM-C</code></pre></div></li>
+    <li><div><h4>Threshold decryption <span class="who">MPC + ZK</span></h4>
+      <p>t parties publish partial decryptions with proofs R<sub>dec</sub>. Anyone combines them into the bit b. Partial decryptions must be simulatable from b alone, and the implementation adds noise flooding for this.</p>
+      <pre><code>b = ⟦c<sub>out</sub>⟧        view(partials) ≈ Sim(b)</code></pre></div></li>
+    <li><div><h4>Certificate</h4>
+      <p>An authorization certificate is <code>(h, a, ballots, proofs, b)</code>. For an amendment with b = true, the same data plus P′ becomes log entry h + 1. It holds the hash of entry h and the signatures of an accepting set.</p></div></li>
+    <li><div><h4>Verification</h4>
+      <p>A verifier reruns stage 3, checks the proofs and signatures, and checks that P′ is a well-typed <code>Policy</code>.</p>
+      <pre><code>verify accepts c  ⇔  c denotes a valid step</code></pre></div></li>
+  </ol>
+
+  <h3>Two implementations, one meaning</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th></th><th>FHE tally</th><th>MPC tally</th></tr></thead>
+    <tbody>
+      <tr><td>Who computes</td><td>Anyone, from public ciphertexts</td><td>t online parties holding secret-shared ballots</td></tr>
+      <tr><td>Interaction during tally</td><td>None</td><td>The rounds of the MPC protocol</td></tr>
+      <tr><td>Public recomputation</td><td>Yes</td><td>No. Verifiers check a proof of correct output or rely on the quorum</td></tr>
+      <tr><td>Main cost</td><td>Homomorphic comparison and bootstrapping</td><td>Communication</td></tr>
+      <tr><td>Meaning of the tally</td><td><code>accept<sub>P</sub> ∘ count<sub>P</sub></code></td><td><code>accept<sub>P</sub> ∘ count<sub>P</sub></code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Both columns have the same meaning, so the specification does not choose between them. The choice is an engineering one.</p>
+
+  <h3>ZK relations</h3>
+<pre><code>R<sub>ballot</sub>( x = (pk, h, d, c) ; w = (v, r) ) :
+    c = Enc<sub>pk</sub>(v ; r)   and   v ∈ {0, 1}
+    <span class="c">-- the signer's membership in policyAt h is checked in public</span>
+
+R<sub>dec</sub>( x = (pk, c<sub>out</sub>, dᵢ, vkᵢ) ; w = (skᵢ, e) ) :
+    dᵢ = partial decryption of c<sub>out</sub> under skᵢ with flooding noise e
+    and   e is in the allowed range   and   skᵢ matches vkᵢ from key setup</code></pre>
+  <p>The policy is public, so its invariants need no ZK. A verifier checks O3 to O5 directly on the finite set of minimal accepting count vectors.</p>
+</section>
+
+<section id="offchain">
+  <h2><span class="n">10</span>Off-chain consequences</h2>
+  <ul>
+    <li><b>No shared clock.</b> Time is log height <code>h : Nat</code>, not wall-clock time.</li>
+    <li><b>One entry per height.</b> Honest parties sign at most one entry per height. Two entries at one height need two accepting sets. By O5 they share more than f parties, so some honest party signed both, which is a contradiction. The log is therefore a list, not a tree, and <code>policyAt</code> is a function.</li>
+    <li><b>Equivocation is provable.</b> Two signed entries at one height from one party are transferable evidence of misbehavior.</li>
+    <li><b>Freshness needs a read set.</b> For a plain t-of-n amend rule, a verifier asks a set R of at least <code>n − t + f + 1</code> parties for their latest entry. Every accepting set W shares at least f + 1 parties with R, so some honest party in R signed the latest entry and can show it. The verifier takes the highest height it can verify. A faulty party can withhold, but it cannot show a higher verified height that does not exist.</li>
+    <li><b>Availability is outside the meaning.</b> Entries must be retrievable. Replication among committee members is an implementation choice.</li>
+  </ul>
+</section>
+
+<section id="obligations">
+  <h2><span class="n">11</span>Proof obligations</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>ID</th><th>Obligation</th><th>How it is met</th><th>Kind</th></tr></thead>
+    <tbody>
+      <tr><td>O1</td><td>Every rule is orbit-constant under G<sub>P</sub></td><td><code>count<sub>P</sub></code> is G<sub>P</sub>-invariant (T2)</td><td>Lean, new: <code>young</code>, <code>youngAction</code>, count lemma</td></tr>
+      <tr><td>O2</td><td>Every decision is binary, into <code>Discrete Bool</code></td><td>The type of <code>Rule.accept</code></td><td>By construction</td></tr>
+      <tr><td>O3</td><td>Rule sanity: monotone, <code>accept(0) = false</code>, <code>accept(n) = true</code></td><td>Fields of <code>Rule</code></td><td>Carried by the value, decidable</td></tr>
+      <tr><td>O4</td><td>Every accepting set holds an honest party</td><td>Smallest accepting total exceeds f</td><td>Decidable on minimal accepting vectors</td></tr>
+      <tr><td>O5</td><td>Fork freedom of the amend rule</td><td class="wrapcode">For minimal accepting a, b: <code>Σ<sub>j</sub> max(0, a<sub>j</sub> + b<sub>j</sub> − n<sub>j</sub>) &gt; f</code></td><td>Decidable on minimal accepting vectors</td></tr>
+      <tr><td>O6</td><td>FHE exactness for <code>accept ∘ count</code></td><td>TCM-C inside the noise budget, or with bootstrapping</td><td>Scheme correctness, depth bound per circuit</td></tr>
+      <tr><td>O7</td><td>Threshold decryption matches the ideal</td><td><code>b = dec(c<sub>out</sub>)</code>, partials simulatable from b</td><td>Cryptographic proof, noise flooding</td></tr>
+      <tr><td>O8</td><td>ZK for R<sub>ballot</sub> and R<sub>dec</sub></td><td>Soundness and zero-knowledge</td><td>Proof-system assumptions</td></tr>
+      <tr><td>O9</td><td>Resharing on committee change</td><td><code>⟦reshare⟧ = id</code>, old shares useless afterwards</td><td>Proactive secret sharing proof</td></tr>
+      <tr><td>O10</td><td>Causality of the log</td><td><code>policyAt (h + 1)</code> reads only <code>policyAt h</code> and entry h</td><td>By construction</td></tr>
+      <tr><td>O11</td><td>At most one entry per height</td><td>O5 plus honest single signing</td><td>Lean, new (T3)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="small">O5 reads: in class j, two approval sets of sizes a<sub>j</sub> and b<sub>j</sub> must overlap in at least a<sub>j</sub> + b<sub>j</sub> − n<sub>j</sub> parties. By monotonicity only minimal accepting vectors need checking.</p>
+</section>
+
+<section id="lean">
+  <h2><span class="n">12</span>Lean sketch</h2>
+  <p>A sketch of the model on top of UAT. It is not compiled. UAT names are <code>ChoiceRule</code>, <code>Discrete</code>, <code>GAction</code>, <code>SymmetryGroup</code>, <code>OrbitConstant</code>, <code>Aggregation</code> and <code>IsArrowDebreuRegime</code>. Every other name is new.</p>
+<pre><code>import UnifiedAggregation
+open UnifiedAggregation CompCatTheory
+
+structure Committee where
+  k    : Nat
+  size : Fin k → Nat
+
+<span class="c">/-- One approval bit per party, indexed by class. -/</span>
+abbrev Approvals (c : Committee) : Type :=
+  (j : Fin c.k) → Fin (c.size j) → Bool
+
+<span class="c">/-- Approvals per class: the orbit invariant of the class-preserving group. -/</span>
+def count (c : Committee) (S : Approvals c) : Fin c.k → Nat :=
+  fun j => (List.finRange (c.size j)).countP (fun i => S j i)
+
+structure Rule (c : Committee) where
+  accept      : (Fin c.k → Nat) → Bool
+  monotone    : ∀ a b, (∀ j, a j ≤ b j) → accept a = true → accept b = true
+  rejectsNone : accept (fun _ => 0) = false
+  acceptsAll  : accept c.size = true
+
+<span class="c">-- Signatures only.  Bodies are obligations O1, O4, O5.
+-- young       : Committee → SymmetryGroup.{0}
+-- youngAction : (c : Committee) → GAction (young c) (Discrete (Approvals c))
+-- choice      : (c : Committee) → Rule c →
+--                 ChoiceRule (Discrete (Approvals c)) (Discrete Bool)
+-- quorumSafe  : (c : Committee) → Rule c → Nat → Prop
+-- forkFree    : (c : Committee) → Rule c → Nat → Prop</span>
+
+structure Policy where
+  committee : Committee
+  authorize : Rule committee
+  amend     : Rule committee
+  faults    : Nat
+  safeAuth  : quorumSafe committee authorize faults
+  safeAmend : quorumSafe committee amend faults
+  noForks   : forkFree committee amend faults
+
+structure Amendment (P P' : Policy) where
+  approvals : Approvals P.committee
+  accepted  : P.amend.accept (count P.committee approvals) = true
+
+inductive Log : Policy → Policy → Type where
+  | nil  (P : Policy) : Log P P
+  | cons {P P' Q : Policy} : Amendment P P' → Log P' Q → Log P Q
+
+def Respects (c : Committee) (r : Rule c) : Prop :=
+  OrbitConstant (youngAction c) (choice c r)</code></pre>
+  <h3>Theorem targets</h3>
+  <ul>
+    <li><b>T1</b> <code>Respects c r → IsArrowDebreuRegime (youngAction c) (choice c r)</code>. From <code>aggregation_nonempty_iff_orbitConstant</code> and <code>aggregation_obj_unique</code>. The universes line up: the group, the configuration type and <code>Bool</code> all live in <code>Type</code>.</li>
+    <li><b>T2</b> <code>∀ r : Rule c, Respects c r</code>. From invariance of <code>count</code> under <code>young c</code>. With T1, every rule the type admits is in the Arrow-Debreu regime.</li>
+    <li><b>T3</b> Two approval sets accepted by an amend rule with <code>forkFree</code> share more than <code>faults</code> parties. With a model of single signing, this gives one entry per height.</li>
+    <li><b>T4</b> <code>Log.append</code> with <code>nil</code> as identity and associativity: the category laws behind TCM-E.</li>
+  </ul>
+</section>
+
+<section id="risks">
+  <h2><span class="n">13</span>Open questions</h2>
+  <ul>
+    <li><b>The output leaks what the rule implies.</b> Under unanimity, b = true reveals every vote. This is part of the ideal functionality, so no implementation can hide it. Choose rules with this in mind.</li>
+    <li><b>Committee loss can freeze the system.</b> If fewer parties are live than the smallest accepting set of the amend rule, no amendment can pass. A recovery rule needs a clock, and an off-chain system has none it can trust. Undecided.</li>
+    <li><b>Stale certificates.</b> A certificate judged at height h stays checkable after an amendment at h + 1 removes a party. Consumers need a freshness rule, for example "the height must equal the latest verified height" (§10). Undecided.</li>
+    <li><b>Agenda control.</b> Whoever collects ballots chooses which proposal goes to a vote first. McKelvey (1976) showed how much an agenda setter can do under majority rule in more than one dimension. The log records the order but does not make it fair. Undecided.</li>
+    <li><b>Receipts.</b> A party can prove its vote by revealing its encryption randomness. ZK and FHE give ballot secrecy, not receipt-freeness. If coercion matters, the ballot stage needs more machinery, such as re-randomization with a designated-verifier proof.</li>
+    <li><b>Exact and approximate meaning.</b> The decision equations are exact and a Lean proof can cover them. The view equations hold up to <code>≈</code> and need a computational model that UAT does not have.</li>
+  </ul>
+</section>
+
+<section id="sources">
+  <h2><span class="n">14</span>Sources</h2>
+  <ul class="sources">
+    <li>MavenRain, <a href="https://github.com/MavenRain/unified-aggregation-theory">unified-aggregation-theory</a>, Lean 4, read at commit <code>feb1089</code>. Files used: <code>Aggregation.lean</code>, <code>Regimes.lean</code>, <code>Characterization.lean</code>, <code>DiscreteCharacterization.lean</code>, <code>TrichotomyWitnesses.lean</code>, <code>ConfigSpace.lean</code>, <code>ChoiceRule.lean</code>, README.</li>
+    <li>Conal Elliott, <a href="http://conal.net/papers/type-class-morphisms/">Denotational design with type class morphisms</a>, 2009.</li>
+    <li>Conal Elliott, <a href="http://conal.net/papers/push-pull-frp/">Push-pull functional reactive programming</a>, Haskell Symposium 2009.</li>
+    <li>Ran Canetti, "Universally Composable Security: A New Paradigm for Cryptographic Protocols", FOCS 2001.</li>
+    <li>Dan Boneh, Rosario Gennaro, Steven Goldfeder, Aayush Jain, Sam Kim, Peter Rasmussen, Amit Sahai, "Threshold Cryptosystems from Threshold Fully Homomorphic Encryption", CRYPTO 2018.</li>
+    <li>Amir Herzberg, Stanisław Jarecki, Hugo Krawczyk, Moti Yung, "Proactive Secret Sharing, or: How to Cope with Perpetual Leakage", CRYPTO 1995.</li>
+    <li>Kenneth O. May, "A Set of Independent Necessary and Sufficient Conditions for Simple Majority Decision", Econometrica 20 (1952).</li>
+    <li>Alf Ross, "On Self-Reference and a Puzzle in Constitutional Law", Mind 78 (1969).</li>
+    <li>Peter Suber, The Paradox of Self-Amendment, 1990 (includes Nomic).</li>
+    <li>Richard McKelvey, "Intransitivities in Multidimensional Voting Models and Some Implications for Agenda Control", Journal of Economic Theory 12 (1976).</li>
+  </ul>
+</section>
+
+</main>
+</div>
+</div>
+
+</body></html>
