@@ -1,0 +1,2 @@
+-- S2: the Budget resource sort is not in ratify-lang (no affine layer, Q-S0-10 (a)).
+def b : (x : Budget) -> Budget := fun (x : Budget) => x

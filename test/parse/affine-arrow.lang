@@ -1,0 +1,2 @@
+-- S2: the affine arrow is not in ratify-lang (no affine layer, Q-S0-10 (a)).
+def f : (x : S1) -o S1 := fun (x : S1) => x

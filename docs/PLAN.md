@@ -17,9 +17,10 @@ the readings of the request, the route, the slices and the open questions.
 "design sec N" is section N of the design. Section 14 lists the questions
 for the USER. A reading that is not ruled stays a recommendation.
 
-Status: S1 (rulings): the USER ruled section 14 (Q-S0-1 to Q-S0-15) and the
-three questions from Q-S0-9 (Q-S1-1 to Q-S1-3). Section 1 has the rulings.
-Next: S2 (port the permit-lang kernel, Q-S0-10 (a)).
+Status: S2 (kernel port): the Cubical TT kernel of permit-lang 3d47120 is
+in, without R0, the affine layer and the permit domain (Q-S0-10 (a),
+Q-S2-1 (a)). Section 1 has the rulings. Next: S3 (R0 and the Wasm writer,
+permit-lang 3d47120..18deea2).
 
 ## 1. Rulings
 
@@ -48,6 +49,7 @@ Next: S2 (port the permit-lang kernel, Q-S0-10 (a)).
 | 2026-11-03 | Q-S1-1 (a) "Host-import ABI (Recommended)": the crypto C code (a port of quorum-lang src/crypto) lives in `ratifyd`; the module calls it through a fixed host-import ABI on real values, not opaque handles (the quorum-lang Q9 (a) ruling). Edits: section 2, 8.2, 11, 12 (S7, S9), 13 (OI-10). | USER, S1 |
 | 2026-11-03 | Q-S1-2 (a) "Counts c at T1 (Recommended)": T1 sums the ballots of each class, decrypts the count vector c and applies the rule in the clear. The T1 output leaks c, not only b. T2 gives the one-bit output of design sec 9 stage 3. Edits: section 6 (View rows), 8.2 (T1, T4), 13 (OI-5). | USER, S1 |
 | 2026-11-03 | Q-S1-3 (a) "Schnorr BN254 + keccak (Recommended)": Schnorr signatures on BN254 G1 with a keccak-256 challenge; keccak-256 for the entry hash. Edits: section 4.1 (`Certificate`), 8.2, 12 (S7). | USER, S1 |
+| 2026-11-03 | Q-S2-1 (a) "Accept until S3 (Recommended)": S2 ports permit-lang 3d47120, the kernel without R0, the affine layer and the domain words. lower.c, wasm.c and ir.h stay out of the build until S3. `langc build` gives `REFUSE_LOWER` "target pending S3". The IR rows, the Wasm modules and the differential cases come back at S3 (the permit-lang Q-S2-3 (a) ruling). Edits: sections 11, 12, 13. | USER, S2 |
 
 The (a) rulings keep the readings of sections 2 to 11; those sections now
 cite the ruled option. The rows for Q-S0-9 (b), Q-S0-13 (b) and Q-S1-1 to
@@ -365,7 +367,7 @@ fits. Each item has one deliverable, one slice and one gate.
 | Source | What | Where |
 |---|---|---|
 | lang-template 5265a2a | the tcc-wasm kit | `hosts/tcc-wasm` |
-| permit-lang f9d8a15 | R0 reading, `REFUSE_PARTIAL`, `test/notraptool.c`, the trap row, A1 to A6; the kernel without the affine layer (Q-S0-10 (a)); the C99 Wasm engine (Q-S0-11 (a)) | docs/PLAN.md lines 147 to 212, 214, 628 to 641; S2 and S10 survey the sources |
+| permit-lang 3d47120, 18deea2, f9d8a15 | 3d47120 (S2, Q-S0-10 (a), Q-S2-1 (a)): the kernel without R0, the affine layer and the domain words: `src/front/` (ast.h, check.c, check.h, core.h, eval.c, front.c, front.h, lexer.c, lexer.h, parser.c), `src/main.c`, `test/fronttool.c`, `test/pathtool.c`, `test/review.sh`, `test/gate.sh`, `domain/domain.lang` and the kernel rows. 18deea2 (S3): the R0 reading, `REFUSE_PARTIAL`, `src/wasmop.h`, the no-trap Wasm writer, `test/notraptool.c`, the trap row. f9d8a15: A1 to A6; the C99 Wasm engine (Q-S0-11 (a)) | docs/PLAN.md lines 147 to 212, 214, 628 to 641 (f9d8a15); S2 surveyed the kernel; S3 and S10 survey the rest |
 | quorum-lang be2c329 | R1 former table, ballots, the FHE route, the Wasm replica; src/crypto and `test/tallytool.c` (Q-S0-9 (b)); the host-import ABI (Q-S1-1 (a)) | docs/PLAN.md lines 73 to 177, 352 to 523, 524 to 572, 574 |
 | orbit-lang 2162fb2 | the orbit projection and the Lan facts (UAT `orbitProjection`, `Aggregation`) | docs/PLAN.md lines 48 to 62 |
 
@@ -377,8 +379,8 @@ One session for each slice: scope, gate, mutants, docs, close.
 |---|---|---|
 | S0 | Seed from tcc-wasm, DESIGN.md and the design HTML, this plan, README table, AGENTS.md; gate EXIT 0; seed commit; private repo | DONE |
 | S1 | The USER rules section 14 and Q-S1-1 to Q-S1-3. Section 1 has the rulings. | DONE |
-| S2 | Port the Cubical TT kernel (8.1, Q-S0-10 (a): permit-lang, no affine layer). Survey first. | NEXT |
-| S3 | R0 in the kernel and the Wasm writer: `REFUSE_PARTIAL`, `test/notraptool.c`, the trap row (OI-6). | |
+| S2 | Port the Cubical TT kernel (8.1, Q-S0-10 (a), Q-S2-1 (a)): permit-lang 3d47120, no affine layer, no R0. Gate: 29 examples, 17 parse refusals, 154 check refusals, 10 kit-only refusals, 1 time hint, 78 evals, 1 build refusal; the review, domain and path regressions pass. Mutants M1 (path ends), M2 (glue face), M3 (universe level): KILLED. | DONE |
+| S3 | Port permit-lang 3d47120..18deea2: R0 in the kernel and the Wasm writer, `REFUSE_PARTIAL`, `src/wasmop.h`, `test/notraptool.c`, the trap row (OI-6). `src/front/lower.c`, `src/wasm.c` and `src/ir.h` come back into the build, with the IR rows, the 13 Wasm modules and the differential cases (OI-12). | NEXT |
 | S4 | `Party`, `Committee`, `Approvals`, `Counts`, `count`; G_P derived; TCM-A; `REFUSE_ORBIT`, `REFUSE_BOUND`. | |
 | S5 | `Rule`, `and`, `or`, the minimal accepting vectors; O3, O4, O5; `REFUSE_RULE`, `REFUSE_HONEST`, `REFUSE_FORK`; TCM-B. | |
 | S6 | `Policy`, `Decision`, `authorize`, `Amendment`, `Log` (CM), `System` (CC), `policyAt`; TCM-E, O2, O10; `REFUSE_FIXPOINT`, `REFUSE_ARROW`, `REFUSE_CLOCK`. | |
@@ -425,6 +427,10 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
   coordinates of a BN254 G1 point are in the base field, so the Noir
   R_ballot and R_dec of the ElGamal route need non-native field arithmetic
   (Q-S0-13 (b)). S13 measures the cost.
+- OI-12 The gate gap from S2 to S3 (Q-S2-1 (a)). `src/front/lower.c`,
+  `src/wasm.c` and `src/ir.h` are out of the build, and `langc build` gives
+  `REFUSE_LOWER` "target pending S3". Until S3 the gate has no IR rows, no
+  Wasm modules and no differential cases. S3 closes it.
 
 ## 14. Questions for the USER (S0)
 

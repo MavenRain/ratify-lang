@@ -1,0 +1,2 @@
+-- S2: unpack is not in ratify-lang (no affine layer, Q-S0-10 (a)).
+def h : (x : S1) -> S1 := fun (x : S1) => unpack x
