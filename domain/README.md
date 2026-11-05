@@ -130,6 +130,44 @@ closed decided definition, else `REFUSE_HONEST` or `REFUSE_FORK`. The
 check reads the written term, so a binder with the same name is refused
 too. See `examples/policy.lang`.
 
+## The crypto words
+
+S7 adds the crypto words of `docs/PLAN.md` section 12 row S7 (Q-S7-1 to
+Q-S7-6 (a)). The denotation of each word is the value, so eval needs no
+crypto. The real scheme is in `src/crypto/` (`build/cryptotool`).
+
+| Name | Kind | Prefix | Meaning |
+|---|---|---|---|
+| `Base` | family | `base` | the code sort: `baseBool`, or `baseCounts` with the committee `baseCom` |
+| `El` | definition | | the type of a code |
+| `Enc` | family on `Base` | `enc` | `encOf`, with the code `encBase` and the value `encVal : El encBase` |
+| `enc`, `encMeaning` | definition | | `enc b pk a` is `encOf b a` (the key is not read), and `encMeaning` gives the value back |
+| `eval` | definition | | `(a : Base) -> (b : Base) -> (c : Base) -> (El a -> El b -> El c) -> Enc a -> Enc b -> Enc c`: one homomorphic step with two inputs |
+| `Share` | family on `Base` | `share` | `shareOf`, with the code `shareBase` and the secret `shareVal` |
+| `share`, `reconstruct`, `reshare` | definition | | `share b t n s` keeps the secret, `reconstruct b t xs` gives it back (total), and `reshare` changes the holders, not the secret |
+| `Proof`, `prove` | definition | | `Proof X W R x` is `Trunc1 (Sigma (w : W) (R x w))`: a witness exists, and the proof does not show it |
+| `Protocol`, `protoOf`, `run` | definition | | `Protocol A B` is `A -> B`, the ideal function of a protocol; `run A B pi xs` applies it |
+
+The decisions of S7:
+
+- `Protocol` is the function type, and `protoOf` is a definition. A
+  family with a function field is not a cell signature (R1), and it
+  gives `REFUSE_CELL`.
+- The word is `protoOf`, not `ptOf`: `ptOf` is a field of `Party` (S4),
+  and a domain name is a core name (rule R4).
+- `trunc1` takes its type first: `trunc1 (Sigma (w : W) (R x w)) (pack
+  w h)`.
+- The rep rows: `build/cryptotool rep` prints eval lines, and the gate
+  runs `langc eval` on each. `eval` has two inputs, so the sum of the
+  bits is a chain of eval steps over `Enc (baseCounts (cmClass n
+  cmNil))`: `zeroSum`, then `addEnc` for each bit, then `openCount`
+  (share 2 of 3, reconstruct, `ctTop`, `posVal`, `sizeNat`).
+- `REFUSE_APPROX` refuses the names `ckks`, `approx`, `approximate`,
+  `float` and `double`, with the hint "an exact scheme only" (Q-S7-5
+  (a)).
+
+See `examples/crypto.lang`.
+
 ## The IR test families
 
 S3 adds `Tree`, `Signal`, `Window`, `Hop` and `Echo` from permit-lang

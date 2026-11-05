@@ -10,8 +10,8 @@ log and checks the certificates. No program can have a runtime error. The
 design is a denotational design over Unified Aggregation Theory
 (`design/DESIGN.md`).
 
-ratify-lang comes from lang-template with the tcc-wasm host. Status: S6
-(the policy words): the Cubical TT kernel of permit-lang 3d47120 and
+ratify-lang comes from lang-template with the tcc-wasm host. Status: S7
+(the crypto layer): the Cubical TT kernel of permit-lang 3d47120 and
 R0 from permit-lang 18deea2: total Nat operations, `REFUSE_PARTIAL`, and
 a Wasm writer that emits no trap form (`test/notraptool.c` checks each
 built module). S4 adds the domain words `Committee`, `Party`,
@@ -20,8 +20,11 @@ built module). S4 adds the domain words `Committee`, `Party`,
 `ForkFree`, and the refusals `REFUSE_RULE`, `REFUSE_HONEST` and
 `REFUSE_FORK`. S6 adds the policy words `Policy`, `Decision`,
 `authorize`, `Amendment`, `Log`, `System` and `policyAt`, and the
-refusals `REFUSE_ARROW`, `REFUSE_CLOCK` and `REFUSE_FIXPOINT`. The other
-ratify-lang types, refusals and targets do not exist yet.
+refusals `REFUSE_ARROW`, `REFUSE_CLOCK` and `REFUSE_FIXPOINT`. S7 adds
+the crypto words `Enc`, `eval`, `Share`, `Proof` and `Protocol`, the
+refusal `REFUSE_APPROX`, and `src/crypto/` (the crypto C of quorum-lang
+and Schnorr on BN254 G1) with the test tool `build/cryptotool`. The
+other ratify-lang types, refusals and targets do not exist yet.
 `docs/PLAN.md` gives the plan, and its section 14 gives the open
 questions.
 

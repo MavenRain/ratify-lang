@@ -1,0 +1,2 @@
+-- REFUSE_APPROX (S7, E6): `ckks` is an approximate word; no declaration can take it.
+def ckks : Sum Unit Unit := inr unit

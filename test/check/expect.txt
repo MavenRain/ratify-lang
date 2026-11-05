@@ -148,6 +148,8 @@ time-now.lang REFUSE_CLOCK
 time-timestamp.lang REFUSE_CLOCK
 time-time.lang REFUSE_CLOCK
 time-clock.lang REFUSE_CLOCK
+approx-ckks.lang REFUSE_APPROX
+approx-float.lang REFUSE_APPROX
 time-epoch.lang REFUSE_CLOCK
 partial-name.lang REFUSE_PARTIAL
 partial-option.lang REFUSE_PARTIAL

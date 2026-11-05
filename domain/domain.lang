@@ -431,3 +431,41 @@ def policyAt : (P : Policy) -> (Q : Policy) -> (l : Log P Q) -> Pos (szS (lgLen 
 def System : Type 0 := Stream Policy
 def systemOf : (P : Policy) -> (Q : Policy) -> Log P Q -> System :=
   fun (P : Policy) (Q : Policy) (l : Log P Q) => sCorec Policy Size (policyAtSize P Q l) (fun (h : Size) => szS h) sz0
+-- S7 (Q-S7-1 (a)): the code sort of the crypto words and its decoder El.
+family Base := baseBool | baseCounts (baseCom : Committee)
+def El : Base -> Type 0 :=
+  fun (b : Base) => elim (fun (k : Base) => Type 0) (Sum Unit Unit) (fun (c : Committee) => Counts c) b
+family Enc : Base -> Type 0 := encOf (encBase : Base) (encVal : El encBase) : Enc encBase
+-- The crypto words (S7, PLAN sections 4.1 and 4.2). The denotation of each word is the
+-- value, so eval needs no crypto. The real scheme is in src/crypto (build/cryptotool).
+-- enc pk a = a. The key pk is a number; the denotation does not read it.
+def enc : (b : Base) -> Nat -> El b -> Enc b :=
+  fun (b : Base) (pk : Nat) (a : El b) => encOf b a
+def encMeaning : (b : Base) -> Enc b -> El b :=
+  fun (b : Base) (c : Enc b) => elim (fun (k : Base) (e : Enc k) => El k) (fun (k : Base) (v : El k) => v) c
+-- eval g c_1 c_2 = g of the meanings (the homomorphic step, two inputs).
+def eval : (a : Base) -> (b : Base) -> (c : Base) -> (El a -> El b -> El c) -> Enc a -> Enc b -> Enc c :=
+  fun (a : Base) (b : Base) (c : Base) (g : El a -> El b -> El c) (x : Enc a) (y : Enc b) => encOf c (g (encMeaning a x) (encMeaning b y))
+-- Share a: the shares of a secret. share t n s = s; reshare keeps the secret and
+-- changes the holders; reconstruct T xs = s, total (Q-S0-2 (a)).
+family Share : Base -> Type 0 := shareOf (shareBase : Base) (shareVal : El shareBase) : Share shareBase
+def share : (b : Base) -> Size -> Size -> El b -> Share b :=
+  fun (b : Base) (t : Size) (n : Size) (s : El b) => shareOf b s
+def reconstruct : (b : Base) -> Size -> Share b -> El b :=
+  fun (b : Base) (t : Size) (xs : Share b) => elim (fun (k : Base) (e : Share k) => El k) (fun (k : Base) (v : El k) => v) xs
+def reshare : (b : Base) -> Committee -> Committee -> Size -> Share b -> Share b :=
+  fun (b : Base) (old : Committee) (new : Committee) (t : Size) (xs : Share b) => shareOf b (reconstruct b t xs)
+-- Proof R x: a witness exists, and the proof does not show it (Trunc1).
+def Proof : (X : Type 0) -> (W : Type 0) -> (X -> W -> Type 0) -> X -> Type 0 :=
+  fun (X : Type 0) (W : Type 0) (R : X -> W -> Type 0) (x : X) => Trunc1 (Sigma (w : W) (R x w))
+def prove : (X : Type 0) -> (W : Type 0) -> (R : X -> W -> Type 0) -> (x : X) -> (w : W) -> R x w -> Proof X W R x :=
+  fun (X : Type 0) (W : Type 0) (R : X -> W -> Type 0) (x : X) (w : W) (h : R x w) => trunc1 (Sigma (w : W) (R x w)) (pack w h)
+-- Protocol a b: the ideal function of a protocol, run pi xs = f_pi(xs). A family with a
+-- function field is not a cell signature (R1), so Protocol is the function type. The
+-- word is protoOf, not ptOf: ptOf is a field of Party (S4).
+def Protocol : Type 0 -> Type 0 -> Type 0 :=
+  fun (A : Type 0) (B : Type 0) => A -> B
+def protoOf : (A : Type 0) -> (B : Type 0) -> (A -> B) -> Protocol A B :=
+  fun (A : Type 0) (B : Type 0) (f : A -> B) => f
+def run : (A : Type 0) -> (B : Type 0) -> Protocol A B -> A -> B :=
+  fun (A : Type 0) (B : Type 0) (proto : Protocol A B) (xs : A) => proto xs

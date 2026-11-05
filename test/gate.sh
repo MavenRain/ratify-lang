@@ -97,6 +97,33 @@ while IFS= read -r line; do
 done <test/eval/expect.txt
 echo "evals: $evals checked"
 
+# Each line of `build/cryptotool rep` is `crypto NAME BITS => COUNT` (S7, TCM-C):
+# COUNT is the threshold open of the sum of the casts of the bits. `langc eval`
+# must exit 0 and print COUNT.
+reps=0
+status=0
+build/cryptotool rep >"$tmp/rep.txt" 2>"$tmp/err" || status=$?
+if [ "$status" -ne 0 ]; then
+  echo "FAIL cryptotool rep: exit $status: $(head -n 1 "$tmp/err")"
+  fail=$((fail + 1))
+fi
+while IFS= read -r line; do
+  want=${line#* => }
+  set -- ${line%% => *}
+  file=$1
+  name=$2
+  shift 2
+  status=0
+  got=$(build/langc $(kit examples/kit.txt "$file.lang") eval "examples/$file.lang" "$name" "$@" 2>"$tmp/err") || status=$?
+  first=$(head -n 1 "$tmp/err")
+  reps=$((reps + 1))
+  case "$status|$got|$first" in
+    "0|$want|"*) ;;
+    *) echo "FAIL crypto rep $name $*: want $want, got exit $status: $got $first"; fail=$((fail + 1)) ;;
+  esac
+done <"$tmp/rep.txt"
+echo "crypto rep: $reps checked"
+
 # eval_refused STATUS CODE NAME [ARGS]: `langc --kit eval examples/entries.lang
 # NAME ARGS` must exit STATUS and print `langc: CODE: NAME: ...` on stderr.
 eval_refused() {

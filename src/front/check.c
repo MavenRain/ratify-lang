@@ -204,6 +204,22 @@ static const Builtin BUILTINS[] = {
    universe. */
 static const char *const RESERVED[] = {"Bool", "Text", "Prop", "SProp"};
 
+/* Approximate words (S7, E6): an approximate scheme (CKKS, floating
+   point) is not exact. No declaration can take one and no name can use
+   one (REFUSE_APPROX). A program uses an exact scheme only. */
+static const char *const APPROX_WORDS[] = {"ckks", "approx", "approximate", "float", "double"};
+
+#define APPROX_HINT "%s is an approximate word; use an exact scheme only: exponential ElGamal or threshold shares over a finite field"
+
+static int approx_word(const char *name) {
+  size_t i;
+  for (i = 0; i < sizeof APPROX_WORDS / sizeof APPROX_WORDS[0]; i++) {
+    if (strcmp(APPROX_WORDS[i], name) == 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Time words (S3, O3; S6 adds deadline, timeout and expires): no declaration can take one and no name can use
    one (REFUSE_CLOCK). A program counts operations instead. */
 static const char *const TIME_WORDS[] = {"now", "block", "timestamp", "time", "clock", "epoch", "deadline", "timeout", "expires"};
@@ -414,6 +430,8 @@ static int push_value(Checker *c, const char *name, const Value *type, const Val
   const Env *e;
   if (name != NULL && time_word(name))
     return FAIL(c, "REFUSE_CLOCK", TIME_HINT, name);
+  if (name != NULL && approx_word(name))
+    return FAIL(c, "REFUSE_APPROX", APPROX_HINT, name);
   s = arena_alloc(c->m->arena, sizeof *s);
   e = env_push(c->m, c->env, value);
   if (type == NULL || value == NULL || s == NULL || e == NULL)
@@ -2577,6 +2595,8 @@ static int unknown_name(Checker *c, const char *name) {
   const char *hint = partial_hint(c, name);
   if (time_word(name))
     return FAIL(c, "REFUSE_CLOCK", TIME_HINT, name);
+  if (approx_word(name))
+    return FAIL(c, "REFUSE_APPROX", APPROX_HINT, name);
   for (i = c->decl_index; i < c->decls->count; i++) {
     if (strcmp(c->decls->items[i].name, name) == 0)
       return FAIL(c, "REFUSE_FIXPOINT", "%s is this definition or a later one; a definition can use only earlier ones (rule R3)", name);
@@ -2739,6 +2759,8 @@ static const Core *var_core(Checker *c, const char *name, const Value **type) {
   }
   if (time_word(name))
     return nul(FAIL(c, "REFUSE_CLOCK", TIME_HINT, name));
+  if (approx_word(name))
+    return nul(FAIL(c, "REFUSE_APPROX", APPROX_HINT, name));
   if (partial_hint(c, name) != NULL)
     return nul(FAIL(c, "REFUSE_PARTIAL", "%s is a partial name: %s", name, partial_hint(c, name)));
   return nul(FAIL(c, "NAME_UNKNOWN", "unknown name %s", name));
@@ -3088,6 +3110,8 @@ static int name_free(Checker *c, const char *name) {
   const char *why;
   if (time_word(name))
     return FAIL(c, "REFUSE_CLOCK", TIME_HINT, name);
+  if (approx_word(name))
+    return FAIL(c, "REFUSE_APPROX", APPROX_HINT, name);
   why = name_owner(c, name);
   return why == NULL ? 1 : FAIL(c, "REFUSE_NAME", "%s is %s (rule R4)", name, why);
 }

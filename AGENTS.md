@@ -3,7 +3,7 @@
 Instructions for agents that work in this repository. DRAFT at S0. Slice
 S17 makes this file final.
 
-## State at S6
+## State at S7
 
 - The code is the Cubical TT kernel of permit-lang 3d47120 (S2) and R0
   from permit-lang 18deea2 (S3): `langc` (C99, TinyCC) and its domain in
@@ -27,6 +27,13 @@ S17 makes this file final.
   `REFUSE_ARROW` and renames the kit codes `REFUSE_TIME` and `REFUSE_REC`
   to `REFUSE_CLOCK` and `REFUSE_FIXPOINT`. `hoRule` and `ffRule` are
   sealed: each can only be the whole body of a closed decided definition.
+- S7 adds the crypto words to `domain/domain.lang` (`Base`, `El`, `Enc`,
+  `enc`, `eval`, `Share`, `share`, `reconstruct`, `reshare`, `Proof`,
+  `prove`, `Protocol`, `protoOf`, `run`) and `REFUSE_APPROX` to
+  `src/front/check.c`. `src/crypto/` has 20 files of quorum-lang
+  src/crypto: keep them byte equal (Q-S7-2 (a)). `schnorr.c` adds
+  Schnorr on BN254 G1. `build/cryptotool` runs the crypto rows, and
+  `test/gate.sh` runs its rep lines through `langc eval`.
 - The other ratify-lang types, refusals and targets are a plan only:
   `docs/PLAN.md` sections 4 to 8 and section 12.
 

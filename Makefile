@@ -11,11 +11,14 @@ SRC = src/main.c $(FRONT) $(TARGET)
 FRONT_TOOL = test/fronttool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
 PATH_TOOL = test/pathtool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
 NOTRAP_TOOL = test/notraptool.c
-HEADERS = $(wildcard src/*.h src/front/*.h)
+# The crypto layer (S7). langc does not link it; only build/cryptotool does.
+CRYPTO = src/crypto/keccak.c src/crypto/u256.c src/crypto/bn254.c src/crypto/elgamal.c src/crypto/threshold.c src/crypto/sigma.c src/crypto/dkg.c src/crypto/secp256k1.c src/crypto/xmd.c src/crypto/sha256.c src/crypto/schnorr.c
+CRYPTO_TOOL = test/cryptotool.c $(CRYPTO)
+HEADERS = $(wildcard src/*.h src/front/*.h src/crypto/*.h)
 
 .PHONY: build check check-clang clean
 
-build: build/langc build/fronttool build/pathtool build/notraptool
+build: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool
 
 build/domain.c: domain/domain.lang gen/embed.c
 	mkdir -p build
@@ -36,17 +39,23 @@ build/notraptool: $(NOTRAP_TOOL) $(HEADERS)
 	mkdir -p build
 	$(TCC) $(CFLAGS) -o build/notraptool $(NOTRAP_TOOL)
 
+build/cryptotool: $(CRYPTO_TOOL) $(HEADERS)
+	mkdir -p build
+	$(TCC) $(CFLAGS) -o build/cryptotool $(CRYPTO_TOOL)
+
 check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) $(SRC) build/domain.c
 	$(CC) $(CLANG_FLAGS) $(FRONT_TOOL)
 	$(CC) $(CLANG_FLAGS) $(PATH_TOOL)
 	$(CC) $(CLANG_FLAGS) $(NOTRAP_TOOL)
+	$(CC) $(CLANG_FLAGS) $(CRYPTO_TOOL)
 
-check: build/langc build/fronttool build/pathtool build/notraptool check-clang
+check: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool check-clang
 	sh test/gate.sh
 	sh test/review.sh
 	build/fronttool
 	build/pathtool
+	build/cryptotool
 
 clean:
 	rm -rf build

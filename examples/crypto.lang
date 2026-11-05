@@ -1,0 +1,37 @@
+-- Crypto: one entry for each crypto word (S7, PLAN section 4.2) and the rep counts.
+-- The denotation of each word is the value. build/cryptotool runs the real scheme
+-- and prints `crypto repCountLEN B1 .. BLEN => COUNT`; the gate evaluates each line here.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def encBack : Sum Unit Unit := encMeaning baseBool (enc baseBool 7 (inr unit))
+def evalSnd : Sum Unit Unit := encMeaning baseBool (eval baseBool baseBool baseBool (fun (x : Sum Unit Unit) (y : Sum Unit Unit) => y) (enc baseBool 1 (inl unit)) (enc baseBool 1 (inr unit)))
+def shareYes : Share baseBool := share baseBool two three (inr unit)
+def reconstructYes : Sum Unit Unit := reconstruct baseBool two (share baseBool two three (inr unit))
+def reshareNo : Sum Unit Unit := reconstruct baseBool two (reshare baseBool (cmClass three cmNil) (cmClass two cmNil) two (share baseBool two three (inl unit)))
+def proveUnit : Proof Nat Nat (fun (x : Nat) (w : Nat) => Unit) 5 := prove Nat Nat (fun (x : Nat) (w : Nat) => Unit) 5 3 unit
+def runNext : Option Nat := run Nat (Option Nat) (protoOf Nat (Option Nat) (fun (n : Nat) => natAdd n 1)) 5
+-- The rep path: a committee of one class of size n holds the count of n casts.
+-- cmTop c is the size of the first class; ctTop c v is its count.
+def cmTop : Committee -> Size := fun (c : Committee) => elim (fun (k : Committee) => Size) sz0 (fun (n : Size) (r : Committee) (ih : Size) => n) c
+def ctTop : (c : Committee) -> Counts c -> Pos (szS (cmTop c)) :=
+  fun (c : Committee) (v : Counts c) => elim (fun (k : Committee) (w : Counts k) => Pos (szS (cmTop k))) (posFirst sz0)
+    (fun (n : Size) (r : Committee) (p : Pos (szS n)) (t : Counts r) (ih : Pos (szS (cmTop r))) => p) v
+-- addCast n v x: the count v of n casts and one more cast x (yes adds 1).
+def addCast : (n : Size) -> Counts (cmClass n cmNil) -> Sum Unit Unit -> Counts (cmClass (szS n) cmNil) :=
+  fun (n : Size) (v : Counts (cmClass n cmNil)) (x : Sum Unit Unit) => ctClass (szS n) cmNil
+    (elim (fun (s : Sum Unit Unit) => Pos (szS (szS n))) (fun (u : Unit) => posWeaken (szS n) (ctTop (cmClass n cmNil) v)) (fun (u : Unit) => posNext (szS n) (ctTop (cmClass n cmNil) v)) x) ctNil
+def castOf : Flag -> Enc baseBool := fun (f : Flag) => enc baseBool 7 (flagIf f (inr unit) (inl unit))
+def zeroSum : Enc (baseCounts (cmClass sz0 cmNil)) := enc (baseCounts (cmClass sz0 cmNil)) 7 (ctClass sz0 cmNil (posFirst sz0) ctNil)
+-- addEnc n s f: the homomorphic step, the sum s and the cast of f.
+def addEnc : (n : Size) -> Enc (baseCounts (cmClass n cmNil)) -> Flag -> Enc (baseCounts (cmClass (szS n) cmNil)) :=
+  fun (n : Size) (s : Enc (baseCounts (cmClass n cmNil))) (f : Flag) => eval (baseCounts (cmClass n cmNil)) baseBool (baseCounts (cmClass (szS n) cmNil)) (addCast n) s (castOf f)
+-- sizeNat s: the number of szS in s (no Size to Nat word exists).
+def sizeNat : Size -> Option Nat := fun (s : Size) => fold (some 0) (fun (acc : Option Nat) => bind acc (fun (a : Nat) => natAdd a 1)) s
+-- openCount n s: the threshold open (2 of 3 shares) of the sum s, as a number.
+def openCount : (n : Size) -> Enc (baseCounts (cmClass n cmNil)) -> Option Nat :=
+  fun (n : Size) (s : Enc (baseCounts (cmClass n cmNil))) => sizeNat (posVal (szS n) (ctTop (cmClass n cmNil)
+    (reconstruct (baseCounts (cmClass n cmNil)) two (share (baseCounts (cmClass n cmNil)) two three (encMeaning (baseCounts (cmClass n cmNil)) s)))))
+def repCount1 : (b1 : Flag) -> Option Nat := fun (b1 : Flag) => openCount one (addEnc sz0 zeroSum b1)
+def repCount2 : (b1 b2 : Flag) -> Option Nat := fun (b1 b2 : Flag) => openCount two (addEnc one (addEnc sz0 zeroSum b1) b2)
+def repCount3 : (b1 b2 b3 : Flag) -> Option Nat := fun (b1 b2 b3 : Flag) => openCount three (addEnc two (addEnc one (addEnc sz0 zeroSum b1) b2) b3)
