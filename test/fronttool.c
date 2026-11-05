@@ -201,12 +201,12 @@ int main(void) {
   /* Diagnostics can print binders while constructor slots are still unnamed. */
   ok &= domain("state State := makeState (value : fun (x : Nat) => x)", "TYPE_MISMATCH");
   /* Time words are forbidden in local scopes as well as declarations. */
-  ok &= domain("def bad : (now : Nat) -> Nat := fun x => x", "REFUSE_TIME");
-  ok &= domain("def bad : Nat -> Nat := fun clock => clock", "REFUSE_TIME");
-  ok &= domain("def bad : Nat -> Nat := fun time => 0", "REFUSE_TIME");
-  ok &= domain("def bad : Path Nat 0 0 := fun (block : I) => 0", "REFUSE_TIME");
-  ok &= domain("family Test (timestamp : Type 0) := makeTest (payload : timestamp)", "REFUSE_TIME");
-  ok &= domain("def bad : Path Nat 0 0 := fun epoch => 0", "REFUSE_TIME");
+  ok &= domain("def bad : (now : Nat) -> Nat := fun x => x", "REFUSE_CLOCK");
+  ok &= domain("def bad : Nat -> Nat := fun clock => clock", "REFUSE_CLOCK");
+  ok &= domain("def bad : Nat -> Nat := fun time => 0", "REFUSE_CLOCK");
+  ok &= domain("def bad : Path Nat 0 0 := fun (block : I) => 0", "REFUSE_CLOCK");
+  ok &= domain("family Test (timestamp : Type 0) := makeTest (payload : timestamp)", "REFUSE_CLOCK");
+  ok &= domain("def bad : Path Nat 0 0 := fun epoch => 0", "REFUSE_CLOCK");
   /* Counting an open higher cell must preserve its path boundaries. */
   ok &= len_roundtrip(
     "(r : FreeMon Unit) -> (p : Path (FreeMon Unit) (fmUnit Unit) r) -> Path Nat 0 (len Unit r)",
@@ -531,6 +531,18 @@ int main(void) {
      literal is a kit item. The second row passes in kit mode only if the mode
      is wrong. */
   ok &= guest("def keep : Sum Unit Unit -> Sum Unit Unit := fun c => c", NULL);
+  /* Constructor seals follow binder scope in types and bodies. */
+  ok &= guest("def honestId : (hoRule : Unit) -> Unit := fun hoRule => hoRule", NULL);
+  ok &= guest("def forkId : (ffRule : Unit) -> Unit := fun ffRule => ffRule", NULL);
+  ok &= guest("def typeId : (hoRule : Type 0) -> hoRule -> hoRule := fun hoRule x => x", NULL);
+  ok &= guest("def package : Sigma (ffRule : Type 0) ffRule := pack Unit unit", NULL);
+  /* A binder does not shadow constructors in its own annotation. */
+  ok &= checked_in("family Honest := hoRule\n",
+    "def bad : (hoRule : Path Honest hoRule hoRule) -> Unit := fun x => unit",
+    ORIGIN_PROGRAM, CHECK_GUEST, "REFUSE_HONEST");
+  ok &= checked_in("family ForkFree := ffRule\n",
+    "def bad : (ffRule : Path ForkFree ffRule ffRule) -> Unit := fun x => unit",
+    ORIGIN_PROGRAM, CHECK_GUEST, "REFUSE_FORK");
   ok &= guest("def three : Nat := 3", "REFUSE_KIT");
   if (ok) puts("domain regressions: passed");
   return ok ? 0 : 1;

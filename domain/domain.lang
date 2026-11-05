@@ -377,3 +377,57 @@ def accept : (c : Committee) -> Rule c -> Counts c -> Sum Unit Unit :=
 -- and O4 (REFUSE_HONEST). ForkFree c f: O3, O4 and O5 (REFUSE_FORK).
 family Honest : Committee -> Size -> Type 0 := hoRule (hoOf : Committee) (hoF : Size) (hoBody : Rule hoOf) : Honest hoOf hoF
 family ForkFree : Committee -> Size -> Type 0 := ffRule (ffOf : Committee) (ffF : Size) (ffBody : Rule ffOf) : ForkFree ffOf ffF
+-- The policy words (S6, Q-S6-1 (a)): a policy has a committee, a fault bound
+-- f, an authorize rule (Honest: O3 and O4) and an amend rule (ForkFree: O3,
+-- O4 and O5). A Decision is binary (O2): inr unit accepts, inl unit refuses.
+def Decision : Type 0 := Sum Unit Unit
+family Policy := plOf (plCom : Committee) (plF : Size) (plAuth : Honest plCom plF) (plAmend : ForkFree plCom plF)
+def polCom : Policy -> Committee :=
+  fun (p : Policy) => elim (fun (q : Policy) => Committee) (fun (c : Committee) (f : Size) (h : Honest c f) (a : ForkFree c f) => c) p
+def hoBodyOf : (c : Committee) -> (f : Size) -> Honest c f -> Rule c :=
+  fun (c : Committee) (f : Size) (h : Honest c f) => elim (fun (k : Committee) (g : Size) (q : Honest k g) => Rule k) (fun (k : Committee) (g : Size) (b : Rule k) => b) h
+def ffBodyOf : (c : Committee) -> (f : Size) -> ForkFree c f -> Rule c :=
+  fun (c : Committee) (f : Size) (h : ForkFree c f) => elim (fun (k : Committee) (g : Size) (q : ForkFree k g) => Rule k) (fun (k : Committee) (g : Size) (b : Rule k) => b) h
+-- authorize P a S = accept of the authorize rule at count S; a is not read.
+def authorize : (P : Policy) -> (A : Type 0) -> A -> Approvals (polCom P) -> Decision :=
+  fun (P : Policy) (A : Type 0) (a : A) => elim (fun (q : Policy) => Approvals (polCom q) -> Decision)
+    (fun (c : Committee) (f : Size) (h : Honest c f) (r : ForkFree c f) => fun (s : Approvals c) => accept c (hoBodyOf c f h) (count c s)) P
+def amendOk : (P : Policy) -> Approvals (polCom P) -> Decision :=
+  fun (P : Policy) => elim (fun (q : Policy) => Approvals (polCom q) -> Decision)
+    (fun (c : Committee) (f : Size) (h : Honest c f) (r : ForkFree c f) => fun (s : Approvals c) => accept c (ffBodyOf c f r) (count c s)) P
+-- An amendment from P to Q: an approval set that the amend rule of P accepts.
+family Amendment : Policy -> Policy -> Type 0 := amOf (amFrom : Policy) (amTo : Policy) (amSet : Approvals (polCom amFrom)) (amOk : Path Decision (amendOk amFrom amSet) (inr unit)) : Amendment amFrom amTo
+-- The log (CM): the free category on the amendments, nil, cons and append.
+family Log : Policy -> Policy -> Type 0 := lgNil (lgNilOf : Policy) : Log lgNilOf lgNilOf
+  | lgCons (lgFrom : Policy) (lgMid : Policy) (lgTo : Policy) (lgHead : Amendment lgFrom lgMid) (lgTail : Log lgMid lgTo) : Log lgFrom lgTo
+def append : (P : Policy) -> (Q : Policy) -> (R : Policy) -> Log P Q -> Log Q R -> Log P R :=
+  fun (P : Policy) (Q : Policy) (R : Policy) (l : Log P Q) => elim (fun (p : Policy) (q : Policy) (k : Log p q) => Log q R -> Log p R)
+    (fun (n : Policy) => fun (m : Log n R) => m)
+    (fun (x : Policy) (y : Policy) (z : Policy) (hd : Amendment x y) (tl : Log y z) (ih : Log z R -> Log y R) => fun (m : Log z R) => lgCons x y R hd (ih m)) l
+-- TCM-E: nil is a unit and append is associative (paths by induction).
+def appendNilL : (P : Policy) -> (Q : Policy) -> (l : Log P Q) -> Path (Log P Q) (append P P Q (lgNil P) l) l :=
+  fun (P : Policy) (Q : Policy) (l : Log P Q) => fun (i : I) => l
+def appendNilR : (P : Policy) -> (Q : Policy) -> (l : Log P Q) -> Path (Log P Q) (append P Q Q l (lgNil Q)) l :=
+  fun (P : Policy) (Q : Policy) (l : Log P Q) => elim (fun (p : Policy) (q : Policy) (k : Log p q) => Path (Log p q) (append p q q k (lgNil q)) k)
+    (fun (n : Policy) => fun (i : I) => lgNil n)
+    (fun (x : Policy) (y : Policy) (z : Policy) (hd : Amendment x y) (tl : Log y z) (ih : Path (Log y z) (append y z z tl (lgNil z)) tl) => fun (i : I) => lgCons x y z hd (ih @ i)) l
+def appendAssoc : (P : Policy) -> (Q : Policy) -> (R : Policy) -> (S : Policy) -> (a : Log P Q) -> (b : Log Q R) -> (c : Log R S) -> Path (Log P S) (append P Q S a (append Q R S b c)) (append P R S (append P Q R a b) c) :=
+  fun (P : Policy) (Q : Policy) (R : Policy) (S : Policy) (a : Log P Q) => elim (fun (p : Policy) (q : Policy) (k : Log p q) => (b : Log q R) -> (c : Log R S) -> Path (Log p S) (append p q S k (append q R S b c)) (append p R S (append p q R k b) c))
+    (fun (n : Policy) => fun (b : Log n R) (c : Log R S) => fun (i : I) => append n R S b c)
+    (fun (x : Policy) (y : Policy) (z : Policy) (hd : Amendment x y) (tl : Log y z) (ih : (b : Log z R) -> (c : Log R S) -> Path (Log y S) (append y z S tl (append z R S b c)) (append y R S (append y z R tl b) c)) => fun (b : Log z R) (c : Log R S) => fun (i : I) => lgCons x y S hd ((ih b c) @ i)) a
+def lgLen : (P : Policy) -> (Q : Policy) -> Log P Q -> Size :=
+  fun (P : Policy) (Q : Policy) (l : Log P Q) => elim (fun (p : Policy) (q : Policy) (k : Log p q) => Size)
+    (fun (n : Policy) => sz0)
+    (fun (x : Policy) (y : Policy) (z : Policy) (hd : Amendment x y) (tl : Log y z) (ih : Size) => szS ih) l
+-- policyAt (O10): the first policy at height 0, the policy of the tail at
+-- height h + 1, and the last policy past the end.
+def policyAtSize : (P : Policy) -> (Q : Policy) -> Log P Q -> Size -> Policy :=
+  fun (P : Policy) (Q : Policy) (l : Log P Q) => elim (fun (p : Policy) (q : Policy) (k : Log p q) => Size -> Policy)
+    (fun (n : Policy) => fun (h : Size) => n)
+    (fun (x : Policy) (y : Policy) (z : Policy) (hd : Amendment x y) (tl : Log y z) (ih : Size -> Policy) => fun (h : Size) => elim (fun (k : Size) => Policy) x (fun (k : Size) (r : Policy) => ih k) h) l
+def policyAt : (P : Policy) -> (Q : Policy) -> (l : Log P Q) -> Pos (szS (lgLen P Q l)) -> Policy :=
+  fun (P : Policy) (Q : Policy) (l : Log P Q) (h : Pos (szS (lgLen P Q l))) => policyAtSize P Q l (posVal (szS (lgLen P Q l)) h)
+-- The system (CC, Q-S6-4 (a)): the stream of the policies, one per height.
+def System : Type 0 := Stream Policy
+def systemOf : (P : Policy) -> (Q : Policy) -> Log P Q -> System :=
+  fun (P : Policy) (Q : Policy) (l : Log P Q) => sCorec Policy Size (policyAtSize P Q l) (fun (h : Size) => szS h) sz0

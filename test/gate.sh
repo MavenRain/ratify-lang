@@ -67,7 +67,7 @@ if ! rg -q -F 'the path at i1 is some 1201, but the type needs some 1200' "$tmp/
   fail=$((fail + 1))
 fi
 
-# A REFUSE_TIME refusal names the op-count form (S3, O3).
+# A REFUSE_CLOCK refusal names the op-count form (S3, O3).
 time_hint=0
 build/langc $(kit test/check/kit.txt time-block.lang) check test/check/time-block.lang 2>"$tmp/err" >/dev/null || true
 time_hint=$((time_hint + 1))

@@ -83,3 +83,5 @@ rule at3 => inr unit
 rule at2 => inl unit
 rule vetoNo => inl unit
 rule vetoYes => inr unit
+policy okAuth => inr unit
+policy noAuth => inl unit

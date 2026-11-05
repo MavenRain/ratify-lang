@@ -1,0 +1,11 @@
+-- REFUSE_ARROW (Q-S6-3 (a), S6): an approval set gives one of 3 positions (a ranked choice).
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def k3 : Pos (szS four) := posNext four (posNext three (posNext two (posFirst one)))
+def k4 : Pos (szS four) := posNext four (posNext three (posNext two (posNext one (posFirst sz0))))
+def fig : Committee := cmClass four cmNil
+def bar3 : Counts fig := ctClass four cmNil k3 ctNil
+def maj : Rule fig := rlMin fig bar3
+def pick : Approvals fig -> Pos three := fun (s : Approvals fig) => posFirst two

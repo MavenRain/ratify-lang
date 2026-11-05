@@ -1,0 +1,18 @@
+-- amend-wrong (S6): the amend rule of p0 (t = 3) does not accept 0 approvals.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def k3 : Pos (szS four) := posNext four (posNext three (posNext two (posFirst one)))
+def k4 : Pos (szS four) := posNext four (posNext three (posNext two (posNext one (posFirst sz0))))
+def fig : Committee := cmClass four cmNil
+def bar3 : Counts fig := ctClass four cmNil k3 ctNil
+def maj : Rule fig := rlMin fig bar3
+def all4 : Rule fig := rlMin fig (ctClass four cmNil k4 ctNil)
+def majHonest : Honest fig one := hoRule fig one maj
+def majFork : ForkFree fig one := ffRule fig one maj
+def allFork : ForkFree fig one := ffRule fig one all4
+def p0 : Policy := plOf fig one majHonest majFork
+def p1 : Policy := plOf fig one majHonest allFork
+def s0 : Approvals fig := apClass four cmNil (fun (p : Pos four) => inl unit) apNil
+def am : Amendment p0 p1 := amOf p0 p1 s0 refl

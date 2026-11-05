@@ -3,7 +3,7 @@
 Instructions for agents that work in this repository. DRAFT at S0. Slice
 S17 makes this file final.
 
-## State at S5
+## State at S6
 
 - The code is the Cubical TT kernel of permit-lang 3d47120 (S2) and R0
   from permit-lang 18deea2 (S3): `langc` (C99, TinyCC) and its domain in
@@ -20,6 +20,13 @@ S17 makes this file final.
   `src/front/check.c` (`REFUSE_RULE`, `REFUSE_HONEST`, `REFUSE_FORK`).
   The kernel decides O3, O4 and O5 on the accept table of a closed
   committee.
+- S6 adds the policy words to `domain/domain.lang` (`Decision`,
+  `Policy`, `authorize`, `amendOk`, `Amendment`, `Log`, `append`,
+  `lgLen`, `policyAt`, `System`, `systemOf`) with the TCM-E paths
+  `appendNilL`, `appendNilR` and `appendAssoc`. `src/front/check.c` adds
+  `REFUSE_ARROW` and renames the kit codes `REFUSE_TIME` and `REFUSE_REC`
+  to `REFUSE_CLOCK` and `REFUSE_FIXPOINT`. `hoRule` and `ffRule` are
+  sealed: each can only be the whole body of a closed decided definition.
 - The other ratify-lang types, refusals and targets are a plan only:
   `docs/PLAN.md` sections 4 to 8 and section 12.
 

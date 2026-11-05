@@ -17,15 +17,16 @@ the readings of the request, the route, the slices and the open questions.
 "design sec N" is section N of the design. Section 14 lists the questions
 for the USER. A reading that is not ruled stays a recommendation.
 
-Status: S5 (the rule words): the Cubical TT kernel of permit-lang 3d47120
+Status: S6 (the policy words): the Cubical TT kernel of permit-lang 3d47120
 and R0 from permit-lang 18deea2 are in, without the affine layer and the
 permit domain (Q-S0-10 (a), Q-S2-1 (a)). The Wasm writer emits no trap
 form. The domain has `Committee`, `Party`, `Approvals`, `Counts`,
-`count`, `Rule`, `accept`, `Honest` and `ForkFree`, and the kernel gives
-`REFUSE_ORBIT`, `REFUSE_BOUND`, `REFUSE_RULE`, `REFUSE_HONEST` and
-`REFUSE_FORK` (Q-S4-1 to Q-S4-4 (a), Q-S5-1 to Q-S5-3 (a)). Section 1 has
-the rulings. Next: S6 (`Policy`, `Decision`, `authorize`, `Amendment`,
-`Log`; section 12).
+`count`, `Rule`, `accept`, `Honest`, `ForkFree`, `Policy`, `Decision`,
+`authorize`, `Amendment`, `Log`, `System` and `policyAt`, and the kernel
+gives `REFUSE_ORBIT`, `REFUSE_BOUND`, `REFUSE_RULE`, `REFUSE_HONEST`,
+`REFUSE_FORK`, `REFUSE_FIXPOINT`, `REFUSE_ARROW` and `REFUSE_CLOCK`
+(Q-S4-1 to Q-S4-4 (a), Q-S5-1 to Q-S5-3 (a), Q-S6-1 to Q-S6-4 (a)).
+Section 1 has the rulings. Next: S7 (the crypto layer; section 12).
 
 ## 1. Rulings
 
@@ -62,6 +63,10 @@ the rulings. Next: S6 (`Policy`, `Decision`, `authorize`, `Amendment`,
 | 2026-11-04 | Q-S5-1 (a) "Domain family, exact table": `Rule c` is a family in `domain/domain.lang`: `rlMin` (accept when the count is at or above the bar `rlBar : Counts c` in each class), `rlAnd`, `rlOr`, and `rlTable` (accept exactly the count vectors in `rlRows : CtTable c`). `accept` is a domain definition. Edits: section 12. | USER, S5 |
 | 2026-11-04 | Q-S5-2 (a) "Families indexed by f": `Honest c f` and `ForkFree c f` are families on a committee and the fault bound `f : Size`, each with one rule. S6 `Policy c f` holds one `Honest` and one `ForkFree`. Edits: section 12. | USER, S5 |
 | 2026-11-04 | Q-S5-3 (a) "Keep the walk": `REFUSE_ORBIT` keeps the walk of the quoted type (OI-13 (a)). No S5 rule puts `count c S` in the type of a definition that is not a law. Edits: sections 12, 13. | USER, S5 |
+| 2026-11-04 | Q-S6-1 (a) "Fields + seal": `Policy` is one family `plOf` with the fields `plCom`, `plF`, `plAuth : Honest plCom plF` and `plAmend : ForkFree plCom plF`. `hoRule` and `ffRule` can only be the whole body of a closed decided definition, else `REFUSE_HONEST` or `REFUSE_FORK`. Edits: sections 12, 13. | USER, S6 |
+| 2026-11-04 | Q-S6-2 (a) "Rename": the kit codes `REFUSE_TIME` and `REFUSE_REC` become `REFUSE_CLOCK` and `REFUSE_FIXPOINT`, and `deadline`, `timeout` and `expires` are clock words too. Edits: section 12. | USER, S6 |
+| 2026-11-04 | Q-S6-3 (a) "Result type": `REFUSE_ARROW` refuses a guest definition whose type takes `Approvals` or `Counts` and gives a closed choice of three or more values. Edits: section 12. | USER, S6 |
+| 2026-11-04 | Q-S6-4 (a) "Stream Policy": `System` is `Stream Policy`, and `systemOf` builds it by `sCorec` at a seed `Size`. Edits: sections 3, 12. | USER, S6 |
 
 The (a) rulings keep the readings of sections 2 to 11; those sections now
 cite the ruled option. The rows for Q-S0-9 (b), Q-S0-13 (b) and Q-S1-1 to
@@ -157,7 +162,7 @@ The formers that the design needs (Q-S0-5 (a)):
 | Former | Class | Reading | Design |
 |---|---|---|---|
 | `Log P Q` | CM (indexed) | The free category on accepted amendments. `nil P` is the unit, `cons e log` adds one cell. `append` is the bind. The category laws (unit, associativity) are paths by induction. | sec 4, sec 5, TCM-E |
-| `System` | CC (dual of `Log`) | The cofree comonad of `Amendment -> _`: a Moore machine. `eps` is the policy at the current height, `step : System -> Amendment -> System` moves one height. `policyAt h` of a log is `eps` after h steps. | sec 4 (Elliott behavior), sec 8 |
+| `System` | CC (dual of `Log`) | The cofree comonad of `Amendment -> _`: a Moore machine. In S6 `System` is `Stream Policy` (Q-S6-4 (a)): `systemOf` builds it by `sCorec` at a seed `Size`, the head is the policy at the current height, and the tail moves one height. `policyAt h` of a log is the policy after h steps. | sec 4 (Elliott behavior), sec 8 |
 | `Enc a`, `Share a` | CM, no cells | The identity monad at a base type: `enc` and `share` are the unit, and the denotation is the value (design sec 5: the meaning of `enc pk a` is a). The parameter is a base type only (`Bool`, `Counts`). At T1 the representation is real (Q-S0-9 (b)): `Enc` is an exponential ElGamal ciphertext on BN254 G1 and `Share` is a Shamir share of the DKG key (section 8.2). The gate checks the representation map: the decrypt of the sum of casts equals the counts (quorum-lang S6). | sec 4, sec 5 |
 | `Proof R x` | none (a base sort) | A proposition-indexed sort, not a former: the meaning is the claim that a witness exists. | sec 4 |
 | `Protocol a b` | none (a base sort) | The meaning is the ideal functionality, a function. Composition holds only up to computational indistinguishability (TCM-D), so it is an ASSUMED law (section 6), not a CM law. | sec 4, TCM-D |
@@ -396,8 +401,8 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S3 | Port permit-lang 3d47120..18deea2: R0 in the kernel and the Wasm writer, `REFUSE_PARTIAL`, `src/wasmop.h`, `test/notraptool.c`, the trap row (OI-6). `src/front/lower.c`, `src/wasm.c` and `src/ir.h` come back into the build, with the IR rows, the Wasm modules and the differential cases (OI-12). Gate: 30 examples, 17 parse refusals, 158 check refusals, 10 kit-only refusals, 1 time hint, 79 evals, 1 build, 1 ir lowered, 5 ir refusals, 2 ir lowerings, 4 notrap modules, 7 notrap bad rows, 10 spine evals, 33 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1, M2 (`REFUSE_PARTIAL`), M3 (the div guard of the no-trap tool), M4 (`flag_norm`): KILLED. M5 (the `br_table` default) and M6 (the IF condition): equivalent. | DONE |
 | S4 | `Party`, `Committee`, `Approvals`, `Counts`, `count`; G_P derived; TCM-A; `REFUSE_ORBIT`, `REFUSE_BOUND`. The four words are families in `domain/domain.lang`, with the definitions `posWeaken`, `countBits` and `count`; G_P is `Perm` and `actP` (Q-S4-1 (a)). `REFUSE_ORBIT`: a program definition that is not a law reads `Approvals` (Q-S4-2 (a)). `REFUSE_BOUND`: a definition type, or a definition of type `Committee`, at a closed committee with a count space above 2^20 (Q-S4-3 (a)). TCM-A: by construction, and the closed `refl` rows `tcmSwap`, `tcmLift` and `tcmVeto` in `examples/committee.lang` (Q-S4-4 (a)). Rule R4: the domain name `count` clashed with three guest names, so `examples/formers.lang` has `counted`, and `examples/state-no-history.lang` and `test/check/state-boundary.lang` have the state field `stateCount`. Gate: 32 examples, 17 parse refusals, 162 check refusals, 10 kit-only refusals, 1 time hint, 81 evals, 1 build, 1 ir lowered, 5 ir refusals, 2 ir lowerings, 4 notrap modules, 7 notrap bad rows, 10 spine evals, 35 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1 (the bound compare), M2 (the factor n_j + 1), M3 (the elim case of `orbit_uses`), M4 (the approval arm of `countBits`): KILLED. | DONE |
 | S5 | `Rule`, `and`, `or`, the minimal accepting vectors; O3, O4, O5; `REFUSE_RULE`, `REFUSE_HONEST`, `REFUSE_FORK`; TCM-B. On the USER S4 commit c19574d. `Rule c` is a family in `domain/domain.lang` (`rlMin`, `rlAnd`, `rlOr`, `rlTable` with `CtTable c`), with the definition `accept` (Q-S5-1 (a)). `Honest c f` and `ForkFree c f` are families on a committee and the fault bound `f : Size` (Q-S5-2 (a)). For a program definition that is not a law, with the type `Rule`, `Honest` or `ForkFree` at a closed committee, the kernel fills the accept table of the count space, computes the minimal accepting vectors and decides O3 (`REFUSE_RULE`), O4 (`REFUSE_HONEST`, for `Honest` and `ForkFree`) and O5 (`REFUSE_FORK`, for `ForkFree`). An open committee or an open f gives no decision. The quoted-type walk of `REFUSE_ORBIT` stays (Q-S5-3 (a), OI-13 closed). TCM-B: the closed `refl` rows `tcmAnd` and `tcmOr` in `examples/rule.lang`, and the check rows `fork-even` and `fork-or`. Gate: 33 examples, 17 parse refusals, 168 check refusals, 10 kit-only refusals, 1 time hint, 85 evals, 1 build, 1 ir lowered, 5 ir refusals, 2 ir lowerings, 4 notrap modules, 7 notrap bad rows, 10 spine evals, 36 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1 (the monotone verdict), M2 (the accept-0 check), M3 (the O4 margin compare), M4 (the clamp guard), M5 (the `rlAnd` and `rlOr` choice of the accept fill): KILLED. | DONE |
-| S6 | `Policy`, `Decision`, `authorize`, `Amendment`, `Log` (CM), `System` (CC), `policyAt`; TCM-E, O2, O10; `REFUSE_FIXPOINT`, `REFUSE_ARROW`, `REFUSE_CLOCK`. | NEXT |
-| S7 | The crypto layer (Q-S0-9 (b), Q-S1-1 (a), Q-S1-3 (a)): `Enc`, `Share`, `Proof`, `Protocol` and their operations; port quorum-lang src/crypto and add Schnorr on BN254 G1; the test tool and the crypto rows (section 10); the ASSUMED rows; `REFUSE_APPROX`. | |
+| S6 | `Policy`, `Decision`, `authorize`, `Amendment`, `Log` (CM), `System` (CC), `policyAt`; TCM-E, O2, O10; `REFUSE_FIXPOINT`, `REFUSE_ARROW`, `REFUSE_CLOCK`. On the USER S5 commit 1a38884. `Policy` is `plOf` with `plCom`, `plF`, `plAuth : Honest plCom plF` and `plAmend : ForkFree plCom plF`. `hoRule` and `ffRule` can only be the whole body of a closed decided definition, and the seal is a walk over the written term, not over the core term (Q-S6-1 (a)). `REFUSE_CLOCK` and `REFUSE_FIXPOINT` are the kit codes `REFUSE_TIME` and `REFUSE_REC` with new names (Q-S6-2 (a)). `REFUSE_ARROW` refuses a closed choice of three or more values from `Approvals` or `Counts` (Q-S6-3 (a)). `System` is `Stream Policy` (Q-S6-4 (a)). `Log` has the TCM-E paths `appendNilL`, `appendNilR` and `appendAssoc`, and `examples/policy.lang` has the O10 rows `o10At0` and `o10Past`. Gate: 34 examples, 17 parse refusals, 177 check refusals, 87 evals, 37 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1 to M5 KILLED. The seal walk respects local binders (OI-15 closed); `Fin` is internal (O23), so `REFUSE_ARROW` checks only `Sum` trees and `Pos n`. | DONE |
+| S7 | The crypto layer (Q-S0-9 (b), Q-S1-1 (a), Q-S1-3 (a)): `Enc`, `Share`, `Proof`, `Protocol` and their operations; port quorum-lang src/crypto and add Schnorr on BN254 G1; the test tool and the crypto rows (section 10); the ASSUMED rows; `REFUSE_APPROX`. | NEXT |
 | S8 | `Certificate`, `Verdict`, `Reason`, `verify`, equivocation evidence. | |
 | S9 | T1 part 1: the Wasm module, the crypto import ABI (Q-S1-1 (a)), the notrap rows. | |
 | S10 | T1 part 2: `ratifyd`, the Wasm engine (Q-S0-11 (a)), the demo D1 to D8. | |
@@ -461,7 +466,12 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
   definition that is not a law.
 - OI-14 The O5 walk (S5) is quadratic in the minimal accepting vectors:
   up to C(20, 10) = 184756 vectors at 2^20 for 20 classes of 1. Open, for
-  S6 or later.
+  S7 or later.
+- OI-15 The seal of `hoRule` and `ffRule` (S6, Q-S6-1 (a)) walks the
+  written term. CLOSED in the S6 review: the walk respects lambda, Pi and
+  Sigma binders in their bodies while checking each binder's own type
+  outside its scope. C regressions cover shadowing and constructor uses
+  in binder annotations.
 
 ## 14. Questions for the USER (S0)
 

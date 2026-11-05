@@ -204,9 +204,9 @@ static const Builtin BUILTINS[] = {
    universe. */
 static const char *const RESERVED[] = {"Bool", "Text", "Prop", "SProp"};
 
-/* Time words (S3, O3): no declaration can take one and no name can use
-   one (REFUSE_TIME). A program counts operations instead. */
-static const char *const TIME_WORDS[] = {"now", "block", "timestamp", "time", "clock", "epoch"};
+/* Time words (S3, O3; S6 adds deadline, timeout and expires): no declaration can take one and no name can use
+   one (REFUSE_CLOCK). A program counts operations instead. */
+static const char *const TIME_WORDS[] = {"now", "block", "timestamp", "time", "clock", "epoch", "deadline", "timeout", "expires"};
 
 #define TIME_HINT "%s is a time word; count operations: a position is `len r` (an OpPos) and a deadline is a count of later operations"
 
@@ -413,7 +413,7 @@ static int push_value(Checker *c, const char *name, const Value *type, const Val
   Scope *s;
   const Env *e;
   if (name != NULL && time_word(name))
-    return FAIL(c, "REFUSE_TIME", TIME_HINT, name);
+    return FAIL(c, "REFUSE_CLOCK", TIME_HINT, name);
   s = arena_alloc(c->m->arena, sizeof *s);
   e = env_push(c->m, c->env, value);
   if (type == NULL || value == NULL || s == NULL || e == NULL)
@@ -2576,10 +2576,10 @@ static int unknown_name(Checker *c, const char *name) {
   size_t i;
   const char *hint = partial_hint(c, name);
   if (time_word(name))
-    return FAIL(c, "REFUSE_TIME", TIME_HINT, name);
+    return FAIL(c, "REFUSE_CLOCK", TIME_HINT, name);
   for (i = c->decl_index; i < c->decls->count; i++) {
     if (strcmp(c->decls->items[i].name, name) == 0)
-      return FAIL(c, "REFUSE_REC", "%s is this definition or a later one; a definition can use only earlier ones (rule R3)", name);
+      return FAIL(c, "REFUSE_FIXPOINT", "%s is this definition or a later one; a definition can use only earlier ones (rule R3)", name);
   }
   if (hint != NULL)
     return FAIL(c, "REFUSE_PARTIAL", "%s is a partial name: %s", name, hint);
@@ -2738,7 +2738,7 @@ static const Core *var_core(Checker *c, const char *name, const Value **type) {
     return core_index(c, CORE_GLOBAL, d);
   }
   if (time_word(name))
-    return nul(FAIL(c, "REFUSE_TIME", TIME_HINT, name));
+    return nul(FAIL(c, "REFUSE_CLOCK", TIME_HINT, name));
   if (partial_hint(c, name) != NULL)
     return nul(FAIL(c, "REFUSE_PARTIAL", "%s is a partial name: %s", name, partial_hint(c, name)));
   return nul(FAIL(c, "NAME_UNKNOWN", "unknown name %s", name));
@@ -3087,7 +3087,7 @@ static const char *name_owner(const Checker *c, const char *name) {
 static int name_free(Checker *c, const char *name) {
   const char *why;
   if (time_word(name))
-    return FAIL(c, "REFUSE_TIME", TIME_HINT, name);
+    return FAIL(c, "REFUSE_CLOCK", TIME_HINT, name);
   why = name_owner(c, name);
   return why == NULL ? 1 : FAIL(c, "REFUSE_NAME", "%s is %s (rule R4)", name, why);
 }
@@ -4469,6 +4469,82 @@ static int rule_def(Checker *c, const Decl *d, const Value *tv, const Core *body
   return 0;
 }
 
+/* Q-S6-3 (a): the number of leaves of the Sum tree T. A value that is not a
+   Sum is one leaf. */
+static uint32_t sum_leaves(const Value *t) {
+  if (t == NULL || !val_is(t, OP_SUM) || t->argc < 2u)
+    return 1u;
+  return sum_leaves(t->args[0]) + sum_leaves(t->args[1]);
+}
+
+/* Q-S6-3 (a): 1 if the def type T takes Approvals c or Counts c and gives a
+   closed choice of 3 or more values: a Sum tree with 3 or more leaves, or
+   Pos n at a closed n of 3 or more (REFUSE_ARROW). Fin is internal (O23),
+   so a guest type cannot name it. */
+static int arrow_type(Machine *m, uint32_t level, const Value *t) {
+  uint32_t ap = find_family(m, "Approvals");
+  uint32_t ct = find_family(m, "Counts");
+  uint32_t n = level;
+  uint64_t size;
+  int reads = 0;
+  int open = 0;
+  while (t != NULL && t->kind == VAL_PI) {
+    reads = reads || is_family(t->dom, ap) || is_family(t->dom, ct);
+    t = closure_apply(m, t, val_var(m, n++));
+  }
+  if (!reads || t == NULL)
+    return 0;
+  if (is_family(t, find_family(m, "Pos")) && t->argc >= 1u) {
+    size = size_count(t->args[0], bound_ctor(m, "sz0"), bound_ctor(m, "szS"), 3u, &open);
+    return !open && size >= 3u;
+  }
+  return sum_leaves(t) >= 3u;
+}
+
+/* Q-S6-1 (a): 1 if the surface term T names the ctor CTOR other than as its
+   head. HEAD is 1 only at the head of the whole body of a closed decided
+   def; the walk still visits the arguments of that head. The walk is over
+   the written term, not the core: the core holds normal forms (a Path line,
+   refl, the ends of a path application) that unfold global defs. */
+static int seal_term(const Term *t, const char *ctor, int head) {
+  if (t == NULL)
+    return 0;
+  switch (t->kind) {
+  case TERM_VAR:
+    return t->name != NULL && strcmp(t->name, ctor) == 0 && !head;
+  case TERM_NAT:
+  case TERM_UNIV:
+    return 0;
+  case TERM_APP:
+    return seal_term(t->left, ctor, head) || seal_term(t->right, ctor, 0);
+  case TERM_LAM:
+  case TERM_PI:
+  case TERM_SIGMA:
+    /* A binder is in scope in its body, but not in its own type. */
+    return seal_term(t->left, ctor, 0)
+      || ((t->name == NULL || strcmp(t->name, ctor) != 0) && seal_term(t->right, ctor, 0));
+  case TERM_PAPP:
+  case TERM_INEG:
+  case TERM_IMEET:
+  case TERM_IJOIN:
+  case TERM_SYSTEM:
+  case TERM_BRANCH:
+    return seal_term(t->left, ctor, 0) || seal_term(t->right, ctor, 0);
+  }
+  return 0;
+}
+
+/* Q-S6-1 (a): a guest program writes hoRule (ffRule) only as the whole body
+   of a closed def, not a law, of type Honest c f (ForkFree c f), which
+   rule_def decides. */
+static int seal_ok(Checker *c, const Decl *d, const Value *tv, int law) {
+  Machine *m = c->m;
+  if (seal_term(d->type, "hoRule", 0) || seal_term(d->body, "hoRule", !law && is_family(tv, find_family(m, "Honest"))))
+    return FAIL(c, "REFUSE_HONEST", "%s uses hoRule but not as the whole body of a closed def of type Honest c f; name the rule in a def of type Honest c f and use that name; Q-S6-1", d->name);
+  if (seal_term(d->type, "ffRule", 0) || seal_term(d->body, "ffRule", !law && is_family(tv, find_family(m, "ForkFree"))))
+    return FAIL(c, "REFUSE_FORK", "%s uses ffRule but not as the whole body of a closed def of type ForkFree c f; name the rule in a def of type ForkFree c f and use that name; Q-S6-1", d->name);
+  return 1;
+}
 /* Register a checked body, including the closed label cores retained by
    cocell_shape. Both callers obtain BODY from the term checker. */
 static int check_def_body(Checker *c, const Decl *d, const Value *tv, const Core *syntax_type, const Core *body) {
@@ -4497,6 +4573,13 @@ static int check_def_body(Checker *c, const Decl *d, const Value *tv, const Core
   /* Q-S4-3 (a): the count space of a closed committee is at most 2^20. */
   if (program && guest(c) && bound_def(c, tv, body))
     return FAIL(c, "REFUSE_BOUND", "%s has a closed committee with a count space (the product of each class size plus one) above 2^20; Q-S0-4", d->name);
+  /* Q-S6-3 (a): a guest program gives no ranked choice of 3 or more values
+     from an approval set or a count vector. */
+  if (program && guest(c) && !law && arrow_type(m, c->level, tv))
+    return FAIL(c, "REFUSE_ARROW", "%s takes Approvals or Counts and gives a closed choice of 3 or more values (a ranked choice, design section 7); give one Decision for each option; Q-S6-3", d->name);
+  /* Q-S6-1 (a): the seal of hoRule and ffRule. */
+  if (program && guest(c) && !seal_ok(c, d, tv, law))
+    return 0;
   /* S5 (Q-S5-1 (a), Q-S5-2 (a)): decide each closed rule by O3, O4 and O5. */
   if (program && guest(c) && !law && !rule_def(c, d, tv, body))
     return 0;
@@ -4963,7 +5046,7 @@ static int check_decl(Checker *c, const Decl *d) {
   if (d->kind == DECL_AXIOM)
     return FAIL(c, "REFUSE_AXIOM", "an axiom has no proof (rule R2)");
   if (d->is_rec)
-    return FAIL(c, "REFUSE_REC", "def rec is refused (rule R3); use fold or unfold");
+    return FAIL(c, "REFUSE_FIXPOINT", "def rec is refused (rule R3); use fold or unfold");
   if (!kernel_sig(c, d) || !name_free(c, d->name))
     return 0;
   switch (d->kind) {

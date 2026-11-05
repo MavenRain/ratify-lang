@@ -107,6 +107,29 @@ O4 margin (`REFUSE_HONEST`), and `ForkFree` also checks the O5 margin
 (`REFUSE_FORK`). An open committee or an open f gives no decision, and a
 count space above 2^20 gives `REFUSE_BOUND`. See `examples/rule.lang`.
 
+## The policy words
+
+S6 adds the policy words of `docs/PLAN.md` section 12 row S6 (Q-S6-1 to
+Q-S6-4 (a)). The fields of each family have a prefix (rule R4).
+
+| Name | Kind | Prefix | Meaning |
+|---|---|---|---|
+| `Decision` | definition | | `Sum Unit Unit`; `inr unit` accepts |
+| `Policy` | family | `pl` | `plOf`, with the committee `plCom`, the fault bound `plF`, the rule `plAuth : Honest plCom plF` and the amend rule `plAmend : ForkFree plCom plF` |
+| `polCom`, `hoBodyOf`, `ffBodyOf` | definition | | the accessors of `Policy`, `Honest` and `ForkFree` |
+| `authorize` | definition | | `(P : Policy) -> (A : Type 0) -> A -> Approvals (polCom P) -> Decision` |
+| `amendOk` | definition | | `(P : Policy) -> Approvals (polCom P) -> Decision` |
+| `Amendment` | family on `Policy` and `Policy` | `am` | `amOf`, with `amFrom`, `amTo`, the approvals `amSet` and one `Path` field |
+| `Log` | family on `Policy` and `Policy` | `lg` | `lgNil`, or `lgCons` with the amendment `lgHead` and the rest `lgTail` |
+| `append`, `appendNilL`, `appendNilR`, `appendAssoc` | definition | | the bind of `Log` and its TCM-E paths |
+| `lgLen`, `policyAtSize`, `policyAt` | definition | | the height of a log, and the policy at a height `Pos (szS (lgLen P Q l))` |
+| `System`, `systemOf` | definition | | `Stream Policy`, built by `sCorec` at a seed `Size` |
+
+`hoRule` and `ffRule` are sealed: each can only be the whole body of a
+closed decided definition, else `REFUSE_HONEST` or `REFUSE_FORK`. The
+check reads the written term, so a binder with the same name is refused
+too. See `examples/policy.lang`.
+
 ## The IR test families
 
 S3 adds `Tree`, `Signal`, `Window`, `Hop` and `Echo` from permit-lang

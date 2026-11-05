@@ -1,0 +1,11 @@
+-- REFUSE_HONEST (Q-S6-1 (a), S6): a policy names its rules; hoRule inside plOf is refused.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def k3 : Pos (szS four) := posNext four (posNext three (posNext two (posFirst one)))
+def k4 : Pos (szS four) := posNext four (posNext three (posNext two (posNext one (posFirst sz0))))
+def fig : Committee := cmClass four cmNil
+def bar3 : Counts fig := ctClass four cmNil k3 ctNil
+def maj : Rule fig := rlMin fig bar3
+def p0 : Policy := plOf fig one (hoRule fig one maj) (ffRule fig one maj)

@@ -1,0 +1,2 @@
+-- REFUSE_CLOCK (S6, O3): `timeout` is a time word; no name can use it.
+def wait : Size -> Size := fun (timeout : Size) => timeout
