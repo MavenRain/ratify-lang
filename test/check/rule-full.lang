@@ -1,0 +1,5 @@
+-- REFUSE_RULE (rule O3, S5): a table without the full count vector n does not accept n.
+def one : Size := szS sz0
+def two : Size := szS one
+def fig : Committee := cmClass two cmNil
+def part : Rule fig := rlTable fig (tbCons fig (ctClass two cmNil (posNext two (posFirst one)) ctNil) (tbNil fig))

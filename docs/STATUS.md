@@ -1,12 +1,13 @@
 # ratify-lang status
 
-The build implements slice S4 of `docs/PLAN.md`: the Cubical TT kernel,
+The build implements slice S5 of `docs/PLAN.md`: the Cubical TT kernel,
 ported from permit-lang 3d47120, R0 in the kernel and the Wasm writer,
-ported from permit-lang 18deea2, and the committee words `Committee`,
-`Party`, `Approvals`, `Counts` and `count` (Q-S4-1 to Q-S4-4 (a)). The
-affine layer and the permit domain are not in the build (Q-S0-10 (a),
-Q-S2-1 (a)). It does not complete M0. The next slice is S5: `Rule`,
-`and`, `or`, the minimal accepting vectors.
+ported from permit-lang 18deea2, the committee words `Committee`,
+`Party`, `Approvals`, `Counts` and `count` (Q-S4-1 to Q-S4-4 (a)), and
+the rule words `Rule`, `accept`, `Honest` and `ForkFree` with O3, O4 and
+O5 (Q-S5-1 to Q-S5-3 (a)). The affine layer and the permit domain are not
+in the build (Q-S0-10 (a), Q-S2-1 (a)). It does not complete M0. The next
+slice is S6: `Policy`, `Decision`, `authorize`, `Amendment`, `Log`.
 
 ## Implemented
 
@@ -42,22 +43,37 @@ Q-S2-1 (a)). It does not complete M0. The next slice is S5: `Rule`,
   names changed: `count` in `examples/formers.lang` is now `counted`, and
   the state field `count` in `examples/state-no-history.lang` and
   `test/check/state-boundary.lang` is now `stateCount`.
-- The gate: 32 examples, 17 parse refusals, 162 check refusals, 10
-  kit-only refusals, 1 time hint, 81 evals, 1 build, 1 ir lowered, 5 ir
+- S5: the rule words in `domain/domain.lang`. `Rule c` is `rlMin` (a bar
+  for each class), `rlAnd`, `rlOr` or `rlTable` (an exact table
+  `CtTable c`), and `accept` applies a rule to a count vector. `Honest c
+  f` and `ForkFree c f` hold one rule for the fault bound `f : Size`
+  (Q-S5-1 (a), Q-S5-2 (a)).
+- S5: three refusals in `src/front/check.c`. For a program definition
+  that is not a law, with the type `Rule`, `Honest` or `ForkFree` at a
+  closed committee, the kernel fills the accept table of the count space
+  and computes the minimal accepting vectors. `REFUSE_RULE`: the rule is
+  not monotone, accepts 0 or does not accept n (O3). `REFUSE_HONEST`: the
+  O4 margin is 0 or less. `REFUSE_FORK`: the O5 margin is 0 or less.
+  `examples/rule.lang` has the TCM-B rows `tcmAnd` and `tcmOr` as closed
+  `refl` paths. The quoted-type walk of `REFUSE_ORBIT` stays (Q-S5-3
+  (a)).
+- The gate: 33 examples, 17 parse refusals, 168 check refusals, 10
+  kit-only refusals, 1 time hint, 85 evals, 1 build, 1 ir lowered, 5 ir
   refusals, 2 ir lowerings, 4 notrap modules, 7 notrap bad rows, 10 spine
-  evals, 35 Wasm modules valid, 998 differential cases with 0 mismatches;
+  evals, 36 Wasm modules valid, 998 differential cases with 0 mismatches;
   the review, domain and path regressions. The C runner also checks the
   restored unused-field and proof-transport fixtures; each differential
   module passes `build/notraptool`.
 
 ## Remaining M0 work
 
-1. S5: `Rule`, `and`, `or`, the minimal accepting vectors; O3, O4, O5;
-   `REFUSE_RULE`, `REFUSE_HONEST`, `REFUSE_FORK`; TCM-B. It needs the S4
-   commit first.
-2. S6 to S8: the rest of the policy layer of `docs/PLAN.md` section 12
-   (`Policy`, the crypto layer, `Certificate`). Each slice needs the
-   slice before it.
+1. S6: `Policy`, `Decision`, `authorize`, `Amendment`, `Log` (CM),
+   `System` (CC), `policyAt`; TCM-E, O2, O10; `REFUSE_FIXPOINT`,
+   `REFUSE_ARROW`, `REFUSE_CLOCK`. `Policy c f` holds one `Honest` and one
+   `ForkFree` (Q-S5-2 (a)). It needs the S5 commit first.
+2. S7 and S8: the rest of the policy layer of `docs/PLAN.md` section 12
+   (the crypto layer, `Certificate`). Each slice needs the slice before
+   it.
 3. S9 to S19: the targets T1 to T4, A1 to A6 and the close.
 
 ## Known limits

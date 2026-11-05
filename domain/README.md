@@ -83,6 +83,30 @@ elim or a projection) gives `REFUSE_ORBIT`. A program uses `count` and
 `REFUSE_BOUND`. See `examples/committee.lang` and
 `examples/bound-edge.lang`.
 
+## The rule words
+
+S5 adds the rule words of `docs/PLAN.md` section 4.1 (Q-S5-1 (a), Q-S5-2
+(a)). The fields of each family have a prefix (rule R4).
+
+| Name | Kind | Prefix | Meaning |
+|---|---|---|---|
+| `CtTable` | family on `Committee` | `tb` | `tbNil`, or `tbCons` with a count vector `tbRow` and the rest `tbRest` |
+| `Rule` | family on `Committee` | `rl` | `rlMin` (accept when the count is at or above the bar `rlBar` in each class), `rlAnd`, `rlOr`, or `rlTable` (accept exactly the vectors in `rlRows`) |
+| `accept` | definition | | `(c : Committee) -> Rule c -> Counts c -> Sum Unit Unit`, an elim on `Rule`; `inr unit` accepts |
+| `Honest` | family on `Committee` and `Size` | `ho` | `hoRule`, with the fault bound `hoF` and the rule `hoBody` |
+| `ForkFree` | family on `Committee` and `Size` | `ff` | `ffRule`, with the fault bound `ffF` and the amend rule `ffBody` |
+| `sAnd`, `sOr` | definition | | `and` and `or` on `Sum Unit Unit` |
+| `posVal`, `szLe`, `szEq`, `CtK`, `ctAll`, `tbHas` | definition | | the compare helpers of `accept` |
+
+A program definition that is not a law, with the type `Rule c`, `Honest
+c f` or `ForkFree c f` at a closed committee, is checked on the accept
+table of the count space. The kernel computes the minimal accepting
+vectors. A rule that is not monotone, accepts the zero vector, or does
+not accept n gives `REFUSE_RULE` (O3). `Honest` and `ForkFree` check the
+O4 margin (`REFUSE_HONEST`), and `ForkFree` also checks the O5 margin
+(`REFUSE_FORK`). An open committee or an open f gives no decision, and a
+count space above 2^20 gives `REFUSE_BOUND`. See `examples/rule.lang`.
+
 ## The IR test families
 
 S3 adds `Tree`, `Signal`, `Window`, `Hop` and `Echo` from permit-lang

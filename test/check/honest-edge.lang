@@ -1,0 +1,7 @@
+-- REFUSE_HONEST (rule O4, S5): one class of 4, the bar t = 1 and f = 1 give the O4 margin 1 - 1 = 0.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def fig : Committee := cmClass four cmNil
+def low : Honest fig one := hoRule fig one (rlMin fig (ctClass four cmNil (posNext four (posFirst three)) ctNil))

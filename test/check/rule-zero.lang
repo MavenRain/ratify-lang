@@ -1,0 +1,5 @@
+-- REFUSE_RULE (rule O3, S5): rlMin of the zero count vector accepts the zero vector.
+def one : Size := szS sz0
+def two : Size := szS one
+def fig : Committee := cmClass two cmNil
+def zero : Rule fig := rlMin fig (ctClass two cmNil (posFirst two) ctNil)

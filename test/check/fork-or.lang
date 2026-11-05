@@ -1,0 +1,8 @@
+-- REFUSE_FORK (rule O5, TCM-B, S5): n = (2, 2) and f = 0. Each rlMin side has the O5 margin 2, but the rlOr
+-- has the minimal vectors (2, 0) and (0, 2) with the overlap 0, so the O5 margin is 0.
+def one : Size := szS sz0
+def two : Size := szS one
+def sq : Committee := cmClass two (cmClass two cmNil)
+def barA : Counts sq := ctClass two (cmClass two cmNil) (posNext two (posNext one (posFirst sz0))) (ctClass two cmNil (posFirst two) ctNil)
+def barB : Counts sq := ctClass two (cmClass two cmNil) (posFirst two) (ctClass two cmNil (posNext two (posNext one (posFirst sz0))) ctNil)
+def split : ForkFree sq sz0 := ffRule sq sz0 (rlOr sq (rlMin sq barA) (rlMin sq barB))

@@ -318,3 +318,62 @@ def actP : (c : Committee) -> Perm c -> Approvals c -> Approvals c :=
     (fun (u : Perm cmNil) => apNil)
     (fun (n : Size) (r : Committee) (b : Pos n -> Sum Unit Unit) (t : Approvals r) (ih : Perm r -> Approvals r) =>
       fun (v : Perm (cmClass n r)) => apClass n r (actW n (first v) b) (ih (second v))) S w
+-- The rule words (S5, PLAN sections 4.1 and 4.2, USER rulings Q-S5-1 (a)
+-- and Q-S5-2 (a)). sAnd and sOr are and and or on Sum Unit Unit (inr unit
+-- is true). posVal gives the value of a position as a Size. szLe and szEq
+-- compare two sizes.
+def sAnd : Sum Unit Unit -> Sum Unit Unit -> Sum Unit Unit :=
+  fun (x : Sum Unit Unit) (y : Sum Unit Unit) => either (fun (u : Unit) => inl unit) (fun (u : Unit) => y) x
+def sOr : Sum Unit Unit -> Sum Unit Unit -> Sum Unit Unit :=
+  fun (x : Sum Unit Unit) (y : Sum Unit Unit) => either (fun (u : Unit) => y) (fun (u : Unit) => inr unit) x
+def posVal : (n : Size) -> Pos n -> Size :=
+  fun (n : Size) (p : Pos n) => elim (fun (k : Size) (q : Pos k) => Size)
+    (fun (m : Size) => sz0)
+    (fun (m : Size) (q : Pos m) (ih : Size) => szS ih) p
+def szLe : Size -> Size -> Sum Unit Unit :=
+  fun (a : Size) => elim (fun (k : Size) => Size -> Sum Unit Unit)
+    (fun (b : Size) => inr unit)
+    (fun (m : Size) (ih : Size -> Sum Unit Unit) => fun (b : Size) => elim (fun (k : Size) => Sum Unit Unit) (inl unit)
+      (fun (j : Size) (h : Sum Unit Unit) => ih j) b) a
+def szEq : Size -> Size -> Sum Unit Unit :=
+  fun (a : Size) => elim (fun (k : Size) => Size -> Sum Unit Unit)
+    (fun (b : Size) => elim (fun (k : Size) => Sum Unit Unit) (inr unit) (fun (j : Size) (h : Sum Unit Unit) => inl unit) b)
+    (fun (m : Size) (ih : Size -> Sum Unit Unit) => fun (b : Size) => elim (fun (k : Size) => Sum Unit Unit) (inl unit)
+      (fun (j : Size) (h : Sum Unit Unit) => ih j) b) a
+-- ctAll q c a b is q a_j b_j at each class j (sAnd of the results). CtK k
+-- is the type of the inner elim on b: the tail test and the value a_j.
+def CtK : Committee -> Type 0 :=
+  fun (c : Committee) => elim (fun (k : Committee) => Type 0) (Sum Unit Unit)
+    (fun (n : Size) (r : Committee) (h : Type 0) => (Counts r -> Sum Unit Unit) -> Size -> Sum Unit Unit) c
+def ctAll : (Size -> Size -> Sum Unit Unit) -> (c : Committee) -> Counts c -> Counts c -> Sum Unit Unit :=
+  fun (q : Size -> Size -> Sum Unit Unit) (c : Committee) (a : Counts c) => elim (fun (k : Committee) (v : Counts k) => Counts k -> Sum Unit Unit)
+    (fun (w : Counts cmNil) => inr unit)
+    (fun (n : Size) (r : Committee) (x : Pos (szS n)) (t : Counts r) (ih : Counts r -> Sum Unit Unit) => fun (w : Counts (cmClass n r)) =>
+      elim (fun (k : Committee) (v : Counts k) => CtK k) (inl unit)
+        (fun (n2 : Size) (r2 : Committee) (y : Pos (szS n2)) (t2 : Counts r2) (h2 : CtK r2) =>
+          fun (g : Counts r2 -> Sum Unit Unit) (z : Size) => sAnd (q z (posVal (szS n2) y)) (g t2)) w ih (posVal (szS n) x)) a
+-- A table of count vectors. tbHas c t v is inr unit when v is a row of t.
+family CtTable : Committee -> Type 0 := tbNil (tbNilOf : Committee) : CtTable tbNilOf
+  | tbCons (tbOf : Committee) (tbRow : Counts tbOf) (tbRest : CtTable tbOf) : CtTable tbOf
+def tbHas : (c : Committee) -> CtTable c -> Counts c -> Sum Unit Unit :=
+  fun (c : Committee) (t : CtTable c) => elim (fun (k : Committee) (s : CtTable k) => Counts k -> Sum Unit Unit)
+    (fun (k : Committee) => fun (w : Counts k) => inl unit)
+    (fun (k : Committee) (row : Counts k) (s : CtTable k) (ih : Counts k -> Sum Unit Unit) => fun (w : Counts k) => sOr (ctAll szEq k row w) (ih w)) t
+-- A rule (design section 4.2): rlMin accepts a count vector at or above the
+-- bar at each class, rlAnd and rlOr are pointwise, and rlTable accepts
+-- exactly the listed vectors. The checker decides O3 on each closed rule
+-- (REFUSE_RULE).
+family Rule : Committee -> Type 0 := rlMin (rlMinOf : Committee) (rlBar : Counts rlMinOf) : Rule rlMinOf
+  | rlAnd (rlAndOf : Committee) (rlAndL : Rule rlAndOf) (rlAndR : Rule rlAndOf) : Rule rlAndOf
+  | rlOr (rlOrOf : Committee) (rlOrL : Rule rlOrOf) (rlOrR : Rule rlOrOf) : Rule rlOrOf
+  | rlTable (rlTableOf : Committee) (rlRows : CtTable rlTableOf) : Rule rlTableOf
+def accept : (c : Committee) -> Rule c -> Counts c -> Sum Unit Unit :=
+  fun (c : Committee) (r : Rule c) => elim (fun (k : Committee) (q : Rule k) => Counts k -> Sum Unit Unit)
+    (fun (k : Committee) (b : Counts k) => fun (w : Counts k) => ctAll szLe k b w)
+    (fun (k : Committee) (x : Rule k) (hx : Counts k -> Sum Unit Unit) (y : Rule k) (hy : Counts k -> Sum Unit Unit) => fun (w : Counts k) => sAnd (hx w) (hy w))
+    (fun (k : Committee) (x : Rule k) (hx : Counts k -> Sum Unit Unit) (y : Rule k) (hy : Counts k -> Sum Unit Unit) => fun (w : Counts k) => sOr (hx w) (hy w))
+    (fun (k : Committee) (t : CtTable k) => fun (w : Counts k) => tbHas k t w) r
+-- Honest c f: a rule that the checker decides at a closed c and f by O3
+-- and O4 (REFUSE_HONEST). ForkFree c f: O3, O4 and O5 (REFUSE_FORK).
+family Honest : Committee -> Size -> Type 0 := hoRule (hoOf : Committee) (hoF : Size) (hoBody : Rule hoOf) : Honest hoOf hoF
+family ForkFree : Committee -> Size -> Type 0 := ffRule (ffOf : Committee) (ffF : Size) (ffBody : Rule ffOf) : ForkFree ffOf ffF

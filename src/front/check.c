@@ -9,6 +9,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define CHECK_DEPTH_LIMIT 2000u
@@ -4150,6 +4151,324 @@ static int bound_def(Checker *c, const Value *tv, const Core *body) {
   return bound_over(c->m, c->level, fams, tv) || (is_family(tv, find_family(c->m, "Committee")) && space_over(c->m, here(c, body)));
 }
 
+/* S5 (Q-S5-1 (a), Q-S5-2 (a)): a closed committee as a mixed radix. The
+   class j has the size n[j] and the stride s[j]; the index of the count
+   vector v is the sum of the v[j] * s[j]. */
+typedef struct {
+  uint32_t k;
+  uint32_t *n;
+  uint64_t *s;
+  uint64_t space;
+  uint32_t ct_nil, ct_class, pos_first, pos_next;
+  uint32_t rl_min, rl_and, rl_or, rl_table, tb_nil, tb_cons;
+} RuleSpace;
+
+typedef enum { RULE_OK, RULE_OOM, RULE_TREE, RULE_ZERO, RULE_FULL, RULE_MONO, RULE_HONEST, RULE_FORK } RuleVerdict;
+
+/* Read the closed committee V into X. The caller checked that the count
+   space of V is 1 to COUNT_SPACE_BOUND. 0 when out of memory. */
+static int rule_space(const Machine *m, const Value *v, RuleSpace *x) {
+  uint32_t cls = bound_ctor(m, "cmClass");
+  uint32_t zero = bound_ctor(m, "sz0");
+  uint32_t succ = bound_ctor(m, "szS");
+  uint64_t cap = (uint64_t)COUNT_SPACE_BOUND + 1u;
+  const Value *w;
+  uint32_t j;
+  int open = 0;
+  x->k = 0;
+  for (w = v; w != NULL && val_is(w, OP_CTOR) && w->inst == cls && w->argc >= 2u; w = w->args[w->argc - 1u])
+    x->k++;
+  x->n = calloc((size_t)x->k + 1u, sizeof *x->n);
+  x->s = calloc((size_t)x->k + 1u, sizeof *x->s);
+  if (x->n == NULL || x->s == NULL)
+    return 0;
+  x->s[0] = 1;
+  for (j = 0, w = v; j < x->k; j++, w = w->args[w->argc - 1u]) {
+    x->n[j] = (uint32_t)size_count(w->args[w->argc - 2u], zero, succ, cap, &open);
+    x->s[j + 1u] = x->s[j] * ((uint64_t)x->n[j] + 1u);
+  }
+  x->space = x->s[x->k];
+  x->ct_nil = bound_ctor(m, "ctNil");
+  x->ct_class = bound_ctor(m, "ctClass");
+  x->pos_first = bound_ctor(m, "posFirst");
+  x->pos_next = bound_ctor(m, "posNext");
+  x->rl_min = bound_ctor(m, "rlMin");
+  x->rl_and = bound_ctor(m, "rlAnd");
+  x->rl_or = bound_ctor(m, "rlOr");
+  x->rl_table = bound_ctor(m, "rlTable");
+  x->tb_nil = bound_ctor(m, "tbNil");
+  x->tb_cons = bound_ctor(m, "tbCons");
+  return 1;
+}
+
+/* The value of the closed position V, or -1 when V is not a closed
+   position at most CAP. */
+static int64_t rule_pos(const RuleSpace *x, const Value *v, uint32_t cap) {
+  int64_t n = 0;
+  while (v != NULL && val_is(v, OP_CTOR) && v->inst == x->pos_next && v->argc > 0u) {
+    if (n >= (int64_t)cap)
+      return -1;
+    n++;
+    v = v->args[v->argc - 1u];
+  }
+  if (!(v != NULL && val_is(v, OP_CTOR) && v->inst == x->pos_first))
+    return -1;
+  return n;
+}
+
+/* Read the count vector V into OUT (x->k values). 0 when V is not a
+   closed count vector. */
+static int rule_counts(const RuleSpace *x, const Value *v, uint32_t *out) {
+  uint32_t j;
+  for (j = 0; j < x->k; j++) {
+    int64_t p;
+    if (!(v != NULL && val_is(v, OP_CTOR) && v->inst == x->ct_class && v->argc >= 2u))
+      return 0;
+    p = rule_pos(x, v->args[v->argc - 2u], x->n[j]);
+    if (p < 0)
+      return 0;
+    out[j] = (uint32_t)p;
+    v = v->args[v->argc - 1u];
+  }
+  return v != NULL && val_is(v, OP_CTOR) && v->inst == x->ct_nil;
+}
+
+static uint64_t rule_index(const RuleSpace *x, const uint32_t *v) {
+  uint64_t i = 0;
+  uint32_t j;
+  for (j = 0; j < x->k; j++)
+    i += (uint64_t)v[j] * x->s[j];
+  return i;
+}
+
+/* The count vector after V in the mixed radix order (class 0 first). */
+static void rule_next(const RuleSpace *x, uint32_t *v) {
+  uint32_t j = 0;
+  while (j < x->k && v[j] == x->n[j]) {
+    v[j] = 0;
+    j++;
+  }
+  if (j < x->k)
+    v[j]++;
+}
+
+/* rlMin: accept each count vector at or above the bar B at each class. */
+static int rule_min(const RuleSpace *x, const Value *b, unsigned char *acc, int *oom) {
+  uint32_t *bar = calloc((size_t)x->k + 1u, sizeof *bar);
+  uint32_t *cur = calloc((size_t)x->k + 1u, sizeof *cur);
+  uint64_t i;
+  uint32_t j;
+  int ok = bar != NULL && cur != NULL;
+  if (!ok)
+    *oom = 1;
+  ok = ok && rule_counts(x, b, bar);
+  for (i = 0; ok && i < x->space; i++) {
+    acc[i] = 1u;
+    for (j = 0; j < x->k; j++) {
+      if (cur[j] < bar[j])
+        acc[i] = 0u;
+    }
+    rule_next(x, cur);
+  }
+  free(bar);
+  free(cur);
+  return ok;
+}
+
+/* rlTable: accept exactly the rows of the table T. */
+static int rule_table(const RuleSpace *x, const Value *t, unsigned char *acc, int *oom) {
+  uint32_t *row = calloc((size_t)x->k + 1u, sizeof *row);
+  int ok = row != NULL;
+  if (!ok)
+    *oom = 1;
+  memset(acc, 0, x->space);
+  for (; ok && t != NULL && val_is(t, OP_CTOR) && t->inst == x->tb_cons && t->argc >= 2u; t = t->args[t->argc - 1u]) {
+    ok = rule_counts(x, t->args[t->argc - 2u], row);
+    if (ok)
+      acc[rule_index(x, row)] = 1u;
+  }
+  ok = ok && t != NULL && val_is(t, OP_CTOR) && t->inst == x->tb_nil;
+  free(row);
+  return ok;
+}
+
+/* Set ACC[i] to the accept bit of the rule value V at the count vector of
+   index i. 0 when V is not a full closed rule tree, or when out of memory
+   (*OOM set). The depth is the depth of the rule tree. */
+static int rule_fill(const RuleSpace *x, const Value *v, unsigned char *acc, int *oom) {
+  uint64_t i;
+  int ok;
+  if (v == NULL || !val_is(v, OP_CTOR))
+    return 0;
+  if ((v->inst == x->rl_and || v->inst == x->rl_or) && v->argc >= 2u) {
+    unsigned char *other = malloc(x->space);
+    if (other == NULL) {
+      *oom = 1;
+      return 0;
+    }
+    ok = rule_fill(x, v->args[v->argc - 2u], acc, oom) && rule_fill(x, v->args[v->argc - 1u], other, oom);
+    for (i = 0; ok && i < x->space; i++)
+      acc[i] = v->inst == x->rl_and ? (unsigned char)(acc[i] & other[i]) : (unsigned char)(acc[i] | other[i]);
+    free(other);
+    return ok;
+  }
+  if (v->inst == x->rl_min && v->argc >= 1u)
+    return rule_min(x, v->args[v->argc - 1u], acc, oom);
+  if (v->inst == x->rl_table && v->argc >= 1u)
+    return rule_table(x, v->args[v->argc - 1u], acc, oom);
+  return 0;
+}
+
+/* 1 when the vector CUR of index I is a minimal accepting vector: it is
+   accepted, and no j with CUR[j] > 0 has CUR - e_j accepted. */
+static int rule_minimal(const RuleSpace *x, const unsigned char *acc, uint64_t i, const uint32_t *cur) {
+  uint32_t j;
+  if (acc[i] == 0u)
+    return 0;
+  for (j = 0; j < x->k; j++) {
+    if (cur[j] > 0u && acc[i - x->s[j]] != 0u)
+      return 0;
+  }
+  return 1;
+}
+
+/* PAIRS 0 (O4): the least total of a minimal accepting vector. PAIRS 1
+   (O5): the least sum over j of max(0, a_j + b_j - n_j) for two minimal
+   accepting vectors a and b (a = b too). */
+static int64_t rule_least(const RuleSpace *x, const uint32_t *mins, uint64_t count, int pairs) {
+  int64_t best = INT64_MAX;
+  uint64_t p;
+  uint64_t q;
+  uint32_t j;
+  for (p = 0; p < count; p++) {
+    for (q = p; q < (pairs ? count : p + 1u); q++) {
+      const uint32_t *a = mins + p * x->k;
+      const uint32_t *b = mins + q * x->k;
+      int64_t sum = 0;
+      for (j = 0; j < x->k; j++) {
+        int64_t d = (int64_t)a[j] + (int64_t)b[j] - (int64_t)x->n[j];
+        if (!pairs)
+          sum += (int64_t)a[j];
+        if (pairs && d > 0)
+          sum += d;
+      }
+      if (sum < best)
+        best = sum;
+    }
+  }
+  return best;
+}
+
+/* Decide the rule value V on the space X (S5-SURVEY section 4). KIND 0 is
+   Rule (O3), 1 is Honest (O3, O4), 2 is ForkFree (O3, O4, O5). A margin
+   is a total minus F; a margin of 0 or less is a refusal. */
+static RuleVerdict rule_decide(const RuleSpace *x, const Value *v, int kind, int64_t f) {
+  unsigned char *acc = malloc(x->space);
+  uint32_t *cur = calloc((size_t)x->k + 1u, sizeof *cur);
+  uint32_t *mins = NULL;
+  uint64_t count = 0;
+  uint64_t p = 0;
+  uint64_t i;
+  uint32_t j;
+  int oom = 0;
+  RuleVerdict r = RULE_OK;
+  if (acc == NULL || cur == NULL)
+    r = RULE_OOM;
+  if (r == RULE_OK && !rule_fill(x, v, acc, &oom))
+    r = oom ? RULE_OOM : RULE_TREE;
+  if (r == RULE_OK && acc[0] != 0u)
+    r = RULE_ZERO;
+  if (r == RULE_OK && acc[x->space - 1u] == 0u)
+    r = RULE_FULL;
+  /* O3: each accepted v with v_j < n_j has v + e_j accepted. The same walk
+     counts the minimal accepting vectors. */
+  for (i = 0; r == RULE_OK && i < x->space; i++) {
+    count += (uint64_t)rule_minimal(x, acc, i, cur);
+    for (j = 0; j < x->k; j++) {
+      if (acc[i] != 0u && cur[j] < x->n[j] && acc[i + x->s[j]] == 0u)
+        r = RULE_MONO;
+    }
+    rule_next(x, cur);
+  }
+  if (r == RULE_OK && kind != 0) {
+    mins = calloc((size_t)(count * x->k) + 1u, sizeof *mins);
+    if (mins == NULL)
+      r = RULE_OOM;
+  }
+  if (r == RULE_OK && kind != 0) {
+    memset(cur, 0, ((size_t)x->k + 1u) * sizeof *cur);
+    for (i = 0; i < x->space; i++) {
+      if (rule_minimal(x, acc, i, cur)) {
+        memcpy(mins + p * x->k, cur, (size_t)x->k * sizeof *cur);
+        p++;
+      }
+      rule_next(x, cur);
+    }
+    if (rule_least(x, mins, count, 0) <= f)
+      r = RULE_HONEST;
+  }
+  if (r == RULE_OK && kind == 2 && rule_least(x, mins, count, 1) <= f)
+    r = RULE_FORK;
+  free(mins);
+  free(cur);
+  free(acc);
+  return r;
+}
+
+/* S5 (Q-S5-2 (a)): decide a guest program def of type Rule c, Honest c f
+   or ForkFree c f at a closed c and f. An open c or f gives no decision. */
+static int rule_def(Checker *c, const Decl *d, const Value *tv, const Core *body) {
+  Machine *m = c->m;
+  uint64_t cap = (uint64_t)COUNT_SPACE_BOUND + 1u;
+  uint64_t f = 0;
+  uint64_t space;
+  int kind = 0;
+  int open = 0;
+  const Value *cv;
+  const Value *v;
+  RuleSpace x;
+  RuleVerdict r;
+  if (is_family(tv, find_family(m, "Honest")))
+    kind = 1;
+  if (is_family(tv, find_family(m, "ForkFree")))
+    kind = 2;
+  if ((kind == 0 && !is_family(tv, find_family(m, "Rule"))) || tv->argc < 1u || (kind != 0 && tv->argc < 2u))
+    return 1;
+  cv = tv->args[kind == 0 ? tv->argc - 1u : tv->argc - 2u];
+  space = count_space(m, cv);
+  if (kind != 0)
+    f = size_count(tv->args[tv->argc - 1u], bound_ctor(m, "sz0"), bound_ctor(m, "szS"), cap, &open);
+  if (space == 0 || open)
+    return 1;
+  if (space > COUNT_SPACE_BOUND)
+    return FAIL(c, "REFUSE_BOUND", "%s has a rule at a closed committee with a count space (the product of each class size plus one) above 2^20; Q-S0-4", d->name);
+  v = here(c, body);
+  if (kind != 0)
+    v = v != NULL && val_is(v, OP_CTOR) && v->argc >= 1u ? v->args[v->argc - 1u] : NULL;
+  r = rule_space(m, cv, &x) ? rule_decide(&x, v, kind, (int64_t)f) : RULE_OOM;
+  free(x.n);
+  free(x.s);
+  switch (r) {
+  case RULE_OK:
+    return 1;
+  case RULE_OOM:
+    return FAIL(c, "OOM", "out of memory");
+  case RULE_TREE:
+    return FAIL(c, "REFUSE_RULE", "%s is not a full closed rule tree (rlMin, rlAnd, rlOr and rlTable over closed count vectors); rule O3", d->name);
+  case RULE_ZERO:
+    return FAIL(c, "REFUSE_RULE", "%s accepts the zero count vector; rule O3", d->name);
+  case RULE_FULL:
+    return FAIL(c, "REFUSE_RULE", "%s does not accept the full count vector n; rule O3", d->name);
+  case RULE_MONO:
+    return FAIL(c, "REFUSE_RULE", "%s is not monotone: it accepts a count vector v but not v + e_j for a class j; rule O3", d->name);
+  case RULE_HONEST:
+    return FAIL(c, "REFUSE_HONEST", "%s has an O4 margin of 0 or less (the least total of a minimal accepting vector, minus f); rule O4", d->name);
+  case RULE_FORK:
+    return FAIL(c, "REFUSE_FORK", "%s has an O5 margin of 0 or less (the least overlap of two minimal accepting vectors, minus f); rule O5", d->name);
+  }
+  return 0;
+}
+
 /* Register a checked body, including the closed label cores retained by
    cocell_shape. Both callers obtain BODY from the term checker. */
 static int check_def_body(Checker *c, const Decl *d, const Value *tv, const Core *syntax_type, const Core *body) {
@@ -4178,6 +4497,9 @@ static int check_def_body(Checker *c, const Decl *d, const Value *tv, const Core
   /* Q-S4-3 (a): the count space of a closed committee is at most 2^20. */
   if (program && guest(c) && bound_def(c, tv, body))
     return FAIL(c, "REFUSE_BOUND", "%s has a closed committee with a count space (the product of each class size plus one) above 2^20; Q-S0-4", d->name);
+  /* S5 (Q-S5-1 (a), Q-S5-2 (a)): decide each closed rule by O3, O4 and O5. */
+  if (program && guest(c) && !law && !rule_def(c, d, tv, body))
+    return 0;
   info->name = d->name;
   info->origin = d->origin;
   info->body = body;

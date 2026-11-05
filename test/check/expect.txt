@@ -160,3 +160,9 @@ bound-over.lang REFUSE_BOUND
 bound-index.lang REFUSE_BOUND
 orbit-elim.lang REFUSE_ORBIT
 orbit-proj.lang NAME_UNKNOWN
+rule-zero.lang REFUSE_RULE
+rule-full.lang REFUSE_RULE
+rule-monotone.lang REFUSE_RULE
+honest-edge.lang REFUSE_HONEST
+fork-even.lang REFUSE_FORK
+fork-or.lang REFUSE_FORK

@@ -1,0 +1,6 @@
+-- REFUSE_RULE (rule O3, S5): a table that accepts 1 and 3 of 3 but not 2 is not monotone.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def fig : Committee := cmClass three cmNil
+def gap : Rule fig := rlTable fig (tbCons fig (ctClass three cmNil (posNext three (posFirst two)) ctNil) (tbCons fig (ctClass three cmNil (posNext three (posNext two (posNext one (posFirst sz0)))) ctNil) (tbNil fig)))

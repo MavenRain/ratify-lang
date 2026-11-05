@@ -1,0 +1,7 @@
+-- REFUSE_FORK (rule O5, S5): one class of 4, the bar t = 2 and f = 0 give the O5 margin max(0, 2 + 2 - 4) - 0 = 0.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def fig : Committee := cmClass four cmNil
+def half : ForkFree fig sz0 := ffRule fig sz0 (rlMin fig (ctClass four cmNil (posNext four (posNext three (posFirst two))) ctNil))

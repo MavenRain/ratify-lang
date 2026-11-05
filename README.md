@@ -10,13 +10,15 @@ log and checks the certificates. No program can have a runtime error. The
 design is a denotational design over Unified Aggregation Theory
 (`design/DESIGN.md`).
 
-ratify-lang comes from lang-template with the tcc-wasm host. Status: S4
-(the committee words): the Cubical TT kernel of permit-lang 3d47120 and
+ratify-lang comes from lang-template with the tcc-wasm host. Status: S5
+(the rule words): the Cubical TT kernel of permit-lang 3d47120 and
 R0 from permit-lang 18deea2: total Nat operations, `REFUSE_PARTIAL`, and
 a Wasm writer that emits no trap form (`test/notraptool.c` checks each
 built module). S4 adds the domain words `Committee`, `Party`,
 `Approvals`, `Counts` and `count`, and the refusals `REFUSE_ORBIT` and
-`REFUSE_BOUND`. The other ratify-lang types, refusals and targets do not
+`REFUSE_BOUND`. S5 adds the rule words `Rule`, `accept`, `Honest` and
+`ForkFree`, and the refusals `REFUSE_RULE`, `REFUSE_HONEST` and
+`REFUSE_FORK`. The other ratify-lang types, refusals and targets do not
 exist yet.
 `docs/PLAN.md` gives the plan, and its section 14 gives the open
 questions.

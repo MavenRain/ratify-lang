@@ -1,0 +1,45 @@
+-- The rule words (S5, PLAN sections 4.1 and 4.2, design section 4), guest mode.
+-- The design example: one class of 4 parties, the bar t = 3 and the fault bound f = 1.
+-- The O4 margin is 3 - 1 = 2 and the O5 margin is max(0, 3 + 3 - 4) - 1 = 1.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def yes : Sum Unit Unit := inr unit
+def no : Sum Unit Unit := inl unit
+def k1 : Pos (szS four) := posNext four (posFirst three)
+def k2 : Pos (szS four) := posNext four (posNext three (posFirst two))
+def k3 : Pos (szS four) := posNext four (posNext three (posNext two (posFirst one)))
+def k4 : Pos (szS four) := posNext four (posNext three (posNext two (posNext one (posFirst sz0))))
+def fig : Committee := cmClass four cmNil
+def bar3 : Counts fig := ctClass four cmNil k3 ctNil
+def maj : Rule fig := rlMin fig bar3
+def majHonest : Honest fig one := hoRule fig one maj
+def majFork : ForkFree fig one := ffRule fig one maj
+-- accept on closed counts: 3 of 4 is accepted, 2 of 4 is not.
+def at3 : Sum Unit Unit := accept fig maj bar3
+def at2 : Sum Unit Unit := accept fig maj (ctClass four cmNil k2 ctNil)
+def at3Yes : Path (Sum Unit Unit) at3 yes := refl
+def at2No : Path (Sum Unit Unit) at2 no := refl
+-- A two-class and: 2 of the class of 3, and the veto class of 1.
+def veto : Committee := cmClass three (cmClass one cmNil)
+def need2 : Counts veto := ctClass three (cmClass one cmNil) (posNext three (posNext two (posFirst one))) (ctClass one cmNil (posFirst one) ctNil)
+def needVeto : Counts veto := ctClass three (cmClass one cmNil) (posFirst three) (ctClass one cmNil (posNext one (posFirst sz0)) ctNil)
+def both : Counts veto := ctClass three (cmClass one cmNil) (posNext three (posNext two (posFirst one))) (ctClass one cmNil (posNext one (posFirst sz0)) ctNil)
+def vetoRule : Rule veto := rlAnd veto (rlMin veto need2) (rlMin veto needVeto)
+def vetoHonest : Honest veto one := hoRule veto one vetoRule
+def vetoFork : ForkFree veto one := ffRule veto one vetoRule
+def vetoNo : Sum Unit Unit := accept veto vetoRule need2
+def vetoYes : Sum Unit Unit := accept veto vetoRule both
+-- TCM-B on closed values: accept of rlAnd and of rlOr is the pointwise sAnd and sOr.
+def tcmAnd : Path (Sum Unit Unit) (accept veto vetoRule need2) (sAnd (accept veto (rlMin veto need2) need2) (accept veto (rlMin veto needVeto) need2)) := refl
+def tcmOr : Path (Sum Unit Unit) (accept veto (rlOr veto (rlMin veto need2) (rlMin veto needVeto)) need2) (sOr (accept veto (rlMin veto need2) need2) (accept veto (rlMin veto needVeto) need2)) := refl
+-- TCM-B: each side of test/check/fork-or.lang is fork-free alone (O5 margin 2).
+def sq : Committee := cmClass two (cmClass two cmNil)
+def barA : Counts sq := ctClass two (cmClass two cmNil) (posNext two (posNext one (posFirst sz0))) (ctClass two cmNil (posFirst two) ctNil)
+def sideA : ForkFree sq sz0 := ffRule sq sz0 (rlMin sq barA)
+-- The O5 clamp: n = (4, 4), the bar (1, 4) and f = 3. The O5 margin is 0 + 4 - 3 = 1;
+-- without the clamp it is -2 + 4 - 3 = -1.
+def wide : Committee := cmClass four (cmClass four cmNil)
+def bar14 : Counts wide := ctClass four (cmClass four cmNil) k1 (ctClass four cmNil k4 ctNil)
+def clamp : ForkFree wide three := ffRule wide three (rlMin wide bar14)

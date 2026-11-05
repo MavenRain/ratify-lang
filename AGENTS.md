@@ -3,7 +3,7 @@
 Instructions for agents that work in this repository. DRAFT at S0. Slice
 S17 makes this file final.
 
-## State at S4
+## State at S5
 
 - The code is the Cubical TT kernel of permit-lang 3d47120 (S2) and R0
   from permit-lang 18deea2 (S3): `langc` (C99, TinyCC) and its domain in
@@ -15,6 +15,11 @@ S17 makes this file final.
   refusals to `src/front/check.c` (`REFUSE_ORBIT`, `REFUSE_BOUND`). A
   domain definition name is a core name (rule R4): a new one can refuse
   an old guest example with `REFUSE_NAME`. Run the full gate.
+- S5 adds the rule words to `domain/domain.lang` (`CtTable`, `Rule`,
+  `accept`, `Honest`, `ForkFree`) and three refusals to
+  `src/front/check.c` (`REFUSE_RULE`, `REFUSE_HONEST`, `REFUSE_FORK`).
+  The kernel decides O3, O4 and O5 on the accept table of a closed
+  committee.
 - The other ratify-lang types, refusals and targets are a plan only:
   `docs/PLAN.md` sections 4 to 8 and section 12.
 
