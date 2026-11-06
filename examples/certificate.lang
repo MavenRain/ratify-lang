@@ -1,0 +1,80 @@
+-- The certificate words (S8, PLAN sections 2 and 4.2, design section 9), guest mode.
+-- p0: one class of 4 parties, f = 1, the authorize and amend bar t = 3. p1 has the
+-- amend bar t = 4. A certificate holds one Decision for each byte check of the host.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def yes : Decision := inr unit
+def no : Decision := inl unit
+def k3 : Pos (szS four) := posNext four (posNext three (posNext two (posFirst one)))
+def k4 : Pos (szS four) := posNext four (posNext three (posNext two (posNext one (posFirst sz0))))
+def fig : Committee := cmClass four cmNil
+def maj : Rule fig := rlMin fig (ctClass four cmNil k3 ctNil)
+def all4 : Rule fig := rlMin fig (ctClass four cmNil k4 ctNil)
+def majHonest : Honest fig one := hoRule fig one maj
+def majFork : ForkFree fig one := ffRule fig one maj
+def allFork : ForkFree fig one := ffRule fig one all4
+def p0 : Policy := plOf fig one majHonest majFork
+def p1 : Policy := plOf fig one majHonest allFork
+-- Approval sets: all 4 parties, no party, the first party only, all but the first.
+def firstOnly : Pos four -> Decision := fun (p : Pos four) => elim (fun (k : Size) (q : Pos k) => Decision) (fun (m : Size) => yes) (fun (m : Size) (q : Pos m) (ih : Decision) => no) p
+def s4 : Approvals fig := apClass four cmNil (fun (p : Pos four) => yes) apNil
+def s0 : Approvals fig := apClass four cmNil (fun (p : Pos four) => no) apNil
+def s1 : Approvals fig := apClass four cmNil firstOnly apNil
+def s3 : Approvals fig := apClass four cmNil (fun (p : Pos four) => sNot (firstOnly p)) apNil
+-- The logs: no entry (tip p0, height 0) and one entry p0 -> p1 (tip p1, height 1).
+def l0 : Log p0 p0 := lgNil p0
+def l1 : Log p0 p1 := lgCons p0 p1 p1 (amOf p0 p1 s4 refl) (lgNil p1)
+-- The party 0 and the evidence lists: none; two hashes at height 0 (a hit); one hash
+-- twice (no evidence); two hashes at height 1 (not the height of the certificate).
+def party0 : Party fig := ptHere four cmNil (posFirst three)
+def evNone : EvList fig := evNil fig
+def evTwo : EvList fig := evCons fig (evOf fig party0 sz0 one two yes yes) (evNil fig)
+def evSame : EvList fig := evCons fig (evOf fig party0 sz0 one one yes yes) (evNil fig)
+def evLater : EvList fig := evCons fig (evOf fig party0 one one two yes yes) (evNil fig)
+-- cert0 S w t v g f: an authorization at height 0 under p0 with the flags w (well
+-- formed), t (well typed), v (prev hash), g (signatures), f (proofs).
+def cert0 : Approvals fig -> Decision -> Decision -> Decision -> Decision -> Decision -> Certificate p0 :=
+  fun (S : Approvals fig) (w : Decision) (t : Decision) (v : Decision) (g : Decision) (f : Decision) => certOf p0 sz0 sz0 S no (inl unit) w t v g f
+-- One row for each reason, and the valid row (Q-S8-3 (a)).
+def vGood : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes yes yes) evNone
+def vMalformed : Verdict := verify p0 p0 l0 (cert0 s4 no yes yes yes yes) evNone
+def vIllTyped : Verdict := verify p0 p0 l0 (cert0 s4 yes no yes yes yes) evNone
+def vWrongHeight : Verdict := verify p0 p0 l0 (certOf p0 one sz0 s4 no (inl unit) yes yes yes yes yes) evNone
+def vBadPrev : Verdict := verify p0 p0 l0 (cert0 s4 yes yes no yes yes) evNone
+def vBadSig : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes no yes) evNone
+def vBadProof : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes yes no) evNone
+def vNotAccepted : Verdict := verify p0 p0 l0 (cert0 s0 yes yes yes yes yes) evNone
+def vEquiv : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes yes yes) evTwo
+-- No evidence: one hash twice, or another height.
+def vSameHash : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes yes yes) evSame
+def vOtherHeight : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes yes yes) evLater
+-- The first failure wins.
+def vFirstWins : Verdict := verify p0 p0 l0 (cert0 s4 no yes yes no yes) evNone
+def vSigFirst : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes no no) evNone
+def vAcceptFirst : Verdict := verify p0 p0 l0 (cert0 s1 yes yes yes yes yes) evTwo
+def vBothBad : Verdict := verify p0 p0 l0 (cert0 s4 no no yes yes yes) evNone
+-- The rule of the tip p1: authorize (t = 3) when b is no, amend (t = 4) when b is yes.
+def vAuth3 : Verdict := verify p0 p1 l1 (certOf p1 one sz0 s3 no (inl unit) yes yes yes yes yes) (evNil fig)
+def vAmend3 : Verdict := verify p0 p1 l1 (certOf p1 one sz0 s3 yes (inr p0) yes yes yes yes yes) (evNil fig)
+def vAmend4 : Verdict := verify p0 p1 l1 (certOf p1 one sz0 s4 yes (inr p0) yes yes yes yes yes) (evNil fig)
+-- Closed rows.
+def rGood : Path Verdict vGood valid := refl
+def rMalformed : Path Verdict vMalformed (invalid malformed) := refl
+def rIllTyped : Path Verdict vIllTyped (invalid illTypedPolicy) := refl
+def rWrongHeight : Path Verdict vWrongHeight (invalid wrongHeight) := refl
+def rBadPrev : Path Verdict vBadPrev (invalid badPrevHash) := refl
+def rBadSig : Path Verdict vBadSig (invalid badSignature) := refl
+def rBadProof : Path Verdict vBadProof (invalid badProof) := refl
+def rNotAccepted : Path Verdict vNotAccepted (invalid notAccepted) := refl
+def rEquiv : Path Verdict vEquiv (invalid equivocation) := refl
+def rSameHash : Path Verdict vSameHash valid := refl
+def rOtherHeight : Path Verdict vOtherHeight valid := refl
+def rFirstWins : Path Verdict vFirstWins (invalid malformed) := refl
+def rSigFirst : Path Verdict vSigFirst (invalid badSignature) := refl
+def rAcceptFirst : Path Verdict vAcceptFirst (invalid notAccepted) := refl
+def rBothBad : Path Verdict vBothBad (invalid malformed) := refl
+def rAuth3 : Path Verdict vAuth3 valid := refl
+def rAmend3 : Path Verdict vAmend3 (invalid notAccepted) := refl
+def rAmend4 : Path Verdict vAmend4 valid := refl

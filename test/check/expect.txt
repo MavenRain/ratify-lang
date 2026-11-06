@@ -171,6 +171,7 @@ fork-or.lang REFUSE_FORK
 policy-unsealed.lang REFUSE_HONEST
 policy-inline.lang REFUSE_HONEST
 fork-unsealed.lang REFUSE_FORK
+fork-margin.lang REFUSE_FORK
 time-deadline.lang REFUSE_CLOCK
 time-timeout.lang REFUSE_CLOCK
 time-expires.lang REFUSE_CLOCK

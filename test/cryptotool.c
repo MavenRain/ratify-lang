@@ -1,7 +1,9 @@
-/* Host crypto regressions (S7): the known answers of the src/crypto port
+/* Host crypto regressions (S7, S8): the known answers of the src/crypto port
    (keccak, G1, ElGamal, Schnorr), the invalid-signature rows, the threshold
-   rows (DKG, open with DLEQ, the algebra row), the reshare rows and the
-   invalid-proof rows. Each group prints one summary line. With the argument
+   rows (DKG, open with DLEQ, the algebra row), the reshare rows, the
+   invalid-proof rows and the certificate rows (S8: the body bytes, the
+   height, prev hash and signature checks in the Q-S8-3 order, and the
+   equivocation evidence). Each group prints one summary line. With the argument
    `rep`, the eval lines of the representation map (TCM-C).
    A port of quorum-lang test/tallytool.c at be2c329, trimmed. Each constant
    has its source and a second source (Python integers and `cast keccak`)
@@ -316,6 +318,102 @@ static void schnorr_rows(Count *kat, Count *bad) {
   add(bad, code_row("schnorr s plus r", schnorr_verify(pk, text, 6u, flip), 0));
 }
 
+/* S8 (Q-S8-5 (a)): the host byte checks of a certificate. The body is the
+   height (8 bytes), the prev hash (32 bytes) and the action code (8 bytes),
+   big endian. The signer signs the keccak-256 hash of the body. The reasons
+   are in the Q-S8-3 order: the first failure wins. */
+typedef enum { CERT_VALID, CERT_WRONG_HEIGHT, CERT_BAD_PREV_HASH, CERT_BAD_SIGNATURE } CertReason;
+
+static void cert_body(unsigned char body[48], uint64_t height, const unsigned char prev[32], uint64_t action) {
+  uint32_t i;
+  for (i = 0; i < 8u; i++) {
+    body[7u - i] = (unsigned char)(height >> (8u * i));
+    body[47u - i] = (unsigned char)(action >> (8u * i));
+  }
+  memcpy(body + 8, prev, 32u);
+}
+
+static int cert_sign(unsigned char sig[96], const U256 *sk, const unsigned char body[48]) {
+  unsigned char digest[32];
+  keccak256(body, 48u, digest);
+  return schnorr_sign(sig, sk, digest, 32u);
+}
+
+static int cert_signed(const unsigned char pk[64], const unsigned char body[48], const unsigned char sig[96]) {
+  unsigned char digest[32];
+  keccak256(body, 48u, digest);
+  return schnorr_verify(pk, digest, 32u, sig);
+}
+
+/* The reason of BODY and SIG under PK on a chain at the height HEIGHT with
+   the tip hash PREV. */
+static CertReason cert_check(const unsigned char pk[64], const unsigned char body[48], const unsigned char sig[96],
+                             uint64_t height, const unsigned char prev[32]) {
+  unsigned char want[48];
+  cert_body(want, height, prev, 0u);
+  if (memcmp(body, want, 8u) != 0)
+    return CERT_WRONG_HEIGHT;
+  if (memcmp(body + 8, prev, 32u) != 0)
+    return CERT_BAD_PREV_HASH;
+  if (!cert_signed(pk, body, sig))
+    return CERT_BAD_SIGNATURE;
+  return CERT_VALID;
+}
+
+/* 1 when the bodies A and B are equivocation evidence (Q-S8-4 (a)): one
+   party PK, one height, both signatures check, and the hashes differ. */
+static int cert_equivocates(const unsigned char pk[64], const unsigned char a[48], const unsigned char sa[96],
+                            const unsigned char b[48], const unsigned char sb[96]) {
+  unsigned char ha[32];
+  unsigned char hb[32];
+  keccak256(a, 48u, ha);
+  keccak256(b, 48u, hb);
+  return memcmp(a, b, 8u) == 0 && cert_signed(pk, a, sa) && cert_signed(pk, b, sb) && memcmp(ha, hb, 32u) != 0;
+}
+
+/* The certificate rows: sk 7, the tip hash keccak256("ratify"), height 5. */
+static void cert_rows(Count *c) {
+  static const unsigned char text[6] = {'r', 'a', 't', 'i', 'f', 'y'};
+  unsigned char pk[64];
+  unsigned char prev[32];
+  unsigned char other[32];
+  unsigned char body[48];
+  unsigned char high[48];
+  unsigned char fork[48];
+  unsigned char later[48];
+  unsigned char sig[96];
+  unsigned char sig_high[96];
+  unsigned char sig_fork[96];
+  unsigned char sig_later[96];
+  unsigned char flip[96];
+  U256 sk;
+  u256_from_u64(&sk, 7u);
+  keccak256(text, 6u, prev);
+  memcpy(other, prev, sizeof other);
+  other[31] ^= 1u;
+  cert_body(body, 5u, prev, 1u);
+  cert_body(high, 6u, prev, 1u);
+  cert_body(fork, 5u, prev, 2u);
+  cert_body(later, 6u, prev, 2u);
+  add(c, code_row("cert public sk 7", schnorr_public(pk, &sk), 1));
+  add(c, code_row("cert sign", cert_sign(sig, &sk, body) && cert_sign(sig_high, &sk, high) && cert_sign(sig_fork, &sk, fork) &&
+                                   cert_sign(sig_later, &sk, later), 1));
+  add(c, code_row("cert valid", (int)cert_check(pk, body, sig, 5u, prev), (int)CERT_VALID));
+  memcpy(flip, sig, sizeof flip);
+  flip[95] ^= 1u;
+  add(c, code_row("cert bad signature (s bit)", (int)cert_check(pk, body, flip, 5u, prev), (int)CERT_BAD_SIGNATURE));
+  memcpy(flip, sig, sizeof flip);
+  flip[63] ^= 1u;
+  add(c, code_row("cert R not a point (R.y bit)", (int)cert_check(pk, body, flip, 5u, prev), (int)CERT_BAD_SIGNATURE));
+  add(c, code_row("cert wrong prev hash", (int)cert_check(pk, body, sig, 5u, other), (int)CERT_BAD_PREV_HASH));
+  add(c, code_row("cert wrong height in the body", (int)cert_check(pk, high, sig_high, 5u, prev), (int)CERT_WRONG_HEIGHT));
+  add(c, code_row("cert height before signature", (int)cert_check(pk, high, sig, 5u, prev), (int)CERT_WRONG_HEIGHT));
+  add(c, code_row("cert evidence: one height, two bodies", cert_equivocates(pk, body, sig, fork, sig_fork), 1));
+  add(c, code_row("cert no evidence: one body twice", cert_equivocates(pk, body, sig, body, sig), 0));
+  add(c, code_row("cert no evidence: two heights", cert_equivocates(pk, body, sig, later, sig_later), 0));
+  add(c, code_row("cert no evidence: a bad signature", cert_equivocates(pk, body, sig, fork, sig), 0));
+}
+
 /* The keys of the members for QUAL: PK, sk_j from the share table, and
    PK_j from the commitments only. Each row checks PK_j = sk_j G. */
 static void keys_of(Count *c, const char *name, Keys *out, const DkgDealing *dealings, const U256 *table,
@@ -618,6 +716,7 @@ int main(int argc, char **argv) {
   Count thr = {0u, 0u};
   Count re = {0u, 0u};
   Count badproof = {0u, 0u};
+  Count cert = {0u, 0u};
   ElgCipher ct;
   Keys keys;
   int ok;
@@ -633,11 +732,13 @@ int main(int argc, char **argv) {
   cast(&ct, &keys.pk, 5u, 1u);
   reshare_rows(&re, &keys, &ct);
   proof_rows(&badproof, &keys);
+  cert_rows(&cert);
   ok = summary("known-answer", &kat);
   ok &= summary("invalid-signature", &badsig);
   ok &= summary("threshold", &thr);
   ok &= summary("reshare", &re);
   ok &= summary("invalid-proof", &badproof);
+  ok &= summary("cert", &cert);
   if (ok)
     puts("crypto regressions: passed");
   return ok ? 0 : 1;

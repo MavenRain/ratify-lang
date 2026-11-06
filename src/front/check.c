@@ -4343,44 +4343,35 @@ static int rule_fill(const RuleSpace *x, const Value *v, unsigned char *acc, int
   return 0;
 }
 
-/* 1 when the vector CUR of index I is a minimal accepting vector: it is
-   accepted, and no j with CUR[j] > 0 has CUR - e_j accepted. */
-static int rule_minimal(const RuleSpace *x, const unsigned char *acc, uint64_t i, const uint32_t *cur) {
+/* O4 and O5 (OI-14, Q-S8-6 (b)): one upward pass in index order, O(space k).
+   LEAST gets the least total of an accepted vector. With E (KIND 2), E[i] is
+   the least overlap sum_j max(0, a_j + b_j - n_j) of the vector a of index i
+   and an accepted b: 0 when n - a (index space - 1 - i) is accepted, else 1 +
+   the least E[i - s_j] over j with a_j > 0. OVERLAP gets the least E[i] of an
+   accepted i. Overlap is monotone, so minimal pairs and accepted pairs give
+   the same least overlap (and the same least total). */
+static void rule_margins(const RuleSpace *x, const unsigned char *acc, uint32_t *cur, uint32_t *e, int64_t *least, int64_t *overlap) {
+  uint64_t i;
   uint32_t j;
-  if (acc[i] == 0u)
-    return 0;
-  for (j = 0; j < x->k; j++) {
-    if (cur[j] > 0u && acc[i - x->s[j]] != 0u)
-      return 0;
-  }
-  return 1;
-}
-
-/* PAIRS 0 (O4): the least total of a minimal accepting vector. PAIRS 1
-   (O5): the least sum over j of max(0, a_j + b_j - n_j) for two minimal
-   accepting vectors a and b (a = b too). */
-static int64_t rule_least(const RuleSpace *x, const uint32_t *mins, uint64_t count, int pairs) {
-  int64_t best = INT64_MAX;
-  uint64_t p;
-  uint64_t q;
-  uint32_t j;
-  for (p = 0; p < count; p++) {
-    for (q = p; q < (pairs ? count : p + 1u); q++) {
-      const uint32_t *a = mins + p * x->k;
-      const uint32_t *b = mins + q * x->k;
-      int64_t sum = 0;
-      for (j = 0; j < x->k; j++) {
-        int64_t d = (int64_t)a[j] + (int64_t)b[j] - (int64_t)x->n[j];
-        if (!pairs)
-          sum += (int64_t)a[j];
-        if (pairs && d > 0)
-          sum += d;
-      }
-      if (sum < best)
-        best = sum;
+  *least = INT64_MAX;
+  *overlap = INT64_MAX;
+  memset(cur, 0, ((size_t)x->k + 1u) * sizeof *cur);
+  for (i = 0; i < x->space; i++) {
+    int64_t total = 0;
+    uint32_t step = UINT32_MAX;
+    for (j = 0; j < x->k; j++) {
+      total += (int64_t)cur[j];
+      if (e != NULL && cur[j] > 0u && e[i - x->s[j]] < step)
+        step = e[i - x->s[j]];
     }
+    if (e != NULL)
+      e[i] = acc[x->space - 1u - i] != 0u ? 0u : step + 1u;
+    if (acc[i] != 0u && total < *least)
+      *least = total;
+    if (e != NULL && acc[i] != 0u && (int64_t)e[i] < *overlap)
+      *overlap = (int64_t)e[i];
+    rule_next(x, cur);
   }
-  return best;
 }
 
 /* Decide the rule value V on the space X (S5-SURVEY section 4). KIND 0 is
@@ -4389,9 +4380,9 @@ static int64_t rule_least(const RuleSpace *x, const uint32_t *mins, uint64_t cou
 static RuleVerdict rule_decide(const RuleSpace *x, const Value *v, int kind, int64_t f) {
   unsigned char *acc = malloc(x->space);
   uint32_t *cur = calloc((size_t)x->k + 1u, sizeof *cur);
-  uint32_t *mins = NULL;
-  uint64_t count = 0;
-  uint64_t p = 0;
+  uint32_t *e = NULL;
+  int64_t least = INT64_MAX;
+  int64_t overlap = INT64_MAX;
   uint64_t i;
   uint32_t j;
   int oom = 0;
@@ -4404,36 +4395,27 @@ static RuleVerdict rule_decide(const RuleSpace *x, const Value *v, int kind, int
     r = RULE_ZERO;
   if (r == RULE_OK && acc[x->space - 1u] == 0u)
     r = RULE_FULL;
-  /* O3: each accepted v with v_j < n_j has v + e_j accepted. The same walk
-     counts the minimal accepting vectors. */
+  /* O3: each accepted v with v_j < n_j has v + e_j accepted. */
   for (i = 0; r == RULE_OK && i < x->space; i++) {
-    count += (uint64_t)rule_minimal(x, acc, i, cur);
     for (j = 0; j < x->k; j++) {
       if (acc[i] != 0u && cur[j] < x->n[j] && acc[i + x->s[j]] == 0u)
         r = RULE_MONO;
     }
     rule_next(x, cur);
   }
-  if (r == RULE_OK && kind != 0) {
-    mins = calloc((size_t)(count * x->k) + 1u, sizeof *mins);
-    if (mins == NULL)
+  if (r == RULE_OK && kind == 2) {
+    e = malloc((size_t)x->space * sizeof *e);
+    if (e == NULL)
       r = RULE_OOM;
   }
   if (r == RULE_OK && kind != 0) {
-    memset(cur, 0, ((size_t)x->k + 1u) * sizeof *cur);
-    for (i = 0; i < x->space; i++) {
-      if (rule_minimal(x, acc, i, cur)) {
-        memcpy(mins + p * x->k, cur, (size_t)x->k * sizeof *cur);
-        p++;
-      }
-      rule_next(x, cur);
-    }
-    if (rule_least(x, mins, count, 0) <= f)
+    rule_margins(x, acc, cur, e, &least, &overlap);
+    if (least <= f)
       r = RULE_HONEST;
   }
-  if (r == RULE_OK && kind == 2 && rule_least(x, mins, count, 1) <= f)
+  if (r == RULE_OK && kind == 2 && overlap <= f)
     r = RULE_FORK;
-  free(mins);
+  free(e);
   free(cur);
   free(acc);
   return r;

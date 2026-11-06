@@ -1,17 +1,20 @@
 # ratify-lang status
 
-The build implements slice S7 of `docs/PLAN.md`: the Cubical TT kernel,
+The build implements slice S8 of `docs/PLAN.md`: the Cubical TT kernel,
 ported from permit-lang 3d47120, R0 in the kernel and the Wasm writer,
 ported from permit-lang 18deea2, the committee words `Committee`,
 `Party`, `Approvals`, `Counts` and `count` (Q-S4-1 to Q-S4-4 (a)), the
 rule words `Rule`, `accept`, `Honest` and `ForkFree` with O3, O4 and O5
 (Q-S5-1 to Q-S5-3 (a)), the policy words `Policy`, `Decision`,
 `authorize`, `Amendment`, `Log`, `System` and `policyAt` with TCM-E, O2
-and O10 (Q-S6-1 to Q-S6-4 (a)), and the crypto words `Enc`, `eval`,
+and O10 (Q-S6-1 to Q-S6-4 (a)), the crypto words `Enc`, `eval`,
 `Share`, `Proof` and `Protocol` with the crypto rows and `REFUSE_APPROX`
-(Q-S7-1 to Q-S7-6 (a)). The affine layer and the permit domain are not
+(Q-S7-1 to Q-S7-6 (a)), and the certificate words `Reason`, `Verdict`,
+`Evidence`, `EvList`, `equivocates`, `Certificate` and `verify` with the
+certificate rows and a faster O5 pass (Q-S8-1 to Q-S8-5 (a), Q-S8-6
+(b)). The affine layer and the permit domain are not
 in the build (Q-S0-10 (a), Q-S2-1 (a)). It does not complete M0. The
-next slice is S8: the certificate words.
+next slice is S9: the Wasm module and the crypto import ABI.
 
 ## Implemented
 
@@ -100,11 +103,29 @@ next slice is S8: the certificate words.
   `approx`, `approximate`, `float` and `double` are refused at the four
   sites of the clock check, with the hint "an exact scheme only"
   (Q-S7-5 (a)).
-- The gate: 35 examples, 17 parse refusals, 179 check refusals, 10
-  kit-only refusals, 1 time hint, 94 evals, 14 crypto rep lines, 1
+- S8: the certificate words in `domain/domain.lang`. `Reason` has the 8
+  reasons of Q-S8-3 (a), and `Verdict` is `valid` or `invalid r`.
+  `Certificate P` is `certOf` with the height, the action, the signer
+  set, b, P' and one `Decision` for each host byte check (Q-S8-1 (a)).
+  `verify P Q l c evs` checks c against the tip Q of `l : Log P Q`, and
+  the first failure wins (Q-S8-2 (a), Q-S8-3 (a)). `Evidence c` is
+  `evOf`, `equivocates` holds for two signed bodies at one height with
+  two hashes, and `EvList c` is the input list (Q-S8-4 (a)).
+  `examples/certificate.lang` has 18 closed `refl` rows.
+- S8: `test/cryptotool.c` has the cert section, 12 rows (Q-S8-5 (a)):
+  the body bytes (height 8, prev hash 32, action 8, big endian), Schnorr
+  over keccak256 of the body, the check order height, prev hash,
+  signature, and the evidence rows.
+- S8: the O4 and O5 margins (`rule_margins` in `src/front/check.c`) come
+  from one upward pass over the count space, O(space k), with no list of
+  minimal accepting vectors (Q-S8-6 (b), OI-14 closed). 20 classes of 1
+  (a count space of 2^20) check in about 12 s
+  (`examples/fork-margin.lang`).
+- The gate: 37 examples, 17 parse refusals, 180 check refusals, 10
+  kit-only refusals, 1 time hint, 112 evals, 14 crypto rep lines, 1
   build, 1 ir lowered, 5 ir refusals, 2 ir lowerings, 4 notrap modules,
-  7 notrap bad rows, 10 spine evals, 38 Wasm modules valid, 998
-  differential cases with 0 mismatches, 97 crypto rows; the review,
+  7 notrap bad rows, 10 spine evals, 40 Wasm modules valid, 998
+  differential cases with 0 mismatches, 109 crypto rows; the review,
   domain, path and crypto regressions. The C runner also checks the
   restored unused-field and proof-transport fixtures; each differential
   module passes `build/notraptool`.
@@ -128,12 +149,9 @@ hashes, the curve code and Schnorr on BN254 G1.
 
 ## Remaining M0 work
 
-1. S8: the certificate words of `docs/PLAN.md` section 12: `Certificate`,
-   `Verdict`, `Reason`, `verify` and the equivocation evidence. It needs
-   the S7 commit first.
-2. S9 to S19: the targets T1 to T4 (S9: the Wasm module, the crypto
-   import ABI and the notrap rows), A1 to A6 and the close. Each slice
-   needs the slice before it.
+1. S9 to S19: the targets T1 to T4 (S9: the Wasm module, the crypto
+   import ABI and the notrap rows), A1 to A6 and the close. S9 needs the
+   S8 commit first, and each slice needs the slice before it.
 
 ## Known limits
 
@@ -147,6 +165,10 @@ hashes, the curve code and Schnorr on BN254 G1.
 - The crypto words are a denotation: `enc` keeps the value, and `eval`
   applies the function to the values. The real scheme runs only in
   `build/cryptotool` until the crypto import ABI (S9).
+- The guest has no hash type: a hash in `Certificate` and `Evidence` is
+  a `Size` stand-in compared with `szEq`, and the action is a `Size`
+  code. The host byte checks (the cert rows of `build/cryptotool`) use
+  the real keccak-256 hash and the real Schnorr signature.
 - `REFUSE_APPROX` reads names only. A name that is not in its list of
   five is not refused.
 

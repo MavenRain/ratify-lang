@@ -469,3 +469,61 @@ def protoOf : (A : Type 0) -> (B : Type 0) -> (A -> B) -> Protocol A B :=
   fun (A : Type 0) (B : Type 0) (f : A -> B) => f
 def run : (A : Type 0) -> (B : Type 0) -> Protocol A B -> A -> B :=
   fun (A : Type 0) (B : Type 0) (proto : Protocol A B) (xs : A) => proto xs
+-- S8 (PLAN sections 2 and 4.2): the verdict of a certificate. A Reason is the
+-- first check that fails (Q-S8-3 (a)): the bytes, then the link, then the
+-- crypto, then the rule.
+family Reason := malformed | illTypedPolicy | wrongHeight | badPrevHash | badSignature | badProof | notAccepted | equivocation
+family Verdict := valid | invalid (vdReason : Reason)
+-- sNot is not on Sum Unit Unit. vdThen d r v is v when d holds, else invalid r.
+def sNot : Sum Unit Unit -> Sum Unit Unit :=
+  fun (x : Sum Unit Unit) => either (fun (u : Unit) => inr unit) (fun (u : Unit) => inl unit) x
+def vdThen : Decision -> Reason -> Verdict -> Verdict :=
+  fun (d : Decision) (r : Reason) (v : Verdict) => either (fun (u : Unit) => invalid r) (fun (u : Unit) => v) d
+-- apHas c S p: the approval bit of the party p in S (inr unit: p approves). ApK k
+-- is the type of the inner elim on the party: the head bits and the tail test.
+def ApK : Committee -> Type 0 :=
+  fun (c : Committee) => elim (fun (k : Committee) => Type 0) Unit
+    (fun (n : Size) (r : Committee) (h : Type 0) => (Pos n -> Sum Unit Unit) -> (Party r -> Decision) -> Decision) c
+def apHas : (c : Committee) -> Approvals c -> Party c -> Decision :=
+  fun (c : Committee) (S : Approvals c) => elim (fun (k : Committee) (T : Approvals k) => Party k -> Decision)
+    (fun (p : Party cmNil) => inl unit)
+    (fun (n : Size) (r : Committee) (b : Pos n -> Sum Unit Unit) (t : Approvals r) (ih : Party r -> Decision) => fun (p : Party (cmClass n r)) =>
+      elim (fun (k : Committee) (q : Party k) => ApK k)
+        (fun (n2 : Size) (r2 : Committee) (x : Pos n2) => fun (b2 : Pos n2 -> Sum Unit Unit) (g : Party r2 -> Decision) => b2 x)
+        (fun (n2 : Size) (r2 : Committee) (q : Party r2) (h2 : ApK r2) => fun (b2 : Pos n2 -> Sum Unit Unit) (g : Party r2 -> Decision) => g q) p b ih) S
+-- Equivocation evidence (Q-S8-4 (a), design html:532): two entries at one height,
+-- signed by one party. The guest has no hash type, so a hash is a Size stand-in
+-- (szEq); the C rows (test/cryptotool.c cert) carry the keccak-256 bytes.
+-- equivocates: both signatures check and the two hashes differ.
+family Evidence : Committee -> Type 0 := evOf (evCom : Committee) (evParty : Party evCom) (evHeight : Size) (evHashA : Size) (evHashB : Size) (evSigA : Decision) (evSigB : Decision) : Evidence evCom
+family EvList : Committee -> Type 0 := evNil (evNilOf : Committee) : EvList evNilOf
+  | evCons (evConsOf : Committee) (evHead : Evidence evConsOf) (evTail : EvList evConsOf) : EvList evConsOf
+def equivocates : (c : Committee) -> Evidence c -> Decision :=
+  fun (c : Committee) (e : Evidence c) => elim (fun (k : Committee) (v : Evidence k) => Decision)
+    (fun (k : Committee) (p : Party k) (g : Size) (x : Size) (y : Size) (sa : Decision) (sb : Decision) => sAnd sa (sAnd sb (sNot (szEq x y)))) e
+-- evHits c S h e: e is evidence against a party of S at the height h.
+-- evAny: some evidence of the list hits.
+def evHits : (c : Committee) -> Approvals c -> Size -> Evidence c -> Decision :=
+  fun (c : Committee) (S : Approvals c) (h : Size) (e : Evidence c) => sAnd (equivocates c e)
+    (elim (fun (k : Committee) (v : Evidence k) => Approvals k -> Decision)
+      (fun (k : Committee) (p : Party k) (g : Size) (x : Size) (y : Size) (sa : Decision) (sb : Decision) => fun (T : Approvals k) => sAnd (szEq g h) (apHas k T p)) e S)
+def evAny : (c : Committee) -> Approvals c -> Size -> EvList c -> Decision :=
+  fun (c : Committee) (S : Approvals c) (h : Size) (l : EvList c) => elim (fun (k : Committee) (m : EvList k) => Approvals k -> Decision)
+    (fun (k : Committee) => fun (T : Approvals k) => inl unit)
+    (fun (k : Committee) (e : Evidence k) (t : EvList k) (ih : Approvals k -> Decision) => fun (T : Approvals k) => sOr (evHits k T h e) (ih T)) l S
+-- Certificate P (Q-S8-1 (a), the checked form): the height, the action (a Size
+-- code; authorize does not read it), the signer set, b (inr unit: an amendment),
+-- the target P' (inr for an amendment) and one Decision for each byte check of
+-- the host: well formed, well typed P', prev hash, signatures, proofs. At T1
+-- (S9) the crypto imports fill the flags from the bytes.
+family Certificate : Policy -> Type 0 := certOf (certPol : Policy) (certHeight : Size) (certAct : Size) (certSet : Approvals (polCom certPol)) (certAmend : Decision) (certTo : Sum Unit Policy) (certWf : Decision) (certWt : Decision) (certPrev : Decision) (certSig : Decision) (certProof : Decision) : Certificate certPol
+-- verify P Q l c evs (Q-S8-2 (a)): the first failure gives the reason (Q-S8-3
+-- (a)). The height of c must be lgLen l, the latest verified height (OI-2). The
+-- rule of Q is the amend rule when b, else the authorize rule. A signer of c
+-- with evidence at the height of c gives equivocation (Q-S8-4 (a)).
+def verify : (P : Policy) -> (Q : Policy) -> Log P Q -> Certificate Q -> EvList (polCom Q) -> Verdict :=
+  fun (P : Policy) (Q : Policy) (l : Log P Q) (c : Certificate Q) => elim (fun (q : Policy) (d : Certificate q) => EvList (polCom q) -> Verdict)
+    (fun (q : Policy) (h : Size) (a : Size) (S : Approvals (polCom q)) (b : Decision) (t : Sum Unit Policy) (wf : Decision) (wt : Decision) (pv : Decision) (sg : Decision) (pf : Decision) => fun (evs : EvList (polCom q)) =>
+      vdThen wf malformed (vdThen wt illTypedPolicy (vdThen (szEq h (lgLen P Q l)) wrongHeight (vdThen pv badPrevHash (vdThen sg badSignature (vdThen pf badProof
+        (vdThen (either (fun (u : Unit) => authorize q Size a S) (fun (u : Unit) => amendOk q S) b) notAccepted
+          (vdThen (sNot (evAny (polCom q) S h evs)) equivocation valid)))))))) c
