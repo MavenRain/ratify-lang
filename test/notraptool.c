@@ -11,7 +11,13 @@
  * src/wasmop.h. A body must not have `unreachable`, `memory.grow`, a byte
  * that is not in the list, or an i64.div_u or i64.rem_u that does not come
  * after the guard of divisor() in src/wasm.c. Each read checks the size
- * first, so a short module fails with `truncated`. */
+ * first, so a short module fails with `truncated`.
+ *
+ * Import section (S9, Q-S9-5 (a)): each import must be a function of module
+ * ratify with its type: sig_verify, share_verify and tally_add (i64 x 6) ->
+ * i64, hash_eq (i64 x 4) -> i64, ballot_verify (i64 x 9) -> i64 or combine
+ * (i64 x 8) -> i64. The tool keeps the types of the type section for this
+ * check. */
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -25,6 +31,12 @@ enum { WASM_OPS(NOTRAP_ENUM) };
 enum {
   MODULE_MAX = 1 << 20, /* the largest module: 1 MiB */
   GUARD_LEN = 5,        /* the instructions of the divisor guard */
+  TYPE_MAX = 4096,      /* the types that the import check can read */
+  PARAMS_MAX = 9,       /* the most parameters of an import */
+  TYPE_FUNC = 0x60,
+  TYPE_I64 = 0x7E,
+  SECTION_TYPE = 1,
+  SECTION_IMPORT = 2,
   SECTION_MEMORY = 5,
   SECTION_CODE = 10
 };
@@ -53,6 +65,8 @@ typedef struct {
   size_t end;
   const char *why;
   char text[48];
+  unsigned char sigs[TYPE_MAX]; /* type K: N for (i64 x N) -> i64 with N = 1 to PARAMS_MAX, else 0 */
+  size_t types;
 } Reader;
 
 static unsigned char module[MODULE_MAX + 1];
@@ -198,8 +212,93 @@ static int check_memory(Reader *r) {
   return ok;
 }
 
+/* One function type: 0x60, the parameters, then the results. The tool keeps
+ * N for an (i64 x N) -> i64 type with N = 1 to PARAMS_MAX, else 0. */
+static int check_type(Reader *r) {
+  unsigned form = 0;
+  unsigned t = 0;
+  uint64_t params = 0;
+  uint64_t results = 0;
+  uint64_t i;
+  int all = 1;
+  int ok = get_byte(r, &form) && (form == TYPE_FUNC || fail(r, "a type that is not a function type")) &&
+           get_leb(r, 32, &params);
+  for (i = 0; i < params && ok; i++) {
+    ok = get_byte(r, &t);
+    all = all && t == TYPE_I64;
+  }
+  ok = ok && get_leb(r, 32, &results);
+  for (i = 0; i < results && ok; i++) {
+    ok = get_byte(r, &t);
+    all = all && t == TYPE_I64;
+  }
+  if (ok && r->types < TYPE_MAX)
+    r->sigs[r->types] = all && results == 1u && params >= 1u && params <= PARAMS_MAX ? (unsigned char)params : 0u;
+  r->types += ok ? 1u : 0u;
+  return ok;
+}
+
+static int check_types(Reader *r) {
+  uint64_t n = 0;
+  uint64_t i;
+  int ok = get_leb(r, 32, &n);
+  for (i = 0; i < n && ok; i++) ok = check_type(r);
+  return ok;
+}
+
+/* The host functions of module ratify (S9, Q-S9-2 (a)): the name and the
+ * parameter count. Each parameter and the result is an i64. A byte operand
+ * is two parameters, its offset and its length in memory 0 (Q-S9-1 (a)). */
+static const struct {
+  const char *name;
+  unsigned params;
+} imports[] = {{"sig_verify", 6},    {"hash_eq", 4},   {"share_verify", 6},
+               {"ballot_verify", 9}, {"tally_add", 6}, {"combine", 8}};
+#define IMPORT_COUNT (sizeof imports / sizeof imports[0])
+
+/* A name: its byte count, then the bytes. */
+static int get_name(Reader *r, const unsigned char **name, uint64_t *len) {
+  int ok = get_leb(r, 32, len) && (*len <= r->end - r->pos || fail(r, "truncated"));
+  *name = r->bytes + r->pos;
+  r->pos += ok ? (size_t)*len : 0u;
+  return ok;
+}
+
+static int is_name(const unsigned char *name, uint64_t len, const char *want) {
+  return len == strlen(want) && memcmp(name, want, (size_t)len) == 0;
+}
+
+/* One import: the module name, the field name, the kind (0: a function),
+ * then the type index. */
+static int check_import(Reader *r) {
+  const unsigned char *mod = NULL;
+  const unsigned char *name = NULL;
+  uint64_t mod_len = 0;
+  uint64_t name_len = 0;
+  uint64_t type = 0;
+  unsigned kind = 0;
+  size_t want = IMPORT_COUNT;
+  size_t k;
+  int ok = get_name(r, &mod, &mod_len) && get_name(r, &name, &name_len) && get_byte(r, &kind);
+  if (!ok) return 0;
+  if (!is_name(mod, mod_len, "ratify")) return fail(r, "import module is not ratify");
+  for (k = 0; k < IMPORT_COUNT; k++) want = is_name(name, name_len, imports[k].name) ? k : want;
+  if (want == IMPORT_COUNT) return fail(r, "import name outside the list");
+  if (kind != 0u) return fail(r, "import is not a function");
+  return get_leb(r, 32, &type) && ((type < r->types && type < TYPE_MAX && r->sigs[type] == imports[want].params) ||
+                                   fail(r, "import type does not match its name"));
+}
+
+static int check_imports(Reader *r) {
+  uint64_t n = 0;
+  uint64_t i;
+  int ok = get_leb(r, 32, &n);
+  for (i = 0; i < n && ok; i++) ok = check_import(r);
+  return ok;
+}
+
 /* One section: its id, its size, then its contents. The tool checks the
- * memory section and the code section, and skips the other sections. */
+ * type, import, memory and code sections, and skips the other sections. */
 static int check_section(Reader *r) {
   size_t outer = r->end;
   unsigned id = 0;
@@ -208,6 +307,12 @@ static int check_section(Reader *r) {
   if (!ok) return 0;
   r->end = r->pos + (size_t)size;
   switch (id) {
+    case SECTION_TYPE:
+      ok = check_types(r);
+      break;
+    case SECTION_IMPORT:
+      ok = check_imports(r);
+      break;
     case SECTION_MEMORY:
       ok = check_memory(r);
       break;
@@ -233,7 +338,7 @@ static int check_module(Reader *r) {
 }
 
 int main(int argc, char **argv) {
-  Reader r = {module, 0, 0, NULL, {0}};
+  Reader r = {module, 0, 0, NULL, {0}, {0}, 0};
   FILE *f;
   int bad;
   int ok;

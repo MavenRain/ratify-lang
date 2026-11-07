@@ -1,0 +1,1 @@
+# S9 step d1b: a table with no rows (each closed call gives HOST).

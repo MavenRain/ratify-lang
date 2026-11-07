@@ -118,6 +118,7 @@ typedef enum {
   RULE_GLUE,
   RULE_GLUE_ELEM,
   RULE_UNGLUE,
+  RULE_HOST,          /* S9: a host import (Q-S9-8 (a)) */
 } Rule;
 
 typedef struct {
@@ -125,8 +126,8 @@ typedef struct {
   uint32_t arity; /* fold: the least number of arguments */
   Rule rule;
   Op op;
-  Op result;     /* VALUE0, NAT2: the result type. EMPTY, INJ: the type former. */
-  uint32_t part; /* INJ, PART, SIGMA_PART: 0 or 1 */
+  Op result;     /* VALUE0, NAT2, HOST: the result type. EMPTY, INJ: the type former. */
+  uint32_t part; /* INJ, PART, SIGMA_PART: 0 or 1. HOST: the import number J. */
   Vis vis;
 } Builtin;
 
@@ -194,6 +195,14 @@ static const Builtin BUILTINS[] = {
   {"nonZero", 1, RULE_NONZERO_OF, OP_NONZERO_OF, OP_OPTION, 0, VIS_INTERNAL},
   {"nonZeroValue", 1, RULE_NONZERO_VALUE, OP_NONZERO_VALUE, OP_NAT, 0, VIS_INTERNAL},
   {"len", 2, RULE_LEN, OP_FM_LEN, OP_NAT, 0, VIS_GUEST},
+  /* S9 (Q-S9-8 (a)): the crypto imports in the import order; only the
+     domain names them. */
+  {"sig_verify", 3, RULE_HOST, OP_HOST, OP_SUM, 0, VIS_INTERNAL},
+  {"hash_eq", 2, RULE_HOST, OP_HOST, OP_SUM, 1, VIS_INTERNAL},
+  {"share_verify", 3, RULE_HOST, OP_HOST, OP_SUM, 2, VIS_INTERNAL},
+  {"ballot_verify", 5, RULE_HOST, OP_HOST, OP_SUM, 3, VIS_INTERNAL},
+  {"tally_add", 3, RULE_HOST, OP_HOST, OP_SUM, 4, VIS_INTERNAL},
+  {"combine", 5, RULE_HOST, OP_HOST, OP_NAT, 5, VIS_INTERNAL},
 };
 
 #define BUILTIN_COUNT ((uint32_t)(sizeof BUILTINS / sizeof BUILTINS[0]))
@@ -2316,6 +2325,26 @@ static const Core *kmap_access(Call *k, int set) {
   return core_op(c, k->b->op, 0, 0, args, set ? 4u : 3u);
 }
 
+/* S9 (Q-S9-8 (a)): a host import J = part. Row J takes HOST_BYTES[J]
+   Bytes operands (Prod Nat Nat: OFF, LEN), then Nat words. J 0 to 4 give a
+   Decision (Sum Unit Unit), combine (J 5) gives a Nat. */
+static const uint32_t HOST_BYTES[] = {3u, 2u, 3u, 4u, 3u, 3u};
+
+static const Core *rule_host(Call *k) {
+  Checker *c = k->c;
+  const Value *nat = nat_type(c);
+  const Value *bytes = tyop(c, OP_PROD, 2, nat, nat, NULL);
+  const Value *unit = tyop(c, OP_UNIT, 0, NULL, NULL, NULL);
+  const Core *x[5];
+  uint32_t i;
+  for (i = 0; i < k->b->arity; i++) {
+    x[i] = check(c, k->args[i], i < HOST_BYTES[k->b->part] ? bytes : nat);
+    if (x[i] == NULL)
+      return NULL;
+  }
+  k->type = k->b->result == OP_SUM ? tyop(c, OP_SUM, 2, unit, unit, NULL) : nat;
+  return core_op(c, OP_HOST, k->b->part, 0, x, k->b->arity);
+}
 static const Core *rule(Call *k) {
   switch (k->b->rule) {
   case RULE_TYPE0:
@@ -2413,6 +2442,8 @@ static const Core *rule(Call *k) {
     return kmap_access(k, 0);
   case RULE_KMAP_SET:
     return kmap_access(k, 1);
+  case RULE_HOST:
+    return rule_host(k);
   }
   return NULL;
 }
@@ -5194,6 +5225,89 @@ static int print_result(Machine *m, const char *name, const Value *v, FILE *out,
     break;
   }
   diag_fail(m->diag, "EVAL_ENTRY", name, "the entry did not compute a number");
+  return 1;
+}
+
+/* S9 step d: the next blank-separated field at *P of a host table line, or
+   NULL at the end of the line. */
+static char *host_field(char **p) {
+  char *s = *p;
+  char *start;
+  while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n')
+    s++;
+  if (*s == '\0')
+    return NULL;
+  start = s;
+  while (*s != '\0' && *s != ' ' && *s != '\t' && *s != '\r' && *s != '\n')
+    s++;
+  if (*s != '\0')
+    *s++ = '\0';
+  *p = s;
+  return start;
+}
+
+/* 1 when NAME is a host import: *INST is its J and *WORDS its word count. */
+static int host_import_find(const char *name, uint32_t *inst, uint32_t *words) {
+  uint32_t j;
+  const char *s;
+  for (j = 0; (s = host_import_name(j, words)) != NULL; j++)
+    if (strcmp(s, name) == 0) {
+      *inst = j;
+      return 1;
+    }
+  return 0;
+}
+
+#define HOST_ROW_CAP 256u
+#define HOST_LINE_MAX 512u
+
+/* S9 step d (Q-S9-3 (a)): read the `langc eval --host FILE` table into M.
+   Each line is `NAME W1 .. Wp RESULT`: NAME is a host import, p is its word
+   count and each field is a decimal u64. A blank line, or a line that
+   starts with `#`, is skipped. A bad line, or more than HOST_ROW_CAP rows,
+   gives HOST_TABLE. Gives 1, or 0 after a diagnostic. */
+int host_table_read(Machine *m, FILE *f) {
+  HostRow *rows = arena_alloc(m->arena, HOST_ROW_CAP * sizeof *rows);
+  char *line = arena_alloc(m->arena, HOST_LINE_MAX);
+  uint32_t count = 0;
+  uint32_t lineno = 0;
+  if (rows == NULL || line == NULL)
+    return diag_fail(m->diag, "OOM", NULL, "out of memory");
+  while (fgets(line, HOST_LINE_MAX, f) != NULL) {
+    char *p = line;
+    char *name;
+    char *tok;
+    uint32_t inst = 0;
+    uint32_t words = 0;
+    uint32_t k = 0;
+    uint64_t field[10];
+    lineno++;
+    if (strchr(line, '\n') == NULL && !feof(f))
+      return diag_fail(m->diag, "HOST_TABLE", NULL, "line %u is longer than %u characters", lineno, HOST_LINE_MAX - 2u);
+    name = host_field(&p);
+    if (name == NULL || name[0] == '#')
+      continue;
+    if (!host_import_find(name, &inst, &words))
+      return diag_fail(m->diag, "HOST_TABLE", NULL, "line %u: %s is not a host import", lineno, name);
+    for (tok = host_field(&p); tok != NULL && k <= words; tok = host_field(&p)) {
+      if (!parse_u64(tok, &field[k]))
+        return diag_fail(m->diag, "HOST_TABLE", NULL, "line %u: field %u is not a decimal u64", lineno, k + 1u);
+      k++;
+    }
+    if (k != words + 1u || tok != NULL)
+      return diag_fail(m->diag, "HOST_TABLE", NULL, "line %u: %s takes %u words and one result", lineno, name, words);
+    if (count == HOST_ROW_CAP)
+      return diag_fail(m->diag, "HOST_TABLE", NULL, "line %u: the table has more than %u rows", lineno, HOST_ROW_CAP);
+    rows[count].import = inst;
+    rows[count].count = words;
+    memcpy(rows[count].words, field, words * sizeof field[0]);
+    rows[count].result = field[words];
+    count++;
+  }
+  if (ferror(f))
+    return diag_fail(m->diag, "HOST_TABLE", NULL, "the host table cannot be read");
+  m->host_rows = rows;
+  m->host_count = count;
   return 1;
 }
 

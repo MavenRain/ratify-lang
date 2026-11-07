@@ -82,7 +82,10 @@ typedef enum {
      Nat is a Nat that is not 0: the type carries the fact. */
   OP_NONZERO,      /* NonZero Nat: a type */
   OP_NONZERO_OF,   /* nonZero x: some x, or none when x is 0 */
-  OP_NONZERO_VALUE /* nonZeroValue x: the base value; stuck on an open x */
+  OP_NONZERO_VALUE, /* nonZeroValue x: the base value; stuck on an open x */
+  /* S9: a host import call (Q-S9-8 (a)): inst = the import number J
+     (0 to 5), the Bytes and Nat arguments. */
+  OP_HOST
 } Op;
 
 /* The instance of pure, map, bind and filter (formers F5 and F8). */
@@ -294,6 +297,17 @@ typedef struct {
   int law_only;
 } DefInfo;
 
+/* S9 step d (Q-S9-3 (a)): one row of the `langc eval --host FILE` table.
+   IMPORT is the host import J. WORDS are its COUNT argument words (a Bytes
+   argument gives OFF and LEN, a Nat gives its number). RESULT is the word
+   that the import gives for these words. */
+typedef struct HostRow {
+  uint32_t import;
+  uint32_t count;
+  uint64_t words[9];
+  uint64_t result;
+} HostRow;
+
 /* The checked program and the evaluation state. No global state: every
    function gets this context. */
 typedef struct {
@@ -317,7 +331,15 @@ typedef struct {
   /* Each Glue that a true key reduced, newest first. transp at Glue reads
      them to get A, phi and sys at an end. */
   const struct GlueRec *glue_recs;
+  /* The host table of `langc eval --host FILE` (S9 step d). NULL when
+     there is no table. */
+  const HostRow *host_rows;
+  uint32_t host_count;
 } Machine;
+
+/* The name of host import J and its word count, or NULL after the last
+   import (S9 step d). */
+const char *host_import_name(uint32_t j, uint32_t *words);
 
 /* One Glue that a true key reduced. OUT is the result, a fresh copy of the
    branch type T, so that its pointer is unique. RAW is the OP_GLUE value. */

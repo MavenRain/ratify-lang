@@ -51,6 +51,7 @@ typedef struct {
   Operand *levels; /* the operand of each de Bruijn level */
   uint32_t level_count;
   uint32_t level_cap;
+  int host; /* an IR_STMT_HOST is made (S9) */
 } Low;
 
 static int oom(Low *l) {
@@ -493,6 +494,16 @@ static void stmt_print(const IrStmt *s, FILE *out, unsigned depth) {
     expr_print(s->expr, out, 0);
     fputs("\n", out);
     return;
+  case IR_STMT_HOST: {
+    size_t h;
+    fprintf(out, "l%u := host %u [", (unsigned)s->local, (unsigned)s->counter);
+    for (h = 0; h < s->field_count; h++) {
+      fputs(h == 0 ? "" : ", ", out);
+      expr_print(s->fields[h], out, 0);
+    }
+    fputs("]\n", out);
+    return;
+  }
   }
 }
 
@@ -582,6 +593,66 @@ static int lower_ctor(Low *l, Buf *b, const Value *v, Operand *out) {
   return ctor_full(l, b, v, fam->param_count, c->field_count, v->inst - fam->first_ctor, out);
 }
 
+/* S9 (Q-S9-8 (a)): host import J = the inst of V. The first BYTES[J]
+   arguments are Bytes (a pair block [0, OFF, LEN]) and give the two words
+   OFF and LEN. A Nat argument gives its word. BYTES = check.c HOST_BYTES.
+   J 0 to 4 give a Decision block [tag, 0]: tag 1 (inr, accept) only when
+   the import gives 1, else tag 0 (inl, refuse). Combine (J 5) gives its
+   Nat word. The import writes no heap block. */
+static int host_call(Low *l, Buf *b, const Value *v, Operand *out) {
+  static const uint32_t bytes[] = {3u, 2u, 3u, 4u, 3u, 3u};
+  const IrExpr **fields;
+  const IrExpr **words;
+  IrStmt *s;
+  IrStmt *d;
+  Operand x;
+  uint32_t i;
+  uint32_t k = 0;
+  if (v->inst >= sizeof bytes / sizeof *bytes || v->argc < bytes[v->inst])
+    return internal(l, "a host import with too few arguments");
+  fields = arena_alloc(l->m->arena, ((size_t)v->argc + bytes[v->inst]) * sizeof *fields);
+  if (fields == NULL)
+    return oom(l);
+  for (i = 0; i < v->argc; i++) {
+    if (!lower(l, b, v->args[i], &x))
+      return 0;
+    if (i < bytes[v->inst]) {
+      fields[k++] = ex_load(l, x.w, 1);
+      fields[k++] = ex_load(l, x.w, 2);
+    } else {
+      fields[k++] = x.w;
+    }
+  }
+  for (i = 0; i < k; i++)
+    if (fields[i] == NULL)
+      return 0;
+  s = stmt_new(l, IR_STMT_HOST);
+  if (s == NULL)
+    return 0;
+  s->local = local_new(l);
+  s->counter = v->inst;
+  s->fields = fields;
+  s->field_count = (size_t)k;
+  l->host = 1;
+  if (!emit(l, b, s))
+    return 0;
+  if (v->inst == 5u) {
+    *out = operand(ex_local(l, s->local));
+    return out->w != NULL;
+  }
+  words = arena_alloc(l->m->arena, 2u * sizeof *words);
+  d = stmt_new(l, IR_STMT_ALLOC);
+  if (words == NULL || d == NULL)
+    return words == NULL ? oom(l) : 0;
+  words[0] = ex_bin(l, IR_OP_EQ, ex_local(l, s->local), ex_const(l, 1));
+  words[1] = ex_const(l, 0);
+  d->local = local_new(l);
+  d->fields = words;
+  d->field_count = 2u;
+  *out = operand(ex_local(l, d->local));
+  return words[0] != NULL && words[1] != NULL && out->w != NULL && emit(l, b, d);
+}
+
 /* A canonical value. An eliminator here has too few arguments, so it is a
    function. */
 static int lower_canon(Low *l, Buf *b, const Value *v, Operand *out) {
@@ -661,6 +732,8 @@ static int lower_canon(Low *l, Buf *b, const Value *v, Operand *out) {
   case OP_GLUE_ELEM:
   case OP_UNGLUE:
     return refuse(l, "an elim, KMap, Fin or Glue operation");
+  case OP_HOST:
+    return refuse(l, "a host import call");
   }
   return internal(l, "an unknown operation");
 }
@@ -1226,6 +1299,8 @@ static int lower_stuck(Low *l, Buf *b, const Value *v, Operand *out) {
   case OP_GLUE_ELEM:
   case OP_UNGLUE:
     return refuse(l, "an elim, KMap, Fin or Glue operation");
+  case OP_HOST:
+    return host_call(l, b, v, out);
   }
   return internal(l, "an unknown operation");
 }
@@ -1297,6 +1372,7 @@ static int heap_stmt(const IrStmt *s, uint64_t *out) {
   switch (s->kind) {
     case IR_STMT_SET:
     case IR_STMT_RETURN:
+    case IR_STMT_HOST: /* the import writes no heap block */
       return 1;
     case IR_STMT_ALLOC:
       *out = heap_add(0, s->field_count);
@@ -1334,7 +1410,7 @@ static int heap_block(const IrBlock *b, uint64_t *out) {
 }
 
 /* The entry INDEX, applied to a variable for each parameter. */
-static int lower_entry(Machine *m, uint32_t index, const Entry *e, IrFunc *fn) {
+static int lower_entry(Machine *m, uint32_t index, const Entry *e, IrFunc *fn, int *host) {
   Low l;
   Buf body = buf_under(NULL);
   IrScalar *params = arena_alloc(m->arena, ((size_t)e->param_count + 1u) * sizeof *params);
@@ -1366,6 +1442,7 @@ static int lower_entry(Machine *m, uint32_t index, const Entry *e, IrFunc *fn) {
   fn->heap_words = 0;
   if (!heap_block(&fn->body, &fn->heap_words) || fn->heap_words > IR_HEAP_WORDS_MAX)
     return diag_fail(m->diag, "REFUSE_LOWER", m->def, "heap use has no static bound");
+  *host = *host || l.host;
   return 1;
 }
 
@@ -1377,15 +1454,20 @@ int lower_program(Machine *m, IrProgram *prog) {
   int entry;
   prog->funcs = funcs;
   prog->func_count = 0;
+  prog->host = 0;
   if (funcs == NULL)
     return diag_fail(m->diag, "OOM", m->def, "out of memory");
   for (i = 0; i < m->def_count; i++) {
     m->fuel = EVAL_FUEL_STEPS;
     entry = m->defs[i].origin == ORIGIN_PROGRAM && entry_of(m, m->defs[i].type, &e) && !e.result_option;
-    if (entry && !lower_entry(m, i, &e, &funcs[n]))
+    if (entry && !lower_entry(m, i, &e, &funcs[n], &prog->host))
       return 0;
     n += entry ? 1u : 0u;
   }
+  if (prog->host)
+    for (i = 0; i < n; i++)
+      if (strcmp(funcs[i].name, "memory") == 0)
+        return diag_fail(m->diag, "REFUSE_LOWER", funcs[i].name, "the entry name conflicts with the host memory export");
   prog->func_count = n;
   return 1;
 }

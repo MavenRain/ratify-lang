@@ -66,7 +66,8 @@ typedef enum {
   IR_STMT_REPEAT, /* counter := expr, then run body counter times */
   IR_STMT_WHILE,  /* counter := expr; run body while counter > 0 and local != 0,
                      counter decreasing by 1 at each run; body sets local */
-  IR_STMT_RETURN  /* return expr */
+  IR_STMT_RETURN, /* return expr */
+  IR_STMT_HOST    /* local := host import COUNTER over the fields (S9) */
 } IrStmtKind;
 
 struct IrStmt {
@@ -100,6 +101,7 @@ typedef struct {
 typedef struct {
   const IrFunc *funcs;
   size_t func_count;
+  int host; /* an entry makes an IR_STMT_HOST (S9) */
 } IrProgram;
 
 #endif

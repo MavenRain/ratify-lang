@@ -17,22 +17,24 @@ the readings of the request, the route, the slices and the open questions.
 "design sec N" is section N of the design. Section 14 lists the questions
 for the USER. A reading that is not ruled stays a recommendation.
 
-Status: S8 (the certificate words): the Cubical TT kernel of permit-lang
+Status: S9 (the Wasm module and the crypto import ABI): the Cubical TT kernel of permit-lang
 3d47120 and R0 from permit-lang 18deea2 are in, without the affine layer
 and the permit domain (Q-S0-10 (a), Q-S2-1 (a)). The Wasm writer emits no
 trap form. The domain has `Committee`, `Party`, `Approvals`, `Counts`,
 `count`, `Rule`, `accept`, `Honest`, `ForkFree`, `Policy`, `Decision`,
 `authorize`, `Amendment`, `Log`, `System`, `policyAt`, `Base`, `El`,
 `Enc`, `eval`, `Share`, `Proof`, `Protocol`, `Reason`, `Verdict`,
-`Evidence`, `EvList`, `equivocates`, `Certificate` and `verify`, and the
+`Evidence`, `EvList`, `equivocates`, `Certificate`, `verify` and `Bytes`, and the
 kernel gives `REFUSE_ORBIT`, `REFUSE_BOUND`, `REFUSE_RULE`,
 `REFUSE_HONEST`, `REFUSE_FORK`, `REFUSE_FIXPOINT`, `REFUSE_ARROW`,
 `REFUSE_CLOCK` and `REFUSE_APPROX` (Q-S4-1 to Q-S4-4 (a), Q-S5-1 to
 Q-S5-3 (a), Q-S6-1 to Q-S6-4 (a), Q-S7-1 to Q-S7-6 (a), Q-S8-1 to Q-S8-5
-(a), Q-S8-6 (b)). `src/crypto/` has the crypto C of quorum-lang and
+(a), Q-S8-6 (b), Q-S9-1 to Q-S9-6 and Q-S9-8 (a), Q-S9-7 not needed).
+`src/crypto/` has the crypto C of quorum-lang and
 Schnorr on BN254 G1, and `build/cryptotool` runs the crypto rows and the
-certificate rows. Section 1 has the rulings. Next: S9 (the Wasm module,
-the crypto import ABI and the notrap rows; section 12).
+certificate rows, and writes the host table. The T1 module calls six
+host imports of module `ratify` (section 8.2). Section 1 has the rulings.
+Next: S10 (`ratifyd`, the Wasm engine and the demo; section 12).
 
 ## 1. Rulings
 
@@ -85,6 +87,13 @@ the crypto import ABI and the notrap rows; section 12).
 | 2026-11-05 | Q-S8-4 (a) "Evidence family": `Evidence C`, the decision `equivocates` and an input list of evidence (`EvList`); O11 stays EXTERNAL. Edits: section 12. | USER, S8 |
 | 2026-11-05 | Q-S8-5 (a) "cert section in cryptotool.c": the host certificate rows are a section of `test/cryptotool.c`, with no new tool. Edits: section 12. | USER, S8 |
 | 2026-11-05 | Q-S8-6 (b) "S8 makes the walk faster" (not the recommendation): one upward pass over the count space gives the O4 and O5 margins in O(space k), with no list of minimal accepting vectors. Edits: section 6 (O4, O5), 12, 13 (OI-14). | USER, S8 |
+| 2026-11-06 | Q-S9-1 (a) "memory operands": one import module `ratify`; each import reads its byte operands from linear memory as (offset, length) pairs that the host writes, each parameter an i64, and gives one i64. An operand outside memory gives 0, never a trap (the quorum-lang model, quorum-lang be2c329 src/wasm.c line 278). Edits: section 2, 8.2. | USER, S9 |
+| 2026-11-06 | Q-S9-2 (a) "six public steps": the import set is fixed at S9: the signature check (`sig_verify`), the entry hash compare (`hash_eq`), the decryption share check (`share_verify`), the ballot proof check (`ballot_verify`), the tally add (`tally_add`) and the Lagrange combine with the bounded discrete log (`combine`). Edits: section 8.2. | USER, S9 |
+| 2026-11-06 | Q-S9-3 (a) "host words, one table": each import is a host word of the kit table, and the writer lowers a host word to a call of its import. `langc eval --host FILE` takes the answer from a table of `NAME ARGS RESULT` rows that `build/cryptotool` writes from the real crypto. The count is a `Nat` (Q-S9-8 (a)). Edits: section 8.2, 10. | USER, S9 |
+| 2026-11-06 | Q-S9-4 (a) "node takes the table": `test/run-wasm.mjs` takes the same `--host FILE` table and builds the import object from it. The wasmtime host rows wait for S10, where the engine of `ratifyd` gives the real import bodies. Edits: section 8.2, 10, 13 (OI-10). | USER, S9 |
+| 2026-11-06 | Q-S9-5 (a) "port the import check": `test/notraptool.c` has the permit-lang f9d8a15 import check and the four bad rows (import-kind, import-module, import-name, import-type) with module `ratify` and the Q-S9-2 names and types. Edits: section 10. | USER, S9 |
+| 2026-11-06 | Q-S9-6 (a) "count + 1": `combine` gives count + 1 (1 to n_j + 1) for a count that fits, and 0 for no fit or an operand outside memory. The guest checks that the result is not 0, then count = result - 1. So 0 is the refused value of all six imports. Edits: section 2, 8.2. | USER, S9 |
+| 2026-11-06 | Q-S9-8 (a) "internal builtins, `Bytes`": the six host words are internal builtin rows (the quorum-lang RULE_HOST form, part = the import number J). A byte operand is one argument of the domain def `def Bytes : Type 0 := Prod Nat Nat` (OFF, LEN), and the lowering gives the two fields as the two parameters. A word operand (j, t, n_j) is one `Nat`. The five checks give `Decision` (0 refuses, 1 accepts) and `combine` gives `Nat`. Edits: section 8.2. | USER, S9 |
 
 The (a) rulings keep the readings of sections 2 to 11; those sections now
 cite the ruled option. The rows for Q-S0-9 (b), Q-S0-13 (b) and Q-S1-1 to
@@ -127,6 +136,12 @@ an error:
   search over 0 to n_j (quorum-lang be2c329 docs/PLAN.md line 424), and
   the bound of Q-S0-4 keeps it small. S7 sets the reason when no count in
   the range matches.
+- The T1 imports of module `ratify` are total (Q-S9-1 (a), Q-S9-6 (a)).
+  An operand outside memory (OFF + LEN above the memory size, computed
+  without wrap), or a fixed-size operand with a different LEN, gives 0,
+  and the import reads and writes nothing. It never traps. 0 is the
+  refused value of each import: a check gives 1 or 0, and `combine` gives
+  count + 1 (1 to n_j + 1), or 0 when no count in 0 to n_j fits.
 - A missing ballot is the trivial public encryption of 0 (design sec 9,
   stage 3). It can only lower a count, so it is not an error.
 
@@ -333,6 +348,41 @@ SOURCE-ONLY.
   Lagrange combine and the bounded discrete log. A C test tool makes the
   fixtures (the DKG, the casts, the partial decryptions, the signatures),
   as quorum-lang `test/tallytool.c` does.
+- T1 import ABI (S9; Q-S9-1, Q-S9-2, Q-S9-6 and Q-S9-8 (a)): one import
+  module `ratify` with six function imports; import J is function J. Each
+  parameter and each result is an i64. A byte operand is two parameters,
+  OFF and then LEN, in memory 0 (exported as `memory`). A word operand (j,
+  t, n_j) is one parameter. The host reads and writes each operand in the
+  big-endian `_be` form of the C code, and reads all the operands before
+  it writes an output. In the guest, a byte operand is one argument of
+  `def Bytes : Type 0 := Prod Nat Nat`, and a word operand is one `Nat`.
+  The five checks give `Decision` (the import result is the tag: 0
+  refuses, 1 accepts), and `combine` gives `Nat`.
+
+| J | Import | Operands (bytes) | i64 params | Guest args | Result | C body |
+|---|---|---|---|---|---|---|
+| 0 | `sig_verify` | pk 64, msg any, sig 96 | 6 | 3 | 1 good, else 0 | `schnorr_verify` |
+| 1 | `hash_eq` | data any, want 32 | 4 | 2 | 1 equal, else 0 | `keccak256` of data, then compare with want |
+| 2 | `share_verify` | part 232, key 64, ct 128 | 6 | 3 | 1 good, else 0 | `thr_verify_be` |
+| 3 | `ballot_verify` | proof 384, pk 64, ct 128, ctx 32, word j | 9 | 5 | 1 good, else 0 | `sig_or_verify_be` |
+| 4 | `tally_add` | out 128, a 128, b 128 | 6 | 3 | 1 written, else 0 | `tally_add_be` |
+| 5 | `combine` | parts 232 x K, keys 64 x N, ct 128, word t, word n_j | 8 | 5 | count + 1, else 0 | `thr_open_be`, then the bound n_j |
+
+  K = LEN(parts) / 232 and N = LEN(keys) / 64; a LEN that is not a
+  multiple gives 0.
+- T1 host table (S9; Q-S9-3 and Q-S9-4 (a)): `build/cryptotool` writes
+  `NAME ARGS RESULT` rows from the real crypto. `langc eval --host FILE`
+  and `test/run-wasm.mjs --host FILE` take the answer of each import from
+  that table. The key of a row is the guest words (OFF, LEN and the word
+  operands), not the bytes, so eval, node and the module see one table
+  with one key. A call with no row, and a module with imports but no
+  table, are usage errors of the tool (rc 1), not results of the module.
+- No memory image in S9 (DECISION): each entry resets the heap pointer to
+  0 (`src/wasm.c` line 14), so bytes written at offset 0 before the call
+  are overwritten by the pairs of the entry before an import reads them.
+  The table key is the words, so node needs no bytes. A host that reads
+  the operand bytes (the engine of `ratifyd`, wasmtime) needs a fixture
+  layout above the heap: S10, OI-10.
 - T1 tally (Q-S1-2 (a)): ElGamal can only add. T1 sums the ballots of each
   class, decrypts the count vector c and applies the rule in the clear. So
   the T1 output leaks c, not only b. The one-bit output of design sec 9
@@ -394,8 +444,13 @@ fits. Each item has one deliverable, one slice and one gate.
   O84).
 - Law rows: the design example (one class of 4, t = 3, f = 1: O5 margin
   2 * 3 - 4 - 1 = 1) and the demo of section 8.4.
-- `test/notraptool.c` on each module; differential rows under node and
-  wasmtime (T1).
+- `test/notraptool.c` on each module, with the import check and the four
+  import bad rows (Q-S9-5 (a)); differential rows under node and wasmtime
+  (T1).
+- Host rows (S9): `build/cryptotool` writes the host table, `langc eval
+  --host` rows on `test/eval/host.lang`, and `test/run-wasm.mjs --host`
+  rows on the module of `test/ir/host.lang`. Eval and node give the same
+  answer from one table; a missing row and a missing table give rc 1.
 - Golden files for T2, T3 (Noir) and T4.
 
 ## 11. Port sources
@@ -422,7 +477,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S6 | `Policy`, `Decision`, `authorize`, `Amendment`, `Log` (CM), `System` (CC), `policyAt`; TCM-E, O2, O10; `REFUSE_FIXPOINT`, `REFUSE_ARROW`, `REFUSE_CLOCK`. On the USER S5 commit 1a38884. `Policy` is `plOf` with `plCom`, `plF`, `plAuth : Honest plCom plF` and `plAmend : ForkFree plCom plF`. `hoRule` and `ffRule` can only be the whole body of a closed decided definition, and the seal is a walk over the written term, not over the core term (Q-S6-1 (a)). `REFUSE_CLOCK` and `REFUSE_FIXPOINT` are the kit codes `REFUSE_TIME` and `REFUSE_REC` with new names (Q-S6-2 (a)). `REFUSE_ARROW` refuses a closed choice of three or more values from `Approvals` or `Counts` (Q-S6-3 (a)). `System` is `Stream Policy` (Q-S6-4 (a)). `Log` has the TCM-E paths `appendNilL`, `appendNilR` and `appendAssoc`, and `examples/policy.lang` has the O10 rows `o10At0` and `o10Past`. Gate: 34 examples, 17 parse refusals, 177 check refusals, 87 evals, 37 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1 to M5 KILLED. The seal walk respects local binders (OI-15 closed); `Fin` is internal (O23), so `REFUSE_ARROW` checks only `Sum` trees and `Pos n`. | DONE |
 | S7 | The crypto layer (Q-S0-9 (b), Q-S1-1 (a), Q-S1-3 (a)): `Enc`, `Share`, `Proof`, `Protocol` and their operations; port quorum-lang src/crypto and add Schnorr on BN254 G1; the test tool and the crypto rows (section 10); the ASSUMED rows; `REFUSE_APPROX`. On the USER S6 commit b44d1f6. `Enc` and `Share` are families on the code sort `Base`, and `El` gives the type of a code (Q-S7-1 (a)). `src/crypto/` has the 20 quorum-lang files, byte equal, and `schnorr.c` (Q-S7-2 (a)); a signature is (R, s), 96 bytes (Q-S7-3 (a)). The ASSUMED laws stay ASSUMED, and `docs/STATUS.md` gives their rows (Q-S7-4 (a)). `REFUSE_APPROX` refuses the 5 names `ckks`, `approx`, `approximate`, `float` and `double` at the 4 sites after `REFUSE_CLOCK`, with the hint "an exact scheme only" (Q-S7-5 (a)). `Proof` is `Trunc1` of the witness pair, and `trunc1` takes its type first (Q-S7-6 (a)). DECISION: a family with a function field gives `REFUSE_CELL` (R1), so `Protocol A B` is the function type `A -> B` and `protoOf` is a definition. The word is `protoOf`, not `ptOf`: `ptOf` is a field of `Party` (S4, rule R4). DECISION: `build/cryptotool rep` prints eval lines, and the gate runs `langc eval` on each. DECISION: `eval` has two inputs, so the sum is a chain of eval steps over `Enc (baseCounts (cmClass n cmNil))`: `zeroSum`, `addEnc`, then `openCount` (share 2 of 3, reconstruct, `ctTop`, `posVal`, `sizeNat`). Tool: `build/cryptotool` 97 rows (23 known-answer, 6 invalid-signature, 43 threshold, 17 reshare, 8 invalid-proof), with the row "schnorr s plus r"; 14 rep lines (TCM-C at T1). Gate: 35 examples, 17 parse refusals, 179 check refusals, 94 evals, 14 crypto rep lines, 38 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1 to M5 KILLED. M1a (the R on-curve check of Schnorr verify) is EQUIVALENT: the challenge binds the R bytes, so R + e.P = s.G holds only for R = s.G - e.P, which is on the curve; the check stays. M4a (the body of `reshare`) is EQUIVALENT: the S7 domain bodies are parametric in b. | DONE |
 | S8 | `Certificate`, `Verdict`, `Reason`, `verify`, equivocation evidence; a faster O5 walk (Q-S8-6 (b)). On the USER S7 commit 796f442. `Reason` has the 8 reasons of Q-S8-3 (a), and `Verdict` is `valid` or `invalid r`. `Certificate P` is `certOf` with the height, the action, the signer set, b, P' and one `Decision` for each host byte check (Q-S8-1 (a)). `verify P Q l c evs` checks c against the tip Q of `l : Log P Q`; the first failure wins (`vdThen`), and `wrongHeight` is a height that is not `lgLen l` (Q-S8-2 (a), Q-S8-3 (a)). `Evidence c` is `evOf` (a party, a height, two hashes, two signature decisions), `equivocates` holds for two signed bodies at one height with two hashes, and `EvList c` is the input list (Q-S8-4 (a)). DECISION: the guest has no hash type, so a hash is a `Size` stand-in compared with `szEq`; the action is a `Size` code, because `authorize` takes any A. `examples/certificate.lang` has 18 closed `refl` rows: one for each reason, the valid rows and the first-failure rows. `test/cryptotool.c` has the cert section, 12 rows (Q-S8-5 (a)): the body bytes, Schnorr over keccak256 of the body, the check order height, prev hash, signature, and the evidence. O5 (Q-S8-6 (b), OI-14 closed): `rule_margins` in `src/front/check.c` is one upward pass over the count space, O(space k), with no list of minimal accepting vectors; on 18752 cases it gives the same least total and least overlap as the S5 walk. `examples/fork-margin.lang` (20 classes of 1, f = 3) checks in 12.0 s, and `test/check/fork-margin.lang` (f = 4) gives `REFUSE_FORK`. Gate: 37 examples, 17 parse refusals, 180 check refusals, 112 evals, 14 crypto rep lines, 40 Wasm modules valid, 998 differential cases with 0 mismatches, 109 crypto rows. Mutants M1a and M1b (the reason order), M2 (the height), M3 (the accept choice), M4 (the evidence), M5 (the C signature check), M6 to M9 (the O5 pass): KILLED. M1a was LIVE first; the USER added the row `rBothBad`, which kills it. | DONE |
-| S9 | T1 part 1: the Wasm module, the crypto import ABI (Q-S1-1 (a)), the notrap rows. | |
+| S9 | T1 part 1: the Wasm module, the crypto import ABI (Q-S1-1 (a)), the notrap rows. On the USER S8 commit a2322ef. The module calls six function imports of module `ratify` (section 8.2; Q-S9-1, Q-S9-2, Q-S9-6 and Q-S9-8 (a)): `sig_verify`, `hash_eq`, `share_verify`, `ballot_verify`, `tally_add` and `combine`. Each is an internal builtin row whose part is the import number. `src/wasm.c` writes the import section, and the lowering gives each `Bytes` argument as its two fields and the `Decision` block from the import result. `langc eval --host FILE` and `test/run-wasm.mjs --host FILE` read one `NAME ARGS RESULT` table, which `build/cryptotool` writes from the real crypto (Q-S9-3 and Q-S9-4 (a)). `test/notraptool.c` has the import check and 4 new bad rows (Q-S9-5 (a)). DECISION: no memory image in S9; the key of the table is the guest words (section 8.2). Gate: 37 examples, 17 parse refusals, 180 check refusals, 112 evals, 14 crypto rep lines, 26 host table rows, 23 host evals, 5 notrap modules, 11 notrap bad rows, 9 host wasm rows, 40 Wasm modules valid, 998 differential cases with 0 mismatches, 109 crypto rows. Mutants M-h1 (the import name), M-h2 (the signature answer), M-h3 (the import section): KILLED. | DONE |
 | S10 | T1 part 2: `ratifyd`, the Wasm engine (Q-S0-11 (a)), the demo D1 to D8. | |
 | S11 | T4: the JSON report, `docs/REPORT-JSON.md`. | |
 | S12 | T2: the TFHE tally circuit (Q-S0-12 (a)), the depth bound (O6). | |
@@ -461,7 +516,11 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
 - OI-9 Availability and the MPC tally route (design sec 9 and sec 10) are
   implementation choices. No target emits them in v1.
 - OI-10 The node and wasmtime oracles of the differential rows need the
-  crypto imports (Q-S1-1 (a)). S9 surveys the quorum-lang S8 answer.
+  crypto imports (Q-S1-1 (a)). S9 (Q-S9-4 (a)): node takes the answers
+  from the host table (`test/run-wasm.mjs --host FILE`). Open for wasmtime
+  and for a host that reads the operand bytes: the engine of `ratifyd`
+  (S10) gives the real import bodies, with a fixture layout above the heap
+  (section 8.2).
 - OI-11 The native field of Noir is the BN254 scalar field. The
   coordinates of a BN254 G1 point are in the base field, so the Noir
   R_ballot and R_dec of the ElGamal route need non-native field arithmetic

@@ -32,5 +32,8 @@ int entry_of(Machine *m, const Value *type, Entry *out);
 /* Evaluates the definition NAME on ARGS and prints the result. Returns 0, 1
    after a diagnostic, or 2 after an EVAL_ARGS diagnostic. */
 int eval_command(Machine *m, const char *name, char *const *args, int arg_count, FILE *out, FILE *err);
+/* S9 step d: read the `langc eval --host FILE` table into M (eval.c
+   host_call uses it). Gives 1, or 0 after a diagnostic. */
+int host_table_read(Machine *m, FILE *f);
 
 #endif

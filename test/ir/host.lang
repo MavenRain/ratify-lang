@@ -1,0 +1,11 @@
+-- S9 steps e and f: open host calls for `langc --kit build` and
+-- test/run-wasm.mjs --host. Each Bytes operand is a pair OFF LEN of entry
+-- arguments, so each call stays open in the module. joinShares calls import 5
+-- (combine, the smoke row of the S9 RESUME8 open point). sigPick calls import
+-- 0 (sig_verify) and eliminates its Decision with either: inl gives 0, inr
+-- gives 1. A closed host call is not in this file: build evaluates it, and
+-- build has no host table.
+def joinShares : Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat :=
+  fun (a : Nat) (b : Nat) (c : Nat) (d : Nat) (e : Nat) (f : Nat) (g : Nat) (h : Nat) => combine (pair a b) (pair c d) (pair e f) g h
+def sigPick : Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat :=
+  fun (a : Nat) (b : Nat) (c : Nat) (d : Nat) (e : Nat) (f : Nat) => either (fun (u : Unit) => 0) (fun (u : Unit) => 1) (sig_verify (pair a b) (pair c d) (pair e f))

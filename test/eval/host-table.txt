@@ -1,0 +1,4 @@
+# S9 step d1b: the host rows of test/eval/host.lang (test/gate.sh host_eval).
+sig_verify 1 2 3 4 5 6 1
+sig_verify 1 2 3 4 5 7 0
+combine 1 2 3 4 5 6 7 8 42

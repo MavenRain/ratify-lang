@@ -29,11 +29,12 @@ static const char *const OP_NAMES[] = {
   [OP_SYSTEM] = "system", [OP_HCOMP] = "hcomp", [OP_FIN] = "Fin",
   [OP_FIN_ADD] = "finAdd", [OP_FIN_NEG] = "finNeg", [OP_FIN_CASE] = "finCase",
   [OP_GLUE] = "Glue", [OP_GLUE_ELEM] = "glue", [OP_UNGLUE] = "unglue",
-  [OP_NONZERO] = "NonZero", [OP_NONZERO_OF] = "nonZero", [OP_NONZERO_VALUE] = "nonZeroValue"
+  [OP_NONZERO] = "NonZero", [OP_NONZERO_OF] = "nonZero", [OP_NONZERO_VALUE] = "nonZeroValue",
+  [OP_HOST] = "%host"
 };
 
 /* The number of arguments of each operation. VARIES: it comes from the
-   family tables. */
+   family tables, or for OP_HOST from the import number. */
 static const unsigned char OP_ARITY[] = {
   [OP_NAT] = 0, [OP_FLAG] = 0, [OP_UNIT] = 0, [OP_PROD] = 2, [OP_SUM] = 2,
   [OP_OPTION] = 1, [OP_LIST] = 1, [OP_FAMILY] = VARIES,
@@ -51,8 +52,24 @@ static const unsigned char OP_ARITY[] = {
   [OP_SYSTEM] = VARIES, [OP_HCOMP] = 4, [OP_FIN] = 1, [OP_FIN_ADD] = 3,
   [OP_FIN_NEG] = 2, [OP_FIN_CASE] = VARIES, [OP_GLUE] = 3, [OP_GLUE_ELEM] = 3,
   [OP_UNGLUE] = 4,
-  [OP_NONZERO] = 1, [OP_NONZERO_OF] = 1, [OP_NONZERO_VALUE] = 1
+  [OP_NONZERO] = 1, [OP_NONZERO_OF] = 1, [OP_NONZERO_VALUE] = 1,
+  [OP_HOST] = VARIES
 };
+
+/* S9 (Q-S9-8 (a)): the name and the number of arguments of each host
+   import J. A Bytes argument is one pair (OFF, LEN). */
+static const char *const HOST_NAME[] = {"sig_verify", "hash_eq", "share_verify", "ballot_verify", "tally_add", "combine"};
+static const unsigned char HOST_ARITY[] = {3, 2, 3, 5, 3, 5};
+/* S9 step d: the number of words of each host import J (= wasm.c imports[]
+   params): a Bytes argument gives two words, a Nat gives one word. */
+static const unsigned char HOST_WORDS[] = {6, 4, 6, 9, 6, 8};
+
+const char *host_import_name(uint32_t j, uint32_t *words) {
+  if (j >= sizeof HOST_WORDS)
+    return NULL;
+  *words = HOST_WORDS[j];
+  return HOST_NAME[j];
+}
 
 typedef enum {
   SCRUT_VALUE,
@@ -1498,6 +1515,8 @@ static int arity_ok(const Machine *m, Op op, uint32_t inst, uint32_t n) {
     return n % 2u == 0u;
   if (op == OP_FIN_CASE)
     return n >= 2u;
+  if (op == OP_HOST)
+    return inst < sizeof HOST_ARITY && n == (uint32_t)HOST_ARITY[inst];
   if (OP_ARITY[op] != VARIES)
     return n == (uint32_t)OP_ARITY[op];
   return n == varied_arity(m, op, inst);
@@ -1976,6 +1995,7 @@ static const Value *transp_data(Machine *m, const Value *head, const Value *line
   case OP_UNGLUE:
   case OP_NONZERO_OF:
   case OP_NONZERO_VALUE:
+  case OP_HOST:
     return internal(m, "a transport along a line that is not a type");
   }
   return transp_stuck(m, line, phi, base);
@@ -2831,6 +2851,77 @@ static const Value *transp_glue(Machine *m, const Value *line, const Value *psi,
   return reduce_glue_elem(m, ga, 3);
 }
 
+/* 1 when A (a Nat, or a Bytes pair OFF LEN) holds a neutral word. */
+static int host_open(const Value *a) {
+  return scrut_of(a) == SCRUT_NEUTRAL ||
+         (a->kind == VAL_OP && a->op == OP_PAIR && a->argc >= 2u &&
+          (scrut_of(a->args[0]) == SCRUT_NEUTRAL || scrut_of(a->args[1]) == SCRUT_NEUTRAL));
+}
+
+/* S9 step d: add the words of the closed host argument A (a Nat, or a
+   Bytes pair OFF LEN) to WORDS at *COUNT. 0 when A has a different form or
+   when the words do not fit. */
+static int host_words(const Value *a, uint64_t *words, uint32_t *count) {
+  if (a->kind == VAL_NAT && *count < 9u) {
+    words[*count] = a->nat;
+    *count += 1u;
+    return 1;
+  }
+  if (a->kind == VAL_OP && a->op == OP_PAIR && a->argc >= 2u)
+    return host_words(a->args[0], words, count) && host_words(a->args[1], words, count);
+  return 0;
+}
+
+/* 1 when ROW is the row of host import INST for the COUNT words WORDS. */
+static int host_row_is(const HostRow *row, uint32_t inst, const uint64_t *words, uint32_t count) {
+  uint32_t i;
+  if (row->import != inst || row->count != count)
+    return 0;
+  for (i = 0; i < count; i++)
+    if (row->words[i] != words[i])
+      return 0;
+  return 1;
+}
+
+/* The value of the row result R of host import INST. J 0 to 4 give a
+   Decision: inr unit (accept) when R is 1, else inl unit (refuse), as in
+   lower.c host_call. Combine (J 5) gives the Nat R. */
+static const Value *host_result(Machine *m, uint32_t inst, uint64_t r) {
+  const Value *u;
+  if (inst == 5u)
+    return val_nat(m, r);
+  u = val_make(m, OP_UNIT_VAL, 0, 0, NULL, NULL, NULL);
+  return u == NULL ? NULL : val_make(m, r == 1u ? OP_INR : OP_INL, 0, 1, u, NULL, NULL);
+}
+
+/* S9 (Q-S9-8 (a), Q-S9-3 (a)): a host import call. An argument with a
+   neutral word gives the stuck call (lower.c makes it an IR_STMT_HOST).
+   Closed arguments use the host table of `langc eval --host FILE` (step
+   d): the row of import INST with the same words gives the result. No
+   table, or no row, gives a diagnostic. */
+static const Value *host_call(Machine *m, uint32_t inst, const Value *const *a, uint32_t n) {
+  uint64_t words[9];
+  uint32_t count = 0;
+  uint32_t i;
+  for (i = 0; i < n; i++)
+    if (host_open(a[i]))
+      return val_op(m, VAL_STUCK, OP_HOST, inst, 0, a, n);
+  if (m->host_rows == NULL) {
+    diag_fail(m->diag, "HOST", m->def, "the host import %s has no host table", HOST_NAME[inst]);
+    return NULL;
+  }
+  for (i = 0; i < n; i++)
+    if (!host_words(a[i], words, &count))
+      return internal(m, "a host argument that is not a Nat or a Bytes pair");
+  if (count != HOST_WORDS[inst])
+    return internal(m, "a host call with the wrong number of words");
+  for (i = 0; i < m->host_count; i++)
+    if (host_row_is(&m->host_rows[i], inst, words, count))
+      return host_result(m, inst, m->host_rows[i].result);
+  diag_fail(m->diag, "HOST", m->def, "no host row for %s", HOST_NAME[inst]);
+  return NULL;
+}
+
 static const Value *reduce_op(Machine *m, Op op, uint32_t inst, uint32_t field, const Value *const *a, uint32_t n) {
   if (!arity_ok(m, op, inst, n))
     return internal(m, "an operation with the wrong number of arguments");
@@ -2934,6 +3025,8 @@ static const Value *reduce_op(Machine *m, Op op, uint32_t inst, uint32_t field, 
     return reduce_glue_elem(m, a, n);
   case OP_UNGLUE:
     return reduce_unglue(m, a, n);
+  case OP_HOST:
+    return host_call(m, inst, a, n);
   }
   return internal(m, "an unknown operation");
 }
@@ -3348,6 +3441,8 @@ const char *op_name(const Machine *m, Op op, uint32_t inst, uint32_t field) {
     return inst < m->ctor_count ? m->ctors[inst].name : "?";
   if (op == OP_PROJ)
     return inst < m->ctor_count && field < m->ctors[inst].field_count ? m->ctors[inst].fields[field].name : "?";
+  if (op == OP_HOST)
+    return inst < sizeof HOST_NAME / sizeof *HOST_NAME ? HOST_NAME[inst] : "?";
   return (size_t)op < sizeof OP_NAMES / sizeof OP_NAMES[0] ? OP_NAMES[op] : "?";
 }
 
@@ -3419,6 +3514,9 @@ static int print_name_taken(const Printer *p, const char *name) {
       return 1;
   for (size_t i = 0; i < sizeof OP_NAMES / sizeof OP_NAMES[0]; i++)
     if (strcmp(OP_NAMES[i], name) == 0)
+      return 1;
+  for (size_t i = 0; i < sizeof HOST_NAME / sizeof *HOST_NAME; i++)
+    if (strcmp(HOST_NAME[i], name) == 0)
       return 1;
   for (uint32_t i = 0; i < p->m->family_count; i++)
     if (strcmp(p->m->families[i].name, name) == 0)

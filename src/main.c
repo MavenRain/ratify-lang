@@ -29,7 +29,19 @@ typedef struct {
   int runtime;
   int json;
   CheckMode mode; /* orbit-lang S3: --kit selects the kit mode */
+  const char *host_path; /* S9 step d: langc eval ... --host FILE */
 } Options;
+
+/* S9 step d: read the host table at PATH into M. */
+static int read_host_table(Machine *m, const char *path, Diag *diag) {
+  FILE *f = fopen(path, "r");
+  int ok;
+  if (f == NULL)
+    return diag_fail(diag, "USAGE", NULL, "the host table %s cannot be opened", path);
+  ok = host_table_read(m, f);
+  fclose(f);
+  return ok;
+}
 
 static const struct {
   const char *word;
@@ -94,6 +106,12 @@ static int parse_options(int argc, char **argv, Options *opt, Diag *diag) {
       opt->entry = argv[3];
       opt->args = argv + 4;
       opt->arg_count = argc - 4;
+      /* S9 step d: a trailing `--host FILE` gives the host table. */
+      opt->host_path = NULL;
+      if (opt->arg_count >= 2 && strcmp(argv[argc - 2], "--host") == 0) {
+        opt->host_path = argv[argc - 1];
+        opt->arg_count -= 2;
+      }
       return 1;
     case CMD_BUILD:
       return parse_build_options(argc, argv, opt, diag);
@@ -154,6 +172,8 @@ static int run(const Options *opt, Arena *arena, Diag *diag) {
       puts("ok");
       return 0;
     case CMD_EVAL:
+      if (opt->host_path != NULL && !read_host_table(&machine, opt->host_path, diag))
+        return 2;
       return eval_command(&machine, opt->entry, opt->args, opt->arg_count, stdout, stderr);
     case CMD_IR:
     case CMD_ABI:

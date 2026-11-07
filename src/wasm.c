@@ -1,11 +1,16 @@
 /* The Wasm back end. It writes a Wasm 1.0 (MVP) binary module directly.
 
    Module layout:
-   - Function 0 is the internal allocator `alloc (bytes : i32) -> i64`. It
+   - A program with a host call (IrProgram host) first imports the six
+     functions of module "ratify" (S9, Q-S9-2 (a); the imports table
+     below): import J is function J. Then B = 6, else B = 0. Each parameter
+     and the result of an import is an i64, and memory 0 is exported as
+     "memory".
+   - Function B is the internal allocator `alloc (bytes : i32) -> i64`. It
      bumps the mutable i64 global 0 (the heap pointer) over memory 0, with no
      check. Memory 0 has a fixed size (minimum = maximum): the pages of the
      largest heap bound of an entry (IrFunc heap_words), at least 1 page.
-   - Function 1 + K is IR entry K, exported as its name. Each parameter and the
+   - Function B + 1 + K is IR entry K, exported as its name. Each parameter and the
      result is an i64. Each entry first resets the heap pointer to 0, and it
      sets a Flag parameter to 1 when it is not 0.
    - A word is 8 bytes. Word K of the block at address A is at A + 8K.
@@ -42,6 +47,7 @@ enum {
 
 enum {
   SECTION_TYPE = 1,
+  SECTION_IMPORT = 2,
   SECTION_FUNCTION = 3,
   SECTION_MEMORY = 5,
   SECTION_GLOBAL = 6,
@@ -54,9 +60,20 @@ typedef struct {
   FILE *out;
   size_t count;
   FILE *err;
+  uint32_t base; /* the function index of alloc: the import count */
 } Sink;
 
 typedef int (*Part)(Sink *s, const void *arg);
+
+/* The host functions of module ratify (S9, Q-S9-2 (a)), in import order:
+   the name and the parameter count. Each parameter and the result is an
+   i64. A byte operand is two parameters (offset, length). */
+static const struct {
+  const char *name;
+  size_t params;
+} imports[] = {{"sig_verify", 6}, {"hash_eq", 4},   {"share_verify", 6},
+               {"ballot_verify", 9}, {"tally_add", 6}, {"combine", 8}};
+#define IMPORT_COUNT (sizeof imports / sizeof imports[0])
 
 const char target_name[] = "wasm";
 
@@ -91,7 +108,7 @@ static int put_name(Sink *s, const char *name) {
 
 /* Writes the byte size of PART, then PART. */
 static int sized(Sink *s, Part part, const void *arg) {
-  Sink count = {NULL, 0, s->err};
+  Sink count = {NULL, 0, s->err, s->base};
   return part(&count, arg) && put_uleb(s, count.count) && part(s, arg);
 }
 
@@ -180,7 +197,7 @@ static int emit_block(Sink *s, const IrBlock *b, uint32_t t, unsigned depth);
 /* local := alloc(8 * n); word k := fields[k]. The address waits in T + 2. */
 static int emit_alloc(Sink *s, const IrStmt *st, uint32_t t, unsigned depth) {
   size_t k;
-  int ok = i32_const(s, 8u * (uint64_t)st->field_count) && op2(s, OP_CALL, 0) && op2(s, OP_LOCAL_SET, t + 2u);
+  int ok = i32_const(s, 8u * (uint64_t)st->field_count) && op2(s, OP_CALL, s->base) && op2(s, OP_LOCAL_SET, t + 2u);
   for (k = 0; k < st->field_count && ok; k++) {
     ok = op2(s, OP_LOCAL_GET, t + 2u) && put_byte(s, OP_I32_WRAP_I64) && emit_expr(s, st->fields[k], t, depth + 1u) &&
          memarg(s, OP_I64_STORE, (uint32_t)k);
@@ -222,6 +239,16 @@ static int emit_loop(Sink *s, const IrStmt *st, int is_while, uint32_t t, unsign
          put_byte(s, OP_END);
 }
 
+/* local := import COUNTER (fields). The fields are the import parameters in
+   order, and import J is function J. A counter outside the imports table or
+   a field count that is not the import parameter count is refused. */
+static int emit_host(Sink *s, const IrStmt *st, uint32_t t, unsigned depth) {
+  size_t k;
+  int ok = st->counter < IMPORT_COUNT && st->field_count == imports[st->counter].params;
+  for (k = 0; k < st->field_count && ok; k++) ok = emit_expr(s, st->fields[k], t, depth + 1u);
+  return ok && op2(s, OP_CALL, st->counter) && op2(s, OP_LOCAL_SET, st->local);
+}
+
 static int emit_stmt(Sink *s, const IrStmt *st, uint32_t t, unsigned depth) {
   if (depth > WASM_DEPTH_MAX) return deep(s);
   switch (st->kind) {
@@ -241,6 +268,8 @@ static int emit_stmt(Sink *s, const IrStmt *st, uint32_t t, unsigned depth) {
       return emit_loop(s, st, 1, t, depth);
     case IR_STMT_RETURN:
       return emit_expr(s, st->expr, t, depth + 1u) && put_byte(s, OP_RETURN);
+    case IR_STMT_HOST:
+      return emit_host(s, st, t, depth);
   }
   return 0;
 }
@@ -278,16 +307,36 @@ static int part_entry(Sink *s, const void *arg) {
   return ok && emit_block(s, &fn->body, t, 0) && put_byte(s, OP_END);
 }
 
+/* The function type (i64 x N) -> i64. */
+static int put_i64_type(Sink *s, size_t n) {
+  size_t k;
+  int ok = put_byte(s, TYPE_FUNC) && put_uleb(s, n);
+  for (k = 0; k < n && ok; k++) ok = put_byte(s, TYPE_I64);
+  return ok && put_uleb(s, 1) && put_byte(s, TYPE_I64);
+}
+
+/* Type 0: alloc. Type 1 + K: entry K. Then, for a program with a host
+   call, type 1 + the entry count + J: import J. */
 static int part_types(Sink *s, const void *arg) {
   const IrProgram *prog = arg;
+  size_t n = prog->host ? IMPORT_COUNT : 0u;
   size_t i;
-  size_t k;
-  int ok = put_uleb(s, 1u + prog->func_count) && put_byte(s, TYPE_FUNC) && put_uleb(s, 1) && put_byte(s, TYPE_I32) &&
-           put_uleb(s, 1) && put_byte(s, TYPE_I64);
-  for (i = 0; i < prog->func_count && ok; i++) {
-    ok = put_byte(s, TYPE_FUNC) && put_uleb(s, prog->funcs[i].param_count);
-    for (k = 0; k < prog->funcs[i].param_count && ok; k++) ok = put_byte(s, TYPE_I64);
-    ok = ok && put_uleb(s, 1) && put_byte(s, TYPE_I64);
+  int ok = put_uleb(s, 1u + prog->func_count + n) && put_byte(s, TYPE_FUNC) && put_uleb(s, 1) &&
+           put_byte(s, TYPE_I32) && put_uleb(s, 1) && put_byte(s, TYPE_I64);
+  for (i = 0; i < prog->func_count && ok; i++) ok = put_i64_type(s, prog->funcs[i].param_count);
+  for (i = 0; i < n && ok; i++) ok = put_i64_type(s, imports[i].params);
+  return ok;
+}
+
+/* Import J: module ratify, the name of row J, a function (kind 0) of type
+   1 + the entry count + J. Only for a program with a host call. */
+static int part_imports(Sink *s, const void *arg) {
+  const IrProgram *prog = arg;
+  size_t i;
+  int ok = put_uleb(s, IMPORT_COUNT);
+  for (i = 0; i < IMPORT_COUNT && ok; i++) {
+    ok = put_name(s, "ratify") && put_name(s, imports[i].name) && put_byte(s, 0) &&
+         put_uleb(s, 1u + prog->func_count + i);
   }
   return ok;
 }
@@ -321,11 +370,12 @@ static int part_global(Sink *s, const void *arg) {
 static int part_exports(Sink *s, const void *arg) {
   const IrProgram *prog = arg;
   size_t i;
-  int ok = put_uleb(s, prog->func_count);
+  int ok = put_uleb(s, prog->func_count + (prog->host ? 1u : 0u));
   for (i = 0; i < prog->func_count && ok; i++) {
-    ok = put_name(s, prog->funcs[i].name) && put_byte(s, 0) && put_uleb(s, 1u + i);
+    ok = put_name(s, prog->funcs[i].name) && put_byte(s, 0) && put_uleb(s, s->base + 1u + i);
   }
-  return ok;
+  /* The host reads and writes the byte operands in memory 0. */
+  return ok && (!prog->host || (put_name(s, "memory") && put_byte(s, 2) && put_uleb(s, 0)));
 }
 
 static int part_code(Sink *s, const void *arg) {
@@ -345,12 +395,14 @@ int target_abi_line(const IrFunc *fn, FILE *out, FILE *err) {
 /* Both parts are the module bytes. */
 int target_write(const IrProgram *prog, TargetPart part, FILE *out, FILE *err) {
   static const unsigned char header[8] = {0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00};
-  Sink s = {out, 0, err};
+  Sink s = {out, 0, err, prog->host ? (uint32_t)IMPORT_COUNT : 0u};
   size_t i;
   int ok = 1;
   (void)part;
   for (i = 0; i < sizeof header && ok; i++) ok = put_byte(&s, header[i]);
-  ok = ok && section(&s, SECTION_TYPE, part_types, prog) && section(&s, SECTION_FUNCTION, part_functions, prog) &&
+  ok = ok && section(&s, SECTION_TYPE, part_types, prog) &&
+       (!prog->host || section(&s, SECTION_IMPORT, part_imports, prog)) &&
+       section(&s, SECTION_FUNCTION, part_functions, prog) &&
        section(&s, SECTION_MEMORY, part_memory, prog) && section(&s, SECTION_GLOBAL, part_global, NULL) &&
        section(&s, SECTION_EXPORT, part_exports, prog) && section(&s, SECTION_CODE, part_code, prog);
   if (!ok && ferror(out)) fputs("langc: IO: -: cannot write the wasm module\n", err);

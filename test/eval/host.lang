@@ -1,0 +1,30 @@
+-- S9 step d1b: closed host import calls for `langc --kit eval NAME ARGS
+-- --host FILE` (test/gate.sh host_eval). Each Bytes operand is a pair OFF
+-- LEN. A Decision def is not an entry, so it takes no arguments and its call
+-- is closed on literals; joinShares is a Nat entry on eval arguments.
+def sigYes : Sum Unit Unit := sig_verify (pair 1 2) (pair 3 4) (pair 5 6)
+def sigNo : Sum Unit Unit := sig_verify (pair 1 2) (pair 3 4) (pair 5 7)
+def sigMiss : Sum Unit Unit := sig_verify (pair 9 9) (pair 9 9) (pair 9 9)
+def hashMiss : Sum Unit Unit := hash_eq (pair 1 2) (pair 1 2)
+def joinShares : Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat :=
+  fun (a : Nat) (b : Nat) (c : Nat) (d : Nat) (e : Nat) (f : Nat) (g : Nat) (h : Nat) => combine (pair a b) (pair c d) (pair e f) g h
+-- S9 step d2a: rows of `build/cryptotool host` (test/gate.sh host_eval on
+-- that table). The pairs are OFF LEN in the fixture image of host_lines.
+def sigGood : Sum Unit Unit := sig_verify (pair 0 64) (pair 64 6) (pair 70 96)
+def sigBad : Sum Unit Unit := sig_verify (pair 0 64) (pair 64 6) (pair 166 96)
+def sigOff : Sum Unit Unit := sig_verify (pair 0 64) (pair 4096 1) (pair 70 96)
+def hashGood : Sum Unit Unit := hash_eq (pair 64 6) (pair 262 32)
+def hashBad : Sum Unit Unit := hash_eq (pair 64 5) (pair 262 32)
+def tallyZero : Sum Unit Unit := tally_add (pair 512 128) (pair 640 128) (pair 768 128)
+-- S9 step d2b: rows 18 to 26 of `build/cryptotool host`, on the Keys fixture
+-- of deal_good (host_fixture): CT 1024, parts 1152, keys 1616, joint key
+-- 1808, proof 1872, ctx 2256, CT2 2288, out 2416, SUM parts 2544, SUM 3008.
+def shareGood : Sum Unit Unit := share_verify (pair 1152 232) (pair 1616 64) (pair 1024 128)
+def shareGood2 : Sum Unit Unit := share_verify (pair 1384 232) (pair 1680 64) (pair 1024 128)
+def shareBad : Sum Unit Unit := share_verify (pair 1152 232) (pair 1680 64) (pair 1024 128)
+def ballotGood : Sum Unit Unit := ballot_verify (pair 1872 384) (pair 1808 64) (pair 1024 128) (pair 2256 32) 0
+def ballotBad : Sum Unit Unit := ballot_verify (pair 1872 384) (pair 1808 64) (pair 1024 128) (pair 2256 32) 1
+def tallyReal : Sum Unit Unit := tally_add (pair 2416 128) (pair 1024 128) (pair 2288 128)
+def combineOne : Nat := combine (pair 1152 464) (pair 1616 192) (pair 1024 128) 2 1
+def combineSum : Nat := combine (pair 2544 464) (pair 1616 192) (pair 3008 128) 2 2
+def combineBad : Nat := combine (pair 1152 464) (pair 1616 192) (pair 2288 128) 2 1

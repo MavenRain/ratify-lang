@@ -1,0 +1,2 @@
+# S9 step d1b: a short row (test/gate.sh host_eval wants HOST_TABLE).
+sig_verify 1 2 3 4 5 6

@@ -143,6 +143,64 @@ eval_refused 2 EVAL_ARGS addPrice 18446744073709551616 1
 eval_refused 2 EVAL_ARGS pick 2 4 9
 eval_refused 1 EVAL_ENTRY nope
 
+# host_eval STATUS WANT TABLE NAME [ARGS] (S9 step d1b): `langc --kit eval
+# test/eval/host.lang NAME ARGS --host test/eval/TABLE` (no --host for TABLE
+# -) must exit STATUS. At STATUS 0 it prints WANT, else stderr starts with
+# `langc: WANT`. A TABLE that starts with / is used as is (S9 step d2a).
+host_evals=0
+host_eval() {
+  want_status=$1
+  want=$2
+  table=$3
+  shift 3
+  status=0
+  case "$table" in
+    -) build/langc --kit eval test/eval/host.lang "$@" >"$tmp/out" 2>"$tmp/err" || status=$? ;;
+    /*) build/langc --kit eval test/eval/host.lang "$@" --host "$table" >"$tmp/out" 2>"$tmp/err" || status=$? ;;
+    *) build/langc --kit eval test/eval/host.lang "$@" --host "test/eval/$table" >"$tmp/out" 2>"$tmp/err" || status=$? ;;
+  esac
+  host_evals=$((host_evals + 1))
+  case "$want_status:$status:$(cat "$tmp/out"):$(head -n 1 "$tmp/err")" in
+    "0:0:$want:") ;;
+    "$want_status:$want_status::langc: $want"*) ;;
+    *) echo "FAIL host eval $table $*: want exit $want_status and $want, got exit $status"; fail=$((fail + 1)) ;;
+  esac
+}
+host_eval 0 "inr unit" host-table.txt sigYes
+host_eval 0 "inl unit" host-table.txt sigNo
+host_eval 0 42 host-table.txt joinShares 1 2 3 4 5 6 7 8
+host_eval 1 "HOST: sigMiss: no host row for sig_verify" host-table.txt sigMiss
+host_eval 1 "HOST: hashMiss: no host row for hash_eq" host-table.txt hashMiss
+host_eval 1 "HOST: sigYes: no host row for sig_verify" host-empty.txt sigYes
+host_eval 1 "HOST: sigYes: the host import sig_verify has no host table" - sigYes
+host_eval 2 "HOST_TABLE: -: line 2: sig_verify takes 6 words and one result" host-bad.txt sigYes
+
+# `build/cryptotool host` (S9 step d2a) writes the host table of the six
+# crypto imports over its fixture image. The rows below eval host.lang on it.
+status=0
+build/cryptotool host >"$tmp/host-crypto.txt" 2>"$tmp/err" || status=$?
+if [ "$status" -ne 0 ]; then
+  echo "FAIL cryptotool host: exit $status: $(head -n 1 "$tmp/err")"
+  fail=$((fail + 1))
+fi
+echo "host table rows: $(awk '!/^#/ {n++} END {print n + 0}' "$tmp/host-crypto.txt") written"
+host_eval 0 "inr unit" "$tmp/host-crypto.txt" sigGood
+host_eval 0 "inl unit" "$tmp/host-crypto.txt" sigBad
+host_eval 0 "inl unit" "$tmp/host-crypto.txt" sigOff
+host_eval 0 "inr unit" "$tmp/host-crypto.txt" hashGood
+host_eval 0 "inl unit" "$tmp/host-crypto.txt" hashBad
+host_eval 0 "inr unit" "$tmp/host-crypto.txt" tallyZero
+host_eval 0 "inr unit" "$tmp/host-crypto.txt" shareGood
+host_eval 0 "inr unit" "$tmp/host-crypto.txt" shareGood2
+host_eval 0 "inl unit" "$tmp/host-crypto.txt" shareBad
+host_eval 0 "inr unit" "$tmp/host-crypto.txt" ballotGood
+host_eval 0 "inl unit" "$tmp/host-crypto.txt" ballotBad
+host_eval 0 "inr unit" "$tmp/host-crypto.txt" tallyReal
+host_eval 0 2 "$tmp/host-crypto.txt" combineOne
+host_eval 0 3 "$tmp/host-crypto.txt" combineSum
+host_eval 0 0 "$tmp/host-crypto.txt" combineBad
+echo "host evals: $host_evals checked"
+
 # The target (S3). The Wasm writer is in the build: `langc build
 # examples/functions.lang` must exit 0 and write a module that wasm-validate
 # accepts.
@@ -246,17 +304,26 @@ if [ "$status" -ne 0 ] || ! wasm-validate "$tmp/state-no-history.wasm" 2>>"$tmp/
   echo "FAIL build state-no-history: want exit 0 and a valid module, got exit $status: $(head -n 1 "$tmp/err")"
   fail=$((fail + 1))
 fi
+# The module of test/ir/host.lang (S9 step e): its host calls are open, so
+# the module imports the six ratify functions. The same build check; the
+# notrap row and the host rows below use it.
+status=0
+build/langc --kit build test/ir/host.lang -o "$tmp/host.wasm" 2>"$tmp/err" || status=$?
+if [ "$status" -ne 0 ] || ! wasm-validate "$tmp/host.wasm" 2>>"$tmp/err"; then
+  echo "FAIL build host: want exit 0 and a valid module, got exit $status: $(head -n 1 "$tmp/err")"
+  fail=$((fail + 1))
+fi
 for mod in natops functions; do
   wasm-objdump -x "$tmp/$mod.wasm" 2>/dev/null | rg -q -x -F ' - memory[0] pages: initial=1 max=1' ||
     { echo "FAIL $mod.wasm: memory 0 is not initial=1 max=1"; fail=$((fail + 1)); }
 done
 # build/notraptool (test/notraptool.c, S3) must accept the
-# modules of natops.lang, block.lang, functions.lang and
-# state-no-history.lang: exit 0 and no output. It fails a module with unreachable, memory.grow, an opcode that
+# modules of natops.lang, block.lang, functions.lang,
+# state-no-history.lang and host.lang: exit 0 and no output. It fails a module with unreachable, memory.grow, an opcode that
 # is not in src/wasmop.h, an i64.div_u or i64.rem_u with no divisor guard,
 # or a memory with no maximum or a maximum that is not the minimum.
 notrapmods=0
-for mod in natops block functions state-no-history; do
+for mod in natops block functions state-no-history host; do
   notrapmods=$((notrapmods + 1))
   status=0
   got=$(build/notraptool "$tmp/$mod.wasm" 2>&1) || status=$?
@@ -277,6 +344,37 @@ while read -r name msg; do
     { echo "FAIL notrap bad $name: want exit 1 and $msg, got exit $status: $got"; fail=$((fail + 1)); }
 done <test/notrap/bad/expect.txt
 echo "notrap bad rows: $notrapbad checked"
+# The host rows (S9 step f, Q-S9-4 (a)): `node test/run-wasm.mjs --host
+# TABLE` gives each ratify import the RESULT of the row of its name and words,
+# as `langc eval --host` does. On the cryptotool table (written above) the
+# module of test/ir/host.lang gives the combine counts and the sig_verify
+# Decision of the host eval rows. A missing row and a module with imports and
+# no table (`-`) exit 1.
+hostwasms=0
+host_wasm() {
+  want_status=$1
+  want=$2
+  table=$3
+  shift 3
+  status=0
+  case "$table" in
+    -) got=$(node test/run-wasm.mjs "$tmp/host.wasm" "$@" 2>&1) || status=$? ;;
+    *) got=$(node test/run-wasm.mjs --host "$table" "$tmp/host.wasm" "$@" 2>&1) || status=$? ;;
+  esac
+  hostwasms=$((hostwasms + 1))
+  [ "$status" -eq "$want_status" ] && [ "$got" = "$want" ] ||
+    { echo "FAIL host wasm $table $*: want exit $want_status and $want, got exit $status: $(printf '%s\n' "$got" | head -n 1)"; fail=$((fail + 1)); }
+}
+host_wasm 0 2 "$tmp/host-crypto.txt" joinShares 1152 464 1616 192 1024 128 2 1
+host_wasm 0 3 "$tmp/host-crypto.txt" joinShares 2544 464 1616 192 3008 128 2 2
+host_wasm 0 0 "$tmp/host-crypto.txt" joinShares 1152 464 1616 192 2288 128 2 1
+host_wasm 0 1 "$tmp/host-crypto.txt" sigPick 0 64 64 6 70 96
+host_wasm 0 0 "$tmp/host-crypto.txt" sigPick 0 64 64 6 166 96
+host_wasm 0 0 "$tmp/host-crypto.txt" sigPick 0 64 4096 1 70 96
+host_wasm 0 42 test/eval/host-table.txt joinShares 1 2 3 4 5 6 7 8
+host_wasm 1 "run-wasm: no host row for combine 1 2 3 4 5 6 7 9" test/eval/host-table.txt joinShares 1 2 3 4 5 6 7 9
+host_wasm 1 "run-wasm: $tmp/host.wasm: the module imports ratify.sig_verify and there is no host table" - joinShares 1 2 3 4 5 6 7 8
+echo "host wasm rows: $hostwasms checked"
 # The kit evals of test/ir/spine.lang at 4. Each line is `NAME VALUE`.
 spineevals=0
 while read -r name want; do

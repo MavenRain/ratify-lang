@@ -4,7 +4,8 @@
    invalid-proof rows and the certificate rows (S8: the body bytes, the
    height, prev hash and signature checks in the Q-S8-3 order, and the
    equivocation evidence). Each group prints one summary line. With the argument
-   `rep`, the eval lines of the representation map (TCM-C).
+   `rep`, the eval lines of the representation map (TCM-C). With `host`,
+   the host table of the six crypto imports (S9 step d2, Q-S9-3 (a)).
    A port of quorum-lang test/tallytool.c at be2c329, trimmed. Each constant
    has its source and a second source (Python integers and `cast keccak`)
    in a comment. */
@@ -710,6 +711,272 @@ static int rep_lines(void) {
   return c.pass == c.rows ? 0 : 1;
 }
 
+/* The host table of the six crypto imports (S9 step d2, Q-S9-3 (a)). The
+   fixture image is HOST_MEM bytes: the Schnorr key, the message "ratify", its
+   signature, the signature of the message of size 0 and the keccak256 of the
+   message, at the offsets below; the other bytes are 0. Each row runs on a
+   fresh copy of the image. */
+#define HOST_MEM 4096u
+#define HOST_PK 0u
+#define HOST_MSG 64u
+#define HOST_SIG 70u
+#define HOST_SIG0 166u
+#define HOST_DIGEST 262u
+/* S9 step d2b: the Keys fixture of host_fixture (deal_good), from 1024. */
+#define HOST_CT 1024u
+#define HOST_PARTS 1152u
+#define HOST_KEYS 1616u
+#define HOST_JPK 1808u
+#define HOST_PROOF 1872u
+#define HOST_CTX 2256u
+#define HOST_CT2 2288u
+#define HOST_OUT 2416u
+#define HOST_SUM_PARTS 2544u
+#define HOST_SUM 3008u
+
+static unsigned char host_image[HOST_MEM];
+static unsigned char host_mem[HOST_MEM];
+
+/* The import names and word counts, in the order of src/front/eval.c. */
+static const char *const HOST_NAME[6] = {"sig_verify", "hash_eq", "share_verify", "ballot_verify", "tally_add", "combine"};
+static const unsigned char HOST_WORDS[6] = {6, 4, 6, 9, 6, 8};
+
+/* A host call: the import, its words and the result it must give. */
+typedef struct {
+  uint32_t import;
+  uint64_t words[9];
+  uint64_t want;
+} HostCall;
+
+static const HostCall HOST_CALLS[] = {
+    {0u, {0u, 64u, 64u, 6u, 70u, 96u}, 1u},
+    {0u, {0u, 64u, 64u, 0u, 166u, 96u}, 1u},
+    {0u, {0u, 64u, 64u, 6u, 166u, 96u}, 0u},
+    {0u, {0u, 63u, 64u, 6u, 70u, 96u}, 0u},
+    {0u, {0u, 64u, 64u, 6u, 70u, 95u}, 0u},
+    {0u, {0u, 64u, 4096u, 1u, 70u, 96u}, 0u},
+    {1u, {64u, 6u, 262u, 32u}, 1u},
+    {1u, {64u, 5u, 262u, 32u}, 0u},
+    {1u, {64u, 6u, 262u, 31u}, 0u},
+    {1u, {UINT64_MAX, 2u, 262u, 32u}, 0u},
+    {2u, {0u, 231u, 0u, 64u, 0u, 128u}, 0u},
+    {2u, {4096u, 232u, 0u, 64u, 0u, 128u}, 0u},
+    {3u, {0u, 384u, 0u, 64u, 0u, 128u, 0u, 31u, 0u}, 0u},
+    {4u, {512u, 128u, 640u, 128u, 768u, 128u}, 1u},
+    {4u, {4000u, 128u, 640u, 128u, 768u, 128u}, 0u},
+    {5u, {0u, 231u, 0u, 64u, 0u, 128u, 1u, 1u}, 0u},
+    {5u, {0u, 232u, 0u, 63u, 0u, 128u, 1u, 1u}, 0u},
+    {2u, {1152u, 232u, 1616u, 64u, 1024u, 128u}, 1u},
+    {2u, {1384u, 232u, 1680u, 64u, 1024u, 128u}, 1u},
+    {2u, {1152u, 232u, 1680u, 64u, 1024u, 128u}, 0u},
+    {3u, {1872u, 384u, 1808u, 64u, 1024u, 128u, 2256u, 32u, 0u}, 1u},
+    {3u, {1872u, 384u, 1808u, 64u, 1024u, 128u, 2256u, 32u, 1u}, 0u},
+    {4u, {2416u, 128u, 1024u, 128u, 2288u, 128u}, 1u},
+    {5u, {1152u, 464u, 1616u, 192u, 1024u, 128u, 2u, 1u}, 2u},
+    {5u, {2544u, 464u, 1616u, 192u, 3008u, 128u, 2u, 2u}, 3u},
+    {5u, {1152u, 464u, 1616u, 192u, 2288u, 128u, 2u, 1u}, 0u},
+};
+
+/* The value of the hex digit C (0-9, a-f). */
+static unsigned char host_nibble(char c) {
+  return c >= 'a' ? (unsigned char)(c - 'a' + 10) : (unsigned char)(c - '0');
+}
+
+/* The SIZE bytes of the 2 * SIZE hex digits HEX into OUT. */
+static void host_hex(unsigned char *out, const char *hex, size_t size) {
+  size_t i;
+  for (i = 0; i < size; i++)
+    out[i] = (unsigned char)(host_nibble(hex[2u * i]) << 4 | host_nibble(hex[2u * i + 1u]));
+}
+
+/* 1 when the LEN bytes at OFF are in the image (no wrap), else 0. */
+static int host_fits(uint64_t off, uint64_t len) {
+  return off <= HOST_MEM && len <= HOST_MEM - off;
+}
+
+/* 1 when the operand pair P (OFF, LEN) fits and LEN is SIZE (SIZE 0 = any). */
+static int host_operand(const uint64_t *p, uint64_t size) {
+  return host_fits(p[0], p[1]) && (size == 0u || p[1] == size);
+}
+
+/* The bit length of N: the smallest b with 2^b above N (at most 64). */
+static uint64_t host_bits(uint64_t n) {
+  uint64_t b = 0;
+  while (b < 64u && (UINT64_C(1) << b) <= n)
+    b++;
+  return b;
+}
+
+/* The result of the import J on the words W over host_mem, by the bodies of
+   s9/abi.txt. An operand that does not fit, or a size other than the fixed
+   one, gives 0. */
+static uint64_t host_import(uint32_t j, const uint64_t *w) {
+  unsigned char digest[32];
+  unsigned char a[128];
+  unsigned char b[128];
+  uint64_t m = 0;
+  uint64_t k;
+  uint64_t n;
+  switch (j) {
+  case 0u:
+    return (host_operand(w, 64u) && host_operand(w + 2, 0u) && host_operand(w + 4, 96u) &&
+            schnorr_verify(host_mem + w[0], host_mem + w[2], (size_t)w[3], host_mem + w[4]) == 1)
+               ? 1u
+               : 0u;
+  case 1u:
+    if (!host_operand(w, 0u) || !host_operand(w + 2, 32u))
+      return 0u;
+    keccak256(host_mem + w[0], (size_t)w[1], digest);
+    return memcmp(digest, host_mem + w[2], 32u) == 0 ? 1u : 0u;
+  case 2u:
+    return (host_operand(w, 232u) && host_operand(w + 2, 64u) && host_operand(w + 4, 128u) &&
+            thr_verify_be(host_mem + w[0], host_mem + w[2], host_mem + w[4]) == 0)
+               ? 1u
+               : 0u;
+  case 3u:
+    return (host_operand(w, 384u) && host_operand(w + 2, 64u) && host_operand(w + 4, 128u) &&
+            host_operand(w + 6, 32u) &&
+            sig_or_verify_be(host_mem + w[0], host_mem + w[2], host_mem + w[4], host_mem + w[6], w[8]) == SIG_OK)
+               ? 1u
+               : 0u;
+  case 4u:
+    if (!host_operand(w, 128u) || !host_operand(w + 2, 128u) || !host_operand(w + 4, 128u))
+      return 0u;
+    memcpy(a, host_mem + w[2], 128u);
+    memcpy(b, host_mem + w[4], 128u);
+    tally_add_be(host_mem + w[0], a, b, 1u);
+    return 1u;
+  case 5u:
+    if (!host_operand(w, 0u) || !host_operand(w + 2, 0u) || !host_operand(w + 4, 128u) || w[1] % 232u != 0u ||
+        w[3] % 64u != 0u)
+      return 0u;
+    k = w[1] / 232u;
+    n = w[3] / 64u;
+    return (thr_open_be(&m, host_mem + w[0], (uint32_t)k, host_mem + w[2], (uint32_t)n, host_mem + w[4], k, w[6], n,
+                        host_bits(w[7])) == THR_FOUND &&
+            m <= w[7])
+               ? m + 1u
+               : 0u;
+  default:
+    return 0u;
+  }
+}
+
+/* S9 step d2b: the byte forms of host_import, each word 8 bytes big endian.
+   The part P at BE (232 bytes): x, d, a, b, z. */
+static void host_part_be(unsigned char *be, const ThrPart *p) {
+  uint32_t i;
+  for (i = 0; i < 8u; i++)
+    be[i] = (unsigned char)((uint64_t)p->x >> (56u - 8u * i));
+  g1_to_be(be + 8, &p->d);
+  g1_to_be(be + 72, &p->a);
+  g1_to_be(be + 136, &p->b);
+  u256_to_be(be + 200, &p->z);
+}
+
+/* The cipher C at BE (128 bytes): c1, c2. */
+static void host_cipher_be(unsigned char *be, const ElgCipher *c) {
+  g1_to_be(be, &c->c1);
+  g1_to_be(be + 64, &c->c2);
+}
+
+/* The ballot proof P at BE (384 bytes): a0, b0, a1, b1, e0, e1, z0, z1. */
+static void host_proof_be(unsigned char *be, const SigOr *p) {
+  g1_to_be(be, &p->a0);
+  g1_to_be(be + 64, &p->b0);
+  g1_to_be(be + 128, &p->a1);
+  g1_to_be(be + 192, &p->b1);
+  u256_to_be(be + 256, &p->e0);
+  u256_to_be(be + 288, &p->e1);
+  u256_to_be(be + 320, &p->z0);
+  u256_to_be(be + 352, &p->z1);
+}
+
+/* The Keys fixture of deal_good into host_image at the HOST_CT .. HOST_SUM
+   offsets: CT (m 1, nonce 30) and CT2 (m 1, nonce 31) under the joint key,
+   SUM = tally_add(CT, CT2, 1), the parts of members 1 and 2 on CT and on SUM,
+   the 3 member keys, the joint key, ctx 9 and the ballot proof of CT (bit 1,
+   j 0). 1 when a dkg row fails or the proof is not SIG_OK. */
+static int host_fixture(void) {
+  DkgDealing dealings[DKG_N];
+  U256 table[DKG_N * DKG_N];
+  Keys keys;
+  ElgCipher ct;
+  ElgCipher ct2;
+  ElgCipher sum;
+  ThrPart part;
+  SigOr proof;
+  U256 ctx;
+  U256 r;
+  Fe a0;
+  Count c = {0u, 0u};
+  uint32_t i;
+  deal_good(&c, &keys, dealings, table, &ctx, &a0);
+  cast(&ct, &keys.pk, 1u, 30u);
+  cast(&ct2, &keys.pk, 1u, 31u);
+  tally_add(&sum, &ct, &ct2, 1u);
+  for (i = 0; i < 2u; i++) {
+    thr_partial(&part, &keys.share[i], &ct);
+    host_part_be(host_image + HOST_PARTS + 232u * i, &part);
+    thr_partial(&part, &keys.share[i], &sum);
+    host_part_be(host_image + HOST_SUM_PARTS + 232u * i, &part);
+  }
+  for (i = 0; i < DKG_N; i++)
+    g1_to_be(host_image + HOST_KEYS + 64u * i, &keys.keys[i]);
+  g1_to_be(host_image + HOST_JPK, &keys.pk);
+  host_cipher_be(host_image + HOST_CT, &ct);
+  host_cipher_be(host_image + HOST_CT2, &ct2);
+  host_cipher_be(host_image + HOST_SUM, &sum);
+  u256_from_u64(&ctx, 9u);
+  u256_to_be(host_image + HOST_CTX, &ctx);
+  elg_nonce(&r, 30u);
+  if (c.pass != c.rows || sig_or_prove(&proof, &keys.pk, &ct, 1u, &r, &ctx, 0u) != SIG_OK) {
+    fprintf(stderr, "host fixture: %u of %u dkg rows passed, or the ballot proof is not SIG_OK\n", (unsigned)c.pass,
+            (unsigned)c.rows);
+    return 1;
+  }
+  host_proof_be(host_image + HOST_PROOF, &proof);
+  return 0;
+}
+
+/* The `host` mode: one line `NAME W1 .. Wp GOT` per row of HOST_CALLS, the
+   host table of `langc --kit eval --host FILE` (test/gate.sh). A row whose
+   GOT is not its want goes to stderr and gives exit 1. */
+static int host_lines(void) {
+  uint32_t r;
+  uint32_t i;
+  uint64_t got;
+  int bad = 0;
+  host_hex(host_image + HOST_PK, SCHNORR_PK, 64u);
+  memcpy(host_image + HOST_MSG, "ratify", 6u);
+  host_hex(host_image + HOST_SIG, SCHNORR_SIG, 96u);
+  host_hex(host_image + HOST_SIG0, SCHNORR_SIG0, 96u);
+  keccak256(host_image + HOST_MSG, 6u, host_image + HOST_DIGEST);
+  bad = host_fixture();
+  memcpy(host_mem, host_image, sizeof host_mem);
+  tally_add_be(host_mem + HOST_OUT, host_image + HOST_CT, host_image + HOST_CT2, 1u);
+  if (memcmp(host_mem + HOST_OUT, host_image + HOST_SUM, 128u) != 0) {
+    fputs("host sum: tally_add_be is not tally_add\n", stderr);
+    bad = 1;
+  }
+  puts("# S9 step d2a: `build/cryptotool host`, the host rows of test/eval/host.lang.");
+  for (r = 0; r < sizeof HOST_CALLS / sizeof HOST_CALLS[0]; r++) {
+    const HostCall *c = &HOST_CALLS[r];
+    memcpy(host_mem, host_image, sizeof host_mem);
+    got = host_import(c->import, c->words);
+    fputs(HOST_NAME[c->import], stdout);
+    for (i = 0; i < HOST_WORDS[c->import]; i++)
+      printf(" %llu", (unsigned long long)c->words[i]);
+    printf(" %llu\n", (unsigned long long)got);
+    if (got != c->want) {
+      fprintf(stderr, "host row %u: want %llu, got %llu\n", (unsigned)(r + 1u), (unsigned long long)c->want,
+              (unsigned long long)got);
+      bad = 1;
+    }
+  }
+  return bad;
+}
+
 int main(int argc, char **argv) {
   Count kat = {0u, 0u};
   Count badsig = {0u, 0u};
@@ -722,8 +989,10 @@ int main(int argc, char **argv) {
   int ok;
   if (argc == 2 && strcmp(argv[1], "rep") == 0)
     return rep_lines();
+  if (argc == 2 && strcmp(argv[1], "host") == 0)
+    return host_lines();
   if (argc != 1) {
-    fputs("usage: cryptotool [rep]\n", stderr);
+    fputs("usage: cryptotool [rep|host]\n", stderr);
     return 2;
   }
   known_rows(&kat);

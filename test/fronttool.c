@@ -4,6 +4,7 @@
 
 #include "front/check.h"
 #include "front/lexer.h"
+#include "front/lower.h"
 #include "front/parser.h"
 
 /* checked parses TEXT with ORIGIN and checks it in MODE. A domain row is
@@ -193,8 +194,52 @@ static int committee_bounds(void) {
   return ok;
 }
 
+/* A host module exports its memory, so an entry cannot use that name. */
+static int lowered(const char *text, const char *want) {
+  Arena arena;
+  Diag diag;
+  TokenList tokens = {0};
+  DeclList decls = {0};
+  Machine machine;
+  IrProgram program;
+  int checked;
+  int ok;
+  int passed;
+  arena_init(&arena, (size_t)1 << 24);
+  diag_init(&diag);
+  checked = lex_source(&arena, "test-lower", text, strlen(text), &tokens, &diag)
+    && parse_source(&arena, "test-lower", ORIGIN_PROGRAM, &tokens, &decls, &diag)
+    && check_program(&arena, &decls, &machine, &diag, CHECK_KIT);
+  ok = checked && lower_program(&machine, &program);
+  passed = checked && (want == NULL ? ok : !ok && diag.code != NULL && strcmp(diag.code, want) == 0);
+  if (!passed) {
+    fprintf(stderr, "FAIL lower: wanted %s: %s\n", want == NULL ? "ok" : want, text);
+    if (diag.set)
+      diag_print(&diag, stderr);
+  }
+  arena_release(&arena);
+  return passed;
+}
+
 int main(void) {
   int ok = 1;
+  ok &= lowered("def memory : Nat -> Nat := fun x => x", NULL);
+  ok &= lowered("def memory : Type 0 := Nat\n"
+                "def runHost : Nat -> Nat := fun x => combine (pair x 2) (pair 3 4) (pair 5 6) 7 8", NULL);
+  ok &= lowered("def memory : Nat -> Nat := fun x => x\n"
+                "def runHost : Nat -> Nat := fun x => combine (pair x 2) (pair 3 4) (pair 5 6) 7 8", "REFUSE_LOWER");
+  ok &= lowered("def runHost : Nat -> Nat := fun x => combine (pair x 2) (pair 3 4) (pair 5 6) 7 8\n"
+                "def memory : Nat -> Nat := fun x => x", "REFUSE_LOWER");
+  ok &= lowered("def memory : Nat -> Nat := fun x => combine (pair x 2) (pair 3 4) (pair 5 6) 7 8", "REFUSE_LOWER");
+  ok &= normal_roundtrip("Nat -> Sum Unit Unit", "fun x => sig_verify (pair x 2) (pair 3 4) (pair 5 6)");
+  ok &= normal_roundtrip("Nat -> Sum Unit Unit", "fun x => hash_eq (pair x 2) (pair 3 4)");
+  ok &= normal_roundtrip("Nat -> Sum Unit Unit", "fun x => share_verify (pair x 2) (pair 3 4) (pair 5 6)");
+  ok &= normal_roundtrip("Nat -> Sum Unit Unit", "fun x => ballot_verify (pair x 2) (pair 3 4) (pair 5 6) (pair 7 8) 9");
+  ok &= normal_roundtrip("Nat -> Sum Unit Unit", "fun x => tally_add (pair x 2) (pair 3 4) (pair 5 6)");
+  ok &= normal_roundtrip("Nat -> Nat", "fun x => combine (pair x 2) (pair 3 4) (pair 5 6) 7 8");
+  ok &= normal_roundtrip("Nat -> Nat",
+    "(fun (f : Nat -> Nat) => fun (combine : Nat) => f combine) "
+    "(fun (x : Nat) => combine (pair x 2) (pair 3 4) (pair 5 6) 7 8)");
   ok &= committee_bounds();
   ok &= checked_fixture("test/ir/lazy.lang");
   ok &= checked_fixture("test/ir/proof-trap.lang");

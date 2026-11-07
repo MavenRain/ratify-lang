@@ -8,7 +8,7 @@ CLANG_FLAGS = -std=c99 -Wall -Wextra -Wswitch-enum -Werror -fsyntax-only -Isrc
 FRONT = src/front/base.c src/front/lexer.c src/front/parser.c src/front/front.c src/front/eval.c src/front/check.c src/front/lower.c
 TARGET = src/wasm.c
 SRC = src/main.c $(FRONT) $(TARGET)
-FRONT_TOOL = test/fronttool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
+FRONT_TOOL = test/fronttool.c $(filter-out src/front/front.c,$(FRONT))
 PATH_TOOL = test/pathtool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
 NOTRAP_TOOL = test/notraptool.c
 # The crypto layer (S7). langc does not link it; only build/cryptotool does.

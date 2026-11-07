@@ -131,6 +131,9 @@ def fmMap : (A : Type 0) -> (B : Type 0) -> (A -> B) -> FreeMon A -> FreeMon B :
 -- count. `len A r` is a C builtin (OP_FM_LEN): the domain cannot prove the
 -- Nat monoid laws that fmFold needs (S3 survey section 7).
 def OpPos : Type 0 := Nat
+-- S9 (Q-S9-8 (a)): a byte operand of a host import, the OFF and LEN of the
+-- bytes in the Wasm memory. The lowering gives the two fields as two params.
+def Bytes : Type 0 := Prod Nat Nat
 -- The positions of a bag (S7 B3, Q4): Pos n has n values, the first
 -- position at each szS and a lift of each position of the tail. No
 -- constructor gives Pos sz0. A domain family, so Fin stays internal (O23).
