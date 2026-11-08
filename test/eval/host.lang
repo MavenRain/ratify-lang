@@ -12,7 +12,7 @@ def joinShares : Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat :=
 -- that table). The pairs are OFF LEN in the fixture image of host_lines.
 def sigGood : Sum Unit Unit := sig_verify (pair 0 64) (pair 64 6) (pair 70 96)
 def sigBad : Sum Unit Unit := sig_verify (pair 0 64) (pair 64 6) (pair 166 96)
-def sigOff : Sum Unit Unit := sig_verify (pair 0 64) (pair 4096 1) (pair 70 96)
+def sigOff : Sum Unit Unit := sig_verify (pair 0 64) (pair 65536 1) (pair 70 96)
 def hashGood : Sum Unit Unit := hash_eq (pair 64 6) (pair 262 32)
 def hashBad : Sum Unit Unit := hash_eq (pair 64 5) (pair 262 32)
 def tallyZero : Sum Unit Unit := tally_add (pair 512 128) (pair 640 128) (pair 768 128)

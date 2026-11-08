@@ -184,6 +184,14 @@ if [ "$status" -ne 0 ]; then
   fail=$((fail + 1))
 fi
 echo "host table rows: $(awk '!/^#/ {n++} END {print n + 0}' "$tmp/host-crypto.txt") written"
+# `build/cryptotool image` (S10 U2) writes the same fixture as `OFF HEX`
+# lines: the image that build/ratifyd puts in the host region.
+status=0
+build/cryptotool image >"$tmp/host-image.txt" 2>"$tmp/err" || status=$?
+if [ "$status" -ne 0 ]; then
+  echo "FAIL cryptotool image: exit $status: $(head -n 1 "$tmp/err")"
+  fail=$((fail + 1))
+fi
 host_eval 0 "inr unit" "$tmp/host-crypto.txt" sigGood
 host_eval 0 "inl unit" "$tmp/host-crypto.txt" sigBad
 host_eval 0 "inl unit" "$tmp/host-crypto.txt" sigOff
@@ -213,6 +221,105 @@ if [ "$status" -ne 0 ] || ! wasm-validate "$tmp/functions.wasm" 2>>"$tmp/err"; t
   fail=$((fail + 1))
 fi
 echo "builds: $builds checked"
+
+# The demo (S10 U3 Part A, test/demo). demo.lang uses Nat, so it is a kit row:
+# `langc --kit check` must print ok, `langc --kit build` must write a valid
+# module, and `langc --kit abi --text` must give one entry, `demo` (demoV has
+# an Option Nat result, so the build does not lower it).
+demos=0
+status=0
+out=$(build/langc --kit check test/demo/demo.lang 2>&1) || status=$?
+demos=$((demos + 1))
+[ "$status:$out" = "0:ok" ] || { echo "FAIL demo check: want ok, got exit $status: $out"; fail=$((fail + 1)); }
+status=0
+build/langc --kit build test/demo/demo.lang -o "$tmp/demo.wasm" 2>"$tmp/err" || status=$?
+demos=$((demos + 1))
+if [ "$status" -ne 0 ] || ! wasm-validate "$tmp/demo.wasm" 2>>"$tmp/err"; then
+  echo "FAIL build demo: want exit 0 and a valid module, got exit $status: $(head -n 1 "$tmp/err")"
+  fail=$((fail + 1))
+fi
+status=0
+out=$(build/langc --kit abi test/demo/demo.lang --text 2>&1) || status=$?
+demos=$((demos + 1))
+[ "$status:$out" = "0:demo" ] || { echo "FAIL demo abi: want one entry demo, got exit $status: $out"; fail=$((fail + 1)); }
+# policies.lang is the policy defs of demo.lang with no Nat (Q-S10-U3-6 (a)).
+# Guest `langc check` must print ok, so rule_def decides O3, O4 and O5 for pBase,
+# pAmd1 and pAdd. The sync row: with the `--` lines removed, policies.lang must
+# be the same as demo.lang up to the `-- A2:` line.
+status=0
+out=$(build/langc check test/demo/policies.lang 2>&1) || status=$?
+demos=$((demos + 1))
+[ "$status:$out" = "0:ok" ] || { echo "FAIL demo policies check: want ok, got exit $status: $out"; fail=$((fail + 1)); }
+awk '!/^--/' test/demo/policies.lang >"$tmp/pol"
+awk '/^-- A2:/ { exit } !/^--/' test/demo/demo.lang >"$tmp/dpol"
+demos=$((demos + 1))
+cmp -s "$tmp/pol" "$tmp/dpol" || { echo "FAIL demo policies sync: the policy defs of policies.lang and demo.lang are not the same"; fail=$((fail + 1)); }
+echo "demo rows: $demos checked"
+
+# The demo verdict rows (S10 U3 Part D1). `build/cryptotool demo DIR` writes the
+# images D1..D8 (the RESUME18 table); D9 is D1 with the word record target 4 (no
+# image gives illTypedPolicy). build/demotool runs the module and then demoV on
+# each image: its `W VERDICT` line must be line k of test/demo/want.txt.
+verdicts=0
+mkdir "$tmp/dimg"
+status=0
+build/cryptotool demo "$tmp/dimg" >/dev/null 2>"$tmp/err" || status=$?
+[ "$status" -eq 0 ] || { echo "FAIL demo images: want exit 0, got exit $status: $(head -n 1 "$tmp/err")"; fail=$((fail + 1)); }
+awk '$1 == "target" { $2 = 4 } 1' "$tmp/dimg/D1.txt" >"$tmp/dimg/D9.txt"
+for k in 1 2 3 4 5 6 7 8 9; do
+  want=$(awk -v k="$k" 'NR == k' test/demo/want.txt)
+  status=0
+  got=$(build/demotool "$tmp/demo.wasm" test/demo/demo.lang "$tmp/dimg/D$k.txt" 2>&1) || status=$?
+  verdicts=$((verdicts + 1))
+  [ "$status:$got" = "0:$want" ] || { echo "FAIL demo verdict D$k: want $want, got exit $status: $got"; fail=$((fail + 1)); }
+done
+echo "demo verdict rows: $verdicts checked"
+# The malformed rows (Part D2): D1 with an unknown KIND, a missing KIND, and the
+# body record one byte longer and one byte shorter than its slot. demotool must
+# refuse each before the module runs.
+malformed=0
+awk 'NR == 1 { $1 = "pkX" } 1' "$tmp/dimg/D1.txt" >"$tmp/dimg/m-unknown"
+awk 'NR != 2' "$tmp/dimg/D1.txt" >"$tmp/dimg/m-missing"
+awk '$1 == "body" { $2 = $2 "00" } 1' "$tmp/dimg/D1.txt" >"$tmp/dimg/m-longer"
+awk '$1 == "body" { $2 = substr($2, 1, length($2) - 2) } 1' "$tmp/dimg/D1.txt" >"$tmp/dimg/m-shorter"
+for m in unknown missing longer shorter; do
+  status=0
+  got=$(build/demotool "$tmp/demo.wasm" test/demo/demo.lang "$tmp/dimg/m-$m" 2>&1) || status=$?
+  malformed=$((malformed + 1))
+  [ "$status:$got" = "0:- invalid malformed" ] || { echo "FAIL demo malformed $m: want - invalid malformed, got exit $status: $got"; fail=$((fail + 1)); }
+done
+echo "demo malformed rows: $malformed checked"
+# The bit-order rows (Part D3): demoV on W with the bit k clear and the D1 words
+# (height 2, action 7, amend 0, target 0, signers 31) gives the Reason word of
+# check k: 5 badSignature (k 0..4), 4 badPrevHash (5), 6 badProof (6), 8
+# equivocation (7). The bits 8..12 count only when bit 7 is clear (W 8063 gives
+# 8): then each one clear gives 0 (the equivocation is not proved).
+bits=0
+for row in 8190:5 8189:5 8187:5 8183:5 8175:5 8159:4 8127:6 8063:8 7807:0 7551:0 7039:0 6015:0 3967:0; do
+  status=0
+  got=$(build/langc --kit eval test/demo/demo.lang demoV "${row%%:*}" 2 7 0 0 31 2>&1) || status=$?
+  bits=$((bits + 1))
+  [ "$status:$got" = "0:${row#*:}" ] || { echo "FAIL demo bit row W ${row%%:*}: want ${row#*:}, got exit $status: $got"; fail=$((fail + 1)); }
+done
+echo "demo bit rows: $bits checked"
+# The cross rows (Part D3): on test/demo/host-table.txt (the 13 host calls of demo
+# at the D1 OFFs) the evaluator and the Wasm module (enginetool) must both give
+# W 4709. This pins the W bit order of the guest demo in the two runtimes.
+cross=0
+offs="0 64 128 192 256 320 368 416 512 608 704 800 896 1320 1368 1416 1448 1544"
+status=0
+got=$(build/langc --kit eval test/demo/demo.lang demo $offs --host test/demo/host-table.txt 2>&1) || status=$?
+cross=$((cross + 1))
+[ "$status:$got" = "0:4709" ] || { echo "FAIL demo cross eval: want 4709, got exit $status: $got"; fail=$((fail + 1)); }
+status=0
+got=$(build/enginetool --host test/demo/host-table.txt "$tmp/demo.wasm" demo $offs 2>&1) || status=$?
+cross=$((cross + 1))
+[ "$status:$got" = "0:4709" ] || { echo "FAIL demo cross wasm: want 4709, got exit $status: $got"; fail=$((fail + 1)); }
+echo "demo cross rows: $cross checked"
+# bad-o5.lang is the P' of the D7 amendment (Q-S10-U3-4 (a)). Its amend rule
+# fails O5, so guest `langc check` refuses it with REFUSE_FORK. Kit mode does
+# not decide O3, O4 or O5 (rule_def runs in guest mode only).
+refusals test/demo demo
 
 # The IR (S3): `langc ir examples/functions.lang` must exit 0 and give one
 # func line for each line of `langc abi`.
@@ -351,6 +458,8 @@ echo "notrap bad rows: $notrapbad checked"
 # Decision of the host eval rows. A missing row and a module with imports and
 # no table (`-`) exit 1.
 hostwasms=0
+hostengines=0
+ratifyds=0
 host_wasm() {
   want_status=$1
   want=$2
@@ -364,17 +473,107 @@ host_wasm() {
   hostwasms=$((hostwasms + 1))
   [ "$status" -eq "$want_status" ] && [ "$got" = "$want" ] ||
     { echo "FAIL host wasm $table $*: want exit $want_status and $want, got exit $status: $(printf '%s\n' "$got" | head -n 1)"; fail=$((fail + 1)); }
+  # The engine (S10 U1, Q-S10-3 (a)): build/enginetool on the same table and
+  # words gives the same exit status, and for exit 0 the same output.
+  status=0
+  case "$table" in
+    -) got=$(build/enginetool "$tmp/host.wasm" "$@" 2>&1) || status=$? ;;
+    *) got=$(build/enginetool --host "$table" "$tmp/host.wasm" "$@" 2>&1) || status=$? ;;
+  esac
+  hostengines=$((hostengines + 1))
+  [ "$status" -eq "$want_status" ] && { [ "$status" -ne 0 ] || [ "$got" = "$want" ]; } ||
+    { echo "FAIL host engine $table $*: want exit $want_status and $want, got exit $status: $(printf '%s\n' "$got" | head -n 1)"; fail=$((fail + 1)); }
+  # ratifyd (S10 U2, Q-S10-U2-4 (a)): on a row of the cryptotool table,
+  # build/ratifyd runs the same entry and words with the six real import
+  # bodies over the fixture image. It gives the same exit status and output.
+  case "$table" in
+    "$tmp/host-crypto.txt")
+      status=0
+      got=$(build/ratifyd --call "$tmp/host-image.txt" "$tmp/host.wasm" "$@" 2>&1) || status=$?
+      ratifyds=$((ratifyds + 1))
+      [ "$status" -eq "$want_status" ] && [ "$got" = "$want" ] ||
+        { echo "FAIL ratifyd $*: want exit $want_status and $want, got exit $status: $(printf '%s\n' "$got" | head -n 1)"; fail=$((fail + 1)); }
+      ;;
+    *) ;;
+  esac
 }
 host_wasm 0 2 "$tmp/host-crypto.txt" joinShares 1152 464 1616 192 1024 128 2 1
 host_wasm 0 3 "$tmp/host-crypto.txt" joinShares 2544 464 1616 192 3008 128 2 2
 host_wasm 0 0 "$tmp/host-crypto.txt" joinShares 1152 464 1616 192 2288 128 2 1
 host_wasm 0 1 "$tmp/host-crypto.txt" sigPick 0 64 64 6 70 96
 host_wasm 0 0 "$tmp/host-crypto.txt" sigPick 0 64 64 6 166 96
-host_wasm 0 0 "$tmp/host-crypto.txt" sigPick 0 64 4096 1 70 96
+host_wasm 0 0 "$tmp/host-crypto.txt" sigPick 0 64 65536 1 70 96
+host_wasm 0 1 "$tmp/host-crypto.txt" sigPick 0 64 65536 0 166 96
 host_wasm 0 42 test/eval/host-table.txt joinShares 1 2 3 4 5 6 7 8
 host_wasm 1 "run-wasm: no host row for combine 1 2 3 4 5 6 7 9" test/eval/host-table.txt joinShares 1 2 3 4 5 6 7 9
 host_wasm 1 "run-wasm: $tmp/host.wasm: the module imports ratify.sig_verify and there is no host table" - joinShares 1 2 3 4 5 6 7 8
+# Two rows of one name and words (test/engine/dup-table.txt): the first row
+# wins, 42 and not 7, on both sides.
+host_wasm 0 42 test/engine/dup-table.txt joinShares 1 2 3 4 5 6 7 8
+# The image rows (S10 U2, Q-S10-U2-4 (a)): the fixture image and one more
+# line. A line that does not parse (odd hex, a bad hex digit, bytes past
+# HOST_MEM, a bad offset) gives `invalid malformed`, exit 0, and the module
+# does not run. A last byte at HOST_MEM - 1 fits, and the entry runs.
+ratifydimages=0
+ratifyd_image() {
+  want=$1
+  extra=$2
+  { cat "$tmp/host-image.txt"; printf '%s\n' "$extra"; } >"$tmp/image-row.txt"
+  status=0
+  got=$(build/ratifyd --call "$tmp/image-row.txt" "$tmp/host.wasm" sigPick 0 64 64 6 70 96 2>&1) || status=$?
+  ratifydimages=$((ratifydimages + 1))
+  [ "$status" -eq 0 ] && [ "$got" = "$want" ] ||
+    { echo "FAIL ratifyd image $extra: want exit 0 and $want, got exit $status: $(printf '%s\n' "$got" | head -n 1)"; fail=$((fail + 1)); }
+}
+ratifyd_image "invalid malformed" "0 abc"
+ratifyd_image "invalid malformed" "0 0g"
+ratifyd_image "invalid malformed" "65535 0000"
+ratifyd_image "invalid malformed" "1x 00"
+ratifyd_image 1 "65535 00"
 echo "host wasm rows: $hostwasms checked"
+echo "host engine rows: $hostengines checked"
+echo "ratifyd rows: $ratifyds checked"
+echo "ratifyd image rows: $ratifydimages checked"
+# The engine load refusals (S10 U1, the form of the permit-lang S9 U1 rows):
+# each line below is `NAME MESSAGE`. wat2wasm makes $tmp/engine-NAME.wasm
+# from test/engine/NAME.wat. build/enginetool must exit 1 and print the one
+# line `enginetool: load: MESSAGE` (an import that the engine does not bind,
+# an import with the wrong type).
+enginerefusals=0
+while read -r name msg; do
+  enginerefusals=$((enginerefusals + 1))
+  status=0
+  got=$(wat2wasm "test/engine/$name.wat" -o "$tmp/engine-$name.wasm" 2>&1 && build/enginetool --host test/eval/host-table.txt "$tmp/engine-$name.wasm" x 2>&1) || status=$?
+  [ "$status" -eq 1 ] && [ "$got" = "enginetool: load: $msg" ] ||
+    { echo "FAIL engine refusal $name: want exit 1 and $msg, got exit $status: $got"; fail=$((fail + 1)); }
+done <<'EOF'
+unbound unbound import
+badtype import type
+EOF
+echo "engine refusals: $enginerefusals checked"
+# The guest memory bytes (S10 U1, engine_bytes): each line below is
+# `OFF LEN STATUS WANT`. test/engine/bytes.wat has 1 page (65536 bytes) and
+# the bytes 01 to 08 at 65528. A range past the end of the memory exits 1.
+# A word past 2^64 - 1 is a usage error, exit 2.
+wat2wasm test/engine/bytes.wat -o "$tmp/engine-bytes.wasm" 2>/dev/null ||
+  { echo "FAIL wat2wasm test/engine/bytes.wat"; fail=$((fail + 1)); }
+enginebytes=0
+while read -r off len want_status want; do
+  enginebytes=$((enginebytes + 1))
+  status=0
+  got=$(build/enginetool --bytes "$off" "$len" "$tmp/engine-bytes.wasm" 2>&1) || status=$?
+  [ "$status" -eq "$want_status" ] && [ "$got" = "$want" ] ||
+    { echo "FAIL engine bytes $off $len: want exit $want_status and $want, got exit $status: $got"; fail=$((fail + 1)); }
+done <<'EOF'
+65528 8 0 0102030405060708
+65536 0 0
+0 8 0 0000000000000000
+65529 8 1 enginetool: bytes 65529 8: not in the memory
+65537 0 1 enginetool: bytes 65537 0: not in the memory
+8 18446744073709551615 1 enginetool: bytes 8 18446744073709551615: not in the memory
+0 18446744073709551616 2 usage: enginetool --bytes OFF LEN FILE
+EOF
+echo "engine bytes rows: $enginebytes checked"
 # The kit evals of test/ir/spine.lang at 4. Each line is `NAME VALUE`.
 spineevals=0
 while read -r name want; do
@@ -403,6 +602,28 @@ echo "spine evals: $spineevals checked"
 wasms=0
 cases=0
 mismatches=0
+enginemods=0
+enginemismatches=0
+wasmtimemods=0
+wasmtimemismatches=0
+# i64 words (S10 U2 Part D): wasmtime takes and prints an i64 signed; node
+# and eval use a u64. sub64(x) is 2^64 - x on decimal strings, because awk
+# numbers are doubles and lose the low digits past 2^53. big(x) is 1 when x
+# is 2^63 or more.
+i64awk='function sub64(x,  m, r, i, d, b) {
+  m = "18446744073709551616"
+  while (length(x) < length(m)) x = "0" x
+  r = ""
+  b = 0
+  for (i = length(m); i > 0; i--) {
+    d = substr(m, i, 1) - substr(x, i, 1) - b
+    b = (d < 0)
+    r = (d + 10 * b) r
+  }
+  sub(/^0+/, "", r)
+  return r == "" ? "0" : r
+}
+function big(x) { return length(x) > 19 || (length(x) == 19 && x >= "9223372036854775808") }'
 difkit() {
   case "$1" in
     test/ir/*) echo --kit ;;
@@ -439,9 +660,39 @@ for f in examples/*.lang test/ir/natops.lang test/ir/block.lang test/ir/proof-tr
   [ "$bad" -eq 0 ] || { echo "FAIL differential $f: $bad mismatches, first $(head -n 1 "$tmp/bad.txt")"; fail=$((fail + 1)); }
   traps=$(cat "$tmp/want.txt" "$tmp/got.txt" | rg -c -x -F trap || echo 0)
   [ "$traps" -eq 0 ] || { echo "FAIL trap $f: $traps trap lines (R0)"; fail=$((fail + 1)); }
+  # The engine (S10 U1): build/enginetool on the same calls gives the lines
+  # of node.
+  enginemods=$((enginemods + 1))
+  if ! build/enginetool "$w" - <"$tmp/cases.txt" >"$tmp/engine.txt" 2>"$tmp/w.err"; then
+    echo "FAIL engine $f: $(head -n 1 "$tmp/w.err")"
+    fail=$((fail + 1))
+    continue
+  fi
+  bad=$(paste -d '|' "$tmp/cases.txt" "$tmp/got.txt" "$tmp/engine.txt" | awk -F '|' '($2 "") != ($3 "")' | rg -c '.' || echo 0)
+  enginemismatches=$((enginemismatches + bad))
+  [ "$bad" -eq 0 ] || { echo "FAIL engine differential $f: $bad mismatches"; fail=$((fail + 1)); }
+  # wasmtime (S10 U2 Part D, Q-S10-6 (a)): `wasmtime run --invoke` on the
+  # same calls gives the lines of node, and each call exits 0. i64awk maps
+  # the words before the call and the results after it.
+  wasmtimemods=$((wasmtimemods + 1))
+  awk "$i64awk"' { for (i = 2; i <= NF; i++) if (big($i)) $i = "-" sub64($i); print }' "$tmp/cases.txt" >"$tmp/i64.txt"
+  : >"$tmp/wasmtime.txt"
+  while read -r entry words; do
+    status=0
+    out=$(wasmtime run --invoke "$entry" "$w" $words 2>"$tmp/w.err" </dev/null) || status=$?
+    [ "$status" -eq 0 ] || out="wasmtime-exit-$status"
+    echo "$out" >>"$tmp/wasmtime.txt"
+  done <"$tmp/i64.txt"
+  awk "$i64awk"' /^-/ { print sub64(substr($0, 2)); next } { print }' "$tmp/wasmtime.txt" >"$tmp/wasmtime-u.txt"
+  paste -d '|' "$tmp/cases.txt" "$tmp/got.txt" "$tmp/wasmtime-u.txt" | awk -F '|' '($2 "") != ($3 "")' >"$tmp/bad.txt"
+  bad=$(rg -c '.' "$tmp/bad.txt" || echo 0)
+  wasmtimemismatches=$((wasmtimemismatches + bad))
+  [ "$bad" -eq 0 ] || { echo "FAIL wasmtime differential $f: $bad mismatches, first $(head -n 1 "$tmp/bad.txt")"; fail=$((fail + 1)); }
 done
 echo "wasm: $wasms modules valid"
 echo "differential: $cases cases, $mismatches mismatches"
+echo "engine modules: $enginemods checked, $enginemismatches mismatches"
+echo "wasmtime modules: $wasmtimemods checked, $wasmtimemismatches mismatches"
 # A Flag argument larger than 1 (langc eval refuses it with EVAL_ARGS). R0
 # (docs/PLAN.md section 2, OI-6): the entry sets a Flag argument of 2 or
 # more to 1 (flag_norm in src/wasm.c), so the module gives 4 and does not

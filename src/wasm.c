@@ -9,10 +9,15 @@
    - Function B is the internal allocator `alloc (bytes : i32) -> i64`. It
      bumps the mutable i64 global 0 (the heap pointer) over memory 0, with no
      check. Memory 0 has a fixed size (minimum = maximum): the pages of the
-     largest heap bound of an entry (IrFunc heap_words), at least 1 page.
+     heap base plus the largest heap bound of an entry (IrFunc heap_words),
+     at least 1 page.
+   - The heap base is 0 for a program without a host call. For a program
+     with a host call it is HOST_MEM (src/hostmem.h): the host region
+     [0, HOST_MEM) is below the heap, and the host writes the operand bytes
+     there (S10, Q-S10-1 and Q-S10-2 (a)).
    - Function B + 1 + K is IR entry K, exported as its name. Each parameter and the
-     result is an i64. Each entry first resets the heap pointer to 0, and it
-     sets a Flag parameter to 1 when it is not 0.
+     result is an i64. Each entry first resets the heap pointer to the heap
+     base, and it sets a Flag parameter to 1 when it is not 0.
    - A word is 8 bytes. Word K of the block at address A is at A + 8K.
 
    Each entry has three i64 scratch locals after the IR locals: S and S + 1
@@ -27,6 +32,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "hostmem.h"
 #include "target.h"
 #include "wasmop.h"
 
@@ -296,12 +302,25 @@ static int flag_norm(Sink *s, const IrFunc *fn, size_t k) {
           put_byte(s, OP_SELECT) && op2(s, OP_LOCAL_SET, k));
 }
 
+/* The first heap address: HOST_MEM for a program with a host call (the host
+   region [0, HOST_MEM) is below the heap, Q-S10-1 (a)), else 0. */
+static uint64_t heap_base(const IrProgram *prog) {
+  return prog->host ? HOST_MEM : 0u;
+}
+
+/* Entry FN of the program PROG: part_entry needs PROG for the heap base. */
+typedef struct {
+  const IrProgram *prog;
+  const IrFunc *fn;
+} EntryArg;
+
 static int part_entry(Sink *s, const void *arg) {
-  const IrFunc *fn = arg;
+  const EntryArg *e = arg;
+  const IrFunc *fn = e->fn;
   uint32_t t = fn->local_count;
   size_t k;
   int ok = put_uleb(s, 1) && put_uleb(s, (uint64_t)(fn->local_count - fn->param_count) + 3u) &&
-           put_byte(s, TYPE_I64) && i64_const(s, 0) && op2(s, OP_GLOBAL_SET, 0);
+           put_byte(s, TYPE_I64) && i64_const(s, heap_base(e->prog)) && op2(s, OP_GLOBAL_SET, 0);
   for (k = 0; k < fn->param_count && ok; k++) ok = flag_norm(s, fn, k);
   /* The body ends in RETURN (lower_entry), so no code follows it. */
   return ok && emit_block(s, &fn->body, t, 0) && put_byte(s, OP_END);
@@ -349,15 +368,15 @@ static int part_functions(Sink *s, const void *arg) {
   return ok;
 }
 
-/* One memory: minimum = maximum = the pages of the largest heap bound of an
-   entry, at least 1. */
+/* One memory: minimum = maximum = the pages of the heap base plus the
+   largest heap bound of an entry, at least 1. */
 static int part_memory(Sink *s, const void *arg) {
   const IrProgram *prog = arg;
   uint64_t words = 0;
   uint64_t pages;
   size_t i;
   for (i = 0; i < prog->func_count; i++) words = prog->funcs[i].heap_words > words ? prog->funcs[i].heap_words : words;
-  pages = (8u * words + WASM_PAGE_BYTES - 1u) / WASM_PAGE_BYTES;
+  pages = (heap_base(prog) + 8u * words + WASM_PAGE_BYTES - 1u) / WASM_PAGE_BYTES;
   pages = pages == 0 ? 1u : pages;
   return put_uleb(s, 1) && put_byte(s, 1) && put_uleb(s, pages) && put_uleb(s, pages);
 }
@@ -382,7 +401,10 @@ static int part_code(Sink *s, const void *arg) {
   const IrProgram *prog = arg;
   size_t i;
   int ok = put_uleb(s, 1u + prog->func_count) && sized(s, part_alloc, NULL);
-  for (i = 0; i < prog->func_count && ok; i++) ok = sized(s, part_entry, &prog->funcs[i]);
+  for (i = 0; i < prog->func_count && ok; i++) {
+    EntryArg e = {prog, &prog->funcs[i]};
+    ok = sized(s, part_entry, &e);
+  }
   return ok;
 }
 

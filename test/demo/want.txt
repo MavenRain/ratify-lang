@@ -1,0 +1,9 @@
+8191 valid
+8189 invalid badSignature
+8159 invalid badPrevHash
+8127 invalid badProof
+8063 invalid equivocation
+8191 invalid wrongHeight
+8183 invalid notAccepted
+- invalid malformed
+8191 invalid illTypedPolicy

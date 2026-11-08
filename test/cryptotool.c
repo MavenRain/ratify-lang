@@ -18,6 +18,8 @@
 #include "crypto/schnorr.h"
 #include "crypto/sigma.h"
 #include "crypto/threshold.h"
+#include "hostmem.h"
+#include "imports.h"
 
 #define ZERO "0000000000000000000000000000000000000000000000000000000000000000"
 #define ONE "0000000000000000000000000000000000000000000000000000000000000001"
@@ -716,7 +718,6 @@ static int rep_lines(void) {
    signature, the signature of the message of size 0 and the keccak256 of the
    message, at the offsets below; the other bytes are 0. Each row runs on a
    fresh copy of the image. */
-#define HOST_MEM 4096u
 #define HOST_PK 0u
 #define HOST_MSG 64u
 #define HOST_SIG 70u
@@ -754,16 +755,19 @@ static const HostCall HOST_CALLS[] = {
     {0u, {0u, 64u, 64u, 6u, 166u, 96u}, 0u},
     {0u, {0u, 63u, 64u, 6u, 70u, 96u}, 0u},
     {0u, {0u, 64u, 64u, 6u, 70u, 95u}, 0u},
-    {0u, {0u, 64u, 4096u, 1u, 70u, 96u}, 0u},
+    {0u, {0u, 64u, 65536u, 1u, 70u, 96u}, 0u},
+    {0u, {0u, 64u, 65536u, 0u, 166u, 96u}, 1u},
     {1u, {64u, 6u, 262u, 32u}, 1u},
     {1u, {64u, 5u, 262u, 32u}, 0u},
     {1u, {64u, 6u, 262u, 31u}, 0u},
     {1u, {UINT64_MAX, 2u, 262u, 32u}, 0u},
+    {1u, {8u, UINT64_MAX, 262u, 32u}, 0u},
     {2u, {0u, 231u, 0u, 64u, 0u, 128u}, 0u},
-    {2u, {4096u, 232u, 0u, 64u, 0u, 128u}, 0u},
+    {2u, {65305u, 232u, 0u, 64u, 0u, 128u}, 0u},
     {3u, {0u, 384u, 0u, 64u, 0u, 128u, 0u, 31u, 0u}, 0u},
     {4u, {512u, 128u, 640u, 128u, 768u, 128u}, 1u},
-    {4u, {4000u, 128u, 640u, 128u, 768u, 128u}, 0u},
+    {4u, {65409u, 128u, 640u, 128u, 768u, 128u}, 0u},
+    {4u, {65408u, 128u, 640u, 128u, 768u, 128u}, 1u},
     {5u, {0u, 231u, 0u, 64u, 0u, 128u, 1u, 1u}, 0u},
     {5u, {0u, 232u, 0u, 63u, 0u, 128u, 1u, 1u}, 0u},
     {2u, {1152u, 232u, 1616u, 64u, 1024u, 128u}, 1u},
@@ -787,79 +791,6 @@ static void host_hex(unsigned char *out, const char *hex, size_t size) {
   size_t i;
   for (i = 0; i < size; i++)
     out[i] = (unsigned char)(host_nibble(hex[2u * i]) << 4 | host_nibble(hex[2u * i + 1u]));
-}
-
-/* 1 when the LEN bytes at OFF are in the image (no wrap), else 0. */
-static int host_fits(uint64_t off, uint64_t len) {
-  return off <= HOST_MEM && len <= HOST_MEM - off;
-}
-
-/* 1 when the operand pair P (OFF, LEN) fits and LEN is SIZE (SIZE 0 = any). */
-static int host_operand(const uint64_t *p, uint64_t size) {
-  return host_fits(p[0], p[1]) && (size == 0u || p[1] == size);
-}
-
-/* The bit length of N: the smallest b with 2^b above N (at most 64). */
-static uint64_t host_bits(uint64_t n) {
-  uint64_t b = 0;
-  while (b < 64u && (UINT64_C(1) << b) <= n)
-    b++;
-  return b;
-}
-
-/* The result of the import J on the words W over host_mem, by the bodies of
-   s9/abi.txt. An operand that does not fit, or a size other than the fixed
-   one, gives 0. */
-static uint64_t host_import(uint32_t j, const uint64_t *w) {
-  unsigned char digest[32];
-  unsigned char a[128];
-  unsigned char b[128];
-  uint64_t m = 0;
-  uint64_t k;
-  uint64_t n;
-  switch (j) {
-  case 0u:
-    return (host_operand(w, 64u) && host_operand(w + 2, 0u) && host_operand(w + 4, 96u) &&
-            schnorr_verify(host_mem + w[0], host_mem + w[2], (size_t)w[3], host_mem + w[4]) == 1)
-               ? 1u
-               : 0u;
-  case 1u:
-    if (!host_operand(w, 0u) || !host_operand(w + 2, 32u))
-      return 0u;
-    keccak256(host_mem + w[0], (size_t)w[1], digest);
-    return memcmp(digest, host_mem + w[2], 32u) == 0 ? 1u : 0u;
-  case 2u:
-    return (host_operand(w, 232u) && host_operand(w + 2, 64u) && host_operand(w + 4, 128u) &&
-            thr_verify_be(host_mem + w[0], host_mem + w[2], host_mem + w[4]) == 0)
-               ? 1u
-               : 0u;
-  case 3u:
-    return (host_operand(w, 384u) && host_operand(w + 2, 64u) && host_operand(w + 4, 128u) &&
-            host_operand(w + 6, 32u) &&
-            sig_or_verify_be(host_mem + w[0], host_mem + w[2], host_mem + w[4], host_mem + w[6], w[8]) == SIG_OK)
-               ? 1u
-               : 0u;
-  case 4u:
-    if (!host_operand(w, 128u) || !host_operand(w + 2, 128u) || !host_operand(w + 4, 128u))
-      return 0u;
-    memcpy(a, host_mem + w[2], 128u);
-    memcpy(b, host_mem + w[4], 128u);
-    tally_add_be(host_mem + w[0], a, b, 1u);
-    return 1u;
-  case 5u:
-    if (!host_operand(w, 0u) || !host_operand(w + 2, 0u) || !host_operand(w + 4, 128u) || w[1] % 232u != 0u ||
-        w[3] % 64u != 0u)
-      return 0u;
-    k = w[1] / 232u;
-    n = w[3] / 64u;
-    return (thr_open_be(&m, host_mem + w[0], (uint32_t)k, host_mem + w[2], (uint32_t)n, host_mem + w[4], k, w[6], n,
-                        host_bits(w[7])) == THR_FOUND &&
-            m <= w[7])
-               ? m + 1u
-               : 0u;
-  default:
-    return 0u;
-  }
 }
 
 /* S9 step d2b: the byte forms of host_import, each word 8 bytes big endian.
@@ -939,14 +870,11 @@ static int host_fixture(void) {
   return 0;
 }
 
-/* The `host` mode: one line `NAME W1 .. Wp GOT` per row of HOST_CALLS, the
-   host table of `langc --kit eval --host FILE` (test/gate.sh). A row whose
-   GOT is not its want goes to stderr and gives exit 1. */
-static int host_lines(void) {
-  uint32_t r;
-  uint32_t i;
-  uint64_t got;
-  int bad = 0;
+/* The setup of the `host` and `image` modes: the Schnorr fields and the Keys
+   fixture into host_image, then the check of tally_add_be against SUM. 1 when
+   the fixture fails or tally_add_be is not tally_add. */
+static int host_setup(void) {
+  int bad;
   host_hex(host_image + HOST_PK, SCHNORR_PK, 64u);
   memcpy(host_image + HOST_MSG, "ratify", 6u);
   host_hex(host_image + HOST_SIG, SCHNORR_SIG, 96u);
@@ -959,11 +887,22 @@ static int host_lines(void) {
     fputs("host sum: tally_add_be is not tally_add\n", stderr);
     bad = 1;
   }
+  return bad;
+}
+
+/* The `host` mode: one line `NAME W1 .. Wp GOT` per row of HOST_CALLS, the
+   host table of `langc --kit eval --host FILE` (test/gate.sh). A row whose
+   GOT is not its want goes to stderr and gives exit 1. */
+static int host_lines(void) {
+  uint32_t r;
+  uint32_t i;
+  uint64_t got;
+  int bad = host_setup();
   puts("# S9 step d2a: `build/cryptotool host`, the host rows of test/eval/host.lang.");
   for (r = 0; r < sizeof HOST_CALLS / sizeof HOST_CALLS[0]; r++) {
     const HostCall *c = &HOST_CALLS[r];
     memcpy(host_mem, host_image, sizeof host_mem);
-    got = host_import(c->import, c->words);
+    got = host_import(c->import, c->words, host_mem);
     fputs(HOST_NAME[c->import], stdout);
     for (i = 0; i < HOST_WORDS[c->import]; i++)
       printf(" %llu", (unsigned long long)c->words[i]);
@@ -974,6 +913,183 @@ static int host_lines(void) {
       bad = 1;
     }
   }
+  return bad;
+}
+
+/* A field of host_image: its offset and its length. */
+typedef struct {
+  uint32_t off;
+  uint32_t len;
+} HostField;
+
+/* The fields of the `image` mode, in the order of their offsets. */
+static const HostField HOST_FIELDS[] = {
+    {HOST_PK, 64u},     {HOST_MSG, 6u},    {HOST_SIG, 96u},         {HOST_SIG0, 96u},  {HOST_DIGEST, 32u},
+    {HOST_CT, 128u},    {HOST_PARTS, 464u}, {HOST_KEYS, 192u},      {HOST_JPK, 64u},   {HOST_PROOF, 384u},
+    {HOST_CTX, 32u},    {HOST_CT2, 128u},  {HOST_OUT, 128u},        {HOST_SUM_PARTS, 464u}, {HOST_SUM, 128u}};
+
+/* The `image` mode (S10 U2, Q-S10-U2-4 (a)): one `OFF HEX` line per field of
+   HOST_FIELDS, the IMAGE file of `ratifyd --call`. */
+static int image_lines(void) {
+  uint32_t r;
+  uint32_t i;
+  int bad = host_setup();
+  for (r = 0; r < sizeof HOST_FIELDS / sizeof HOST_FIELDS[0]; r++) {
+    const HostField *f = &HOST_FIELDS[r];
+    printf("%u ", (unsigned)f->off);
+    for (i = 0; i < f->len; i++)
+      printf("%02x", host_image[f->off + i]);
+    putchar('\n');
+  }
+  return bad;
+}
+
+/* S10 U3 Part B: the images of the `demo DIR` mode, by the slot table of the
+   guest `demo` (test/demo/demo.lang): pk0 .. pk3 the operators, pk4 the
+   auditor. sigOk passes the 48 body bytes to sig_verify, so each signature
+   signs the raw body (cert_sign signs its keccak-256 hash). */
+#define DEMO_KEYS 5u
+
+typedef struct {
+  unsigned char pk[DEMO_KEYS][64];
+  unsigned char body[48];
+  unsigned char prev[48];
+  unsigned char sig[DEMO_KEYS][96];
+  unsigned char proof[424];
+  unsigned char ev_a[48];
+  unsigned char ev_b[48];
+  unsigned char ev_h[32];
+  unsigned char sig_a[96];
+  unsigned char sig_b[96];
+  uint64_t amend;
+  uint64_t target;
+  uint64_t signers;
+} DemoImage;
+
+static const char *const DEMO_PK[DEMO_KEYS] = {"pk0", "pk1", "pk2", "pk3", "pk4"};
+static const char *const DEMO_SIG[DEMO_KEYS] = {"sig0", "sig1", "sig2", "sig3", "sig4"};
+
+/* Signs the body of IM with each key of SK. 1 when a sign fails or a
+   signature does not verify under its pk. */
+static int demo_sign(DemoImage *im, const U256 sk[DEMO_KEYS]) {
+  uint32_t i;
+  int bad = 0;
+  for (i = 0; i < DEMO_KEYS; i++)
+    bad |= (schnorr_sign(im->sig[i], &sk[i], im->body, 48u) != 1 || schnorr_verify(im->pk[i], im->body, 48u, im->sig[i]) != 1);
+  return bad;
+}
+
+/* The good image (W 8191, valid) into IM: the previous body at height 1, the
+   body at height 2 (lgLen lDemo) with its prev hash, the share of member 0 on
+   CT (the host fixture), the evidence evA = evB (no equivocation), amend 0,
+   target 0 and all 5 signers. 1 when a key, a sign or a self check fails. */
+static int demo_good(DemoImage *im, const U256 sk[DEMO_KEYS]) {
+  unsigned char tip[32];
+  unsigned char hash[32];
+  uint32_t i;
+  int bad = 0;
+  memset(tip, 0, sizeof tip);
+  cert_body(im->prev, 1u, tip, 0u);
+  keccak256(im->prev, 48u, hash);
+  cert_body(im->body, 2u, hash, 7u);
+  for (i = 0; i < DEMO_KEYS; i++)
+    bad |= (schnorr_public(im->pk[i], &sk[i]) != 1);
+  bad |= demo_sign(im, sk);
+  memcpy(im->proof, host_image + HOST_PARTS, 232u);
+  memcpy(im->proof + 232, host_image + HOST_KEYS, 64u);
+  memcpy(im->proof + 296, host_image + HOST_CT, 128u);
+  cert_body(im->ev_a, 2u, hash, 9u);
+  memcpy(im->ev_b, im->ev_a, 48u);
+  keccak256(im->ev_a, 48u, im->ev_h);
+  bad |= (schnorr_sign(im->sig_a, &sk[0], im->ev_a, 48u) != 1);
+  memcpy(im->sig_b, im->sig_a, 96u);
+  im->amend = 0u;
+  im->target = 0u;
+  im->signers = 31u;
+  return bad;
+}
+
+/* The record `KIND HEX` of the N bytes at B to F. ODD drops the last hex
+   digit (an odd hex length). */
+static void demo_hex(FILE *f, const char *kind, const unsigned char *b, size_t n, int odd) {
+  size_t i;
+  fprintf(f, "%s ", kind);
+  for (i = 0; i + 1u < n; i++)
+    fprintf(f, "%02x", b[i]);
+  if (odd)
+    fprintf(f, "%x\n", (unsigned)(b[n - 1u] >> 4));
+  else
+    fprintf(f, "%02x\n", b[n - 1u]);
+}
+
+/* DIR/DK.txt: the 18 byte records in slot order, then the 3 word records.
+   ODD gives evH an odd hex length. 1 when the file does not open or close. */
+static int demo_write(const char *dir, uint32_t k, const DemoImage *im, int odd) {
+  char path[4096];
+  FILE *f = NULL;
+  uint32_t i;
+  int n = snprintf(path, sizeof path, "%s/D%u.txt", dir, (unsigned)k);
+  if (n > 0 && (size_t)n < sizeof path)
+    f = fopen(path, "w");
+  if (f == NULL) {
+    fprintf(stderr, "demo: cannot write %s/D%u.txt\n", dir, (unsigned)k);
+    return 1;
+  }
+  for (i = 0; i < DEMO_KEYS; i++)
+    demo_hex(f, DEMO_PK[i], im->pk[i], 64u, 0);
+  demo_hex(f, "body", im->body, 48u, 0);
+  demo_hex(f, "prev", im->prev, 48u, 0);
+  for (i = 0; i < DEMO_KEYS; i++)
+    demo_hex(f, DEMO_SIG[i], im->sig[i], 96u, 0);
+  demo_hex(f, "proof", im->proof, 424u, 0);
+  demo_hex(f, "evA", im->ev_a, 48u, 0);
+  demo_hex(f, "evB", im->ev_b, 48u, 0);
+  demo_hex(f, "evH", im->ev_h, 32u, odd);
+  demo_hex(f, "sigA", im->sig_a, 96u, 0);
+  demo_hex(f, "sigB", im->sig_b, 96u, 0);
+  fprintf(f, "amend %llu\ntarget %llu\nsigners %llu\n", (unsigned long long)im->amend,
+          (unsigned long long)im->target, (unsigned long long)im->signers);
+  return fclose(f) == 0 ? 0 : 1;
+}
+
+/* The `demo DIR` mode (S10 U3 Part B): DIR/D1.txt .. D8.txt, the plan list
+   (s10/u3-plan.txt RESUME18). D1 good; D2 bad sig1; D3 bad prev hash; D4 bad
+   share (the key of member 1); D5 equivocation (evB action 10); D6 height 3;
+   D7 bad sig3 with signers 1 (rule fails first); D8 the good image with an
+   odd evH hex length. */
+static int demo_files(const char *dir) {
+  U256 sk[DEMO_KEYS];
+  DemoImage good;
+  DemoImage im;
+  uint32_t i;
+  int bad = host_setup();
+  for (i = 0; i < DEMO_KEYS; i++)
+    u256_from_u64(&sk[i], 11u + i);
+  bad |= demo_good(&good, sk);
+  bad |= demo_write(dir, 1u, &good, 0);
+  im = good;
+  im.sig[1][95] ^= 1u;
+  bad |= demo_write(dir, 2u, &im, 0);
+  im = good;
+  im.body[8] ^= 1u;
+  bad |= demo_sign(&im, sk);
+  bad |= demo_write(dir, 3u, &im, 0);
+  im = good;
+  memcpy(im.proof + 232, host_image + HOST_KEYS + 64u, 64u);
+  bad |= demo_write(dir, 4u, &im, 0);
+  im = good;
+  im.ev_b[47] = 10u;
+  bad |= (schnorr_sign(im.sig_b, &sk[0], im.ev_b, 48u) != 1);
+  bad |= demo_write(dir, 5u, &im, 0);
+  im = good;
+  im.body[7] = 3u;
+  bad |= demo_sign(&im, sk);
+  bad |= demo_write(dir, 6u, &im, 0);
+  im = good;
+  im.sig[3][95] ^= 1u;
+  im.signers = 1u;
+  bad |= demo_write(dir, 7u, &im, 0);
+  bad |= demo_write(dir, 8u, &good, 1);
   return bad;
 }
 
@@ -991,8 +1107,12 @@ int main(int argc, char **argv) {
     return rep_lines();
   if (argc == 2 && strcmp(argv[1], "host") == 0)
     return host_lines();
+  if (argc == 2 && strcmp(argv[1], "image") == 0)
+    return image_lines();
+  if (argc == 3 && strcmp(argv[1], "demo") == 0)
+    return demo_files(argv[2]);
   if (argc != 1) {
-    fputs("usage: cryptotool [rep|host]\n", stderr);
+    fputs("usage: cryptotool [rep|host|image|demo DIR]\n", stderr);
     return 2;
   }
   known_rows(&kat);

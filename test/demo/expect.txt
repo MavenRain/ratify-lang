@@ -1,0 +1,1 @@
+bad-o5.lang REFUSE_FORK

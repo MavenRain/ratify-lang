@@ -1,0 +1,15 @@
+# S10 U3 Part D3: the 13 host calls of the entry demo at the D1 OFFs (test/gate.sh cross rows).
+# Result 1 for the checks 0 2 5 6 9 12, so W = 1 + 4 + 32 + 64 + 512 + 4096 = 4709.
+sig_verify 0 64 320 48 416 96 1
+sig_verify 64 64 320 48 512 96 0
+sig_verify 128 64 320 48 608 96 1
+sig_verify 192 64 320 48 704 96 0
+sig_verify 256 64 320 48 800 96 0
+hash_eq 368 48 328 32 1
+share_verify 896 232 1128 64 1192 128 1
+hash_eq 1368 48 1416 32 0
+sig_verify 0 64 1320 48 1448 96 0
+hash_eq 368 48 1328 32 1
+hash_eq 1320 48 1416 32 0
+sig_verify 0 64 1368 48 1544 96 0
+hash_eq 368 48 1376 32 1

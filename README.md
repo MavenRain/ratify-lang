@@ -25,7 +25,11 @@ the crypto words `Enc`, `eval`, `Share`, `Proof` and `Protocol`, the
 refusal `REFUSE_APPROX`, and `src/crypto/` (the crypto C of quorum-lang
 and Schnorr on BN254 G1) with the test tool `build/cryptotool`. S8
 adds the certificate words `Certificate`, `Verdict`, `Reason`,
-`verify`, `Evidence` and `equivocates`, and a faster O5 pass. The
+`verify`, `Evidence` and `equivocates`, and a faster O5 pass. S10
+adds `build/ratifyd`, its Wasm engine (`host/`) and the demo
+(`test/demo/`): `build/cryptotool demo DIR` writes the cases D1 to D8,
+and `build/demotool MODULE DEMO.lang DK.txt` prints the flag word W and
+the verdict of one case (`docs/PLAN.md` section 8.4). The
 other ratify-lang types, refusals and targets do not exist yet.
 `docs/PLAN.md` gives the plan, and its section 14 gives the open
 questions.

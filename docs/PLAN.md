@@ -29,12 +29,15 @@ kernel gives `REFUSE_ORBIT`, `REFUSE_BOUND`, `REFUSE_RULE`,
 `REFUSE_HONEST`, `REFUSE_FORK`, `REFUSE_FIXPOINT`, `REFUSE_ARROW`,
 `REFUSE_CLOCK` and `REFUSE_APPROX` (Q-S4-1 to Q-S4-4 (a), Q-S5-1 to
 Q-S5-3 (a), Q-S6-1 to Q-S6-4 (a), Q-S7-1 to Q-S7-6 (a), Q-S8-1 to Q-S8-5
-(a), Q-S8-6 (b), Q-S9-1 to Q-S9-6 and Q-S9-8 (a), Q-S9-7 not needed).
+(a), Q-S8-6 (b), Q-S9-1 to Q-S9-6 and Q-S9-8 (a), Q-S9-7 not needed,
+Q-S10-1 to Q-S10-7, Q-S10-U2-1 to Q-S10-U2-4, Q-S10-U3-1 to Q-S10-U3-4
+and Q-S10-U3-6 (a), Q-S10-U3-L (c)).
 `src/crypto/` has the crypto C of quorum-lang and
 Schnorr on BN254 G1, and `build/cryptotool` runs the crypto rows and the
 certificate rows, and writes the host table. The T1 module calls six
 host imports of module `ratify` (section 8.2). Section 1 has the rulings.
-Next: S10 (`ratifyd`, the Wasm engine and the demo; section 12).
+S10 adds `ratifyd`, the Wasm engine of `host/` and the demo of section
+8.4 (`build/demotool`). Next: S11 (section 12).
 
 ## 1. Rulings
 
@@ -94,6 +97,23 @@ Next: S10 (`ratifyd`, the Wasm engine and the demo; section 12).
 | 2026-11-06 | Q-S9-5 (a) "port the import check": `test/notraptool.c` has the permit-lang f9d8a15 import check and the four bad rows (import-kind, import-module, import-name, import-type) with module `ratify` and the Q-S9-2 names and types. Edits: section 10. | USER, S9 |
 | 2026-11-06 | Q-S9-6 (a) "count + 1": `combine` gives count + 1 (1 to n_j + 1) for a count that fits, and 0 for no fit or an operand outside memory. The guest checks that the result is not 0, then count = result - 1. So 0 is the refused value of all six imports. Edits: section 2, 8.2. | USER, S9 |
 | 2026-11-06 | Q-S9-8 (a) "internal builtins, `Bytes`": the six host words are internal builtin rows (the quorum-lang RULE_HOST form, part = the import number J). A byte operand is one argument of the domain def `def Bytes : Type 0 := Prod Nat Nat` (OFF, LEN), and the lowering gives the two fields as the two parameters. A word operand (j, t, n_j) is one `Nat`. The five checks give `Decision` (0 refuses, 1 accepts) and `combine` gives `Nat`. Edits: section 8.2. | USER, S9 |
+| 2026-11-06 | Q-S10-1 (a) "region below the heap": a module with imports has a host region [0, HOST_MEM) below its heap, and its heap starts at HOST_MEM. A module without imports does not change. The OFF words are fixed numbers, so one host table key works for eval, node, the engine and wasmtime. Edits: section 8.2, 13 (OI-10). | USER, S10 |
+| 2026-11-06 | Q-S10-2 (a) "HOST_MEM 65536, the bound is the region": HOST_MEM = 65536 (one page). An operand must lie in [0, HOST_MEM): an operand that reaches the heap gives 0, so the guest cannot give its own pair blocks as bytes. `test/cryptotool.c` takes the same constant (4096 before). Edits: section 2, 8.2. | USER, S10 |
+| 2026-11-06 | Q-S10-3 (a) "copy the engine": `host/engine.c`, `engine.h`, `wasmread.c` and `wasmread.h` are a copy of permit-lang `host/` (a port of relay-lang 4781ca7), plus `engine_bytes` for the operand bytes. `test/notraptool.c` stays. Edits: section 8.2. | USER, S10 |
+| 2026-11-06 | Q-S10-4 (a) "hex text records": the input of `ratifyd` is one text file for each case, one line for each record, the byte fields as hex. `cryptotool demo DIR` writes D1 to D8 from the real crypto. `ratifyd` prints one verdict line; bytes that do not parse give `invalid malformed`, and the module does not run. Edits: section 8.4. | USER, S10 |
+| 2026-11-06 | Q-S10-5 (a) "the guest fills the flags": a demo program calls the imports to fill the Decision flags of a Certificate, then runs `verify`. Its entry gives the Verdict as one word (0 valid, 1 + the Reason index). Edits: section 8.4. | USER, S10 |
+| 2026-11-06 | Q-S10-6 (a) "engine and node, wasmtime without imports": differential rows of the engine against node on each module and on the host rows (table mode, both sides), and wasmtime CLI rows for each module without imports. wasmtime for a module with imports stays in OI-10. Edits: section 8.2, 13 (OI-10). | USER, S10 |
+| 2026-11-06 | Q-S10-7 (a) "three units": U1 the engine; U2 the host region and `ratifyd` with the real import bodies; U3 the demo D1 to D8, the docs and the close. Each unit has its own serial gate. Edits: section 12. | USER, S10 |
+| 2026-11-07 | Q-S10-U2-1 (a) "src/hostmem.h": one header `src/hostmem.h` has `#define HOST_MEM 65536u`. `src/wasm.c`, `test/cryptotool.c` and `host/ratifyd.c` include it (the host build adds `-Isrc`). `src/` does not depend on `host/`. Edits: section 8.2. | USER, S10 |
+| 2026-11-07 | Q-S10-U2-2 (a) "engine_put_bytes": `host/engine.c` and `engine.h` get `engine_put_bytes(e, off, len, src)`, with the same bound check as `engine_bytes`. The reads stay const. Edits: none. | USER, S10 |
+| 2026-11-07 | Q-S10-U2-3 (a) "share host/imports.c": the six bodies of the cryptotool `host_import` move to `host/imports.c` and `imports.h`, over `unsigned char mem[HOST_MEM]`. `cryptotool` and `ratifyd` link it. `ratifyd` copies the region out, calls the body, and writes the region back for `tally_add`. Edits: none. | USER, S10 |
+| 2026-11-07 | Q-S10-U2-4 (a) "--call + OFF HEX": `ratifyd --call IMAGE FILE NAME ARGS`. Each IMAGE line is `OFF HEX` (a decimal region offset, then the bytes as lowercase hex). The bytes go into the region, then entry NAME runs, and the i64 prints as `enginetool` prints it. A bad line prints `invalid malformed`, rc 0, and the module does not run. The verdict mode `ratifyd FILE CASE` waits for U3. Edits: section 8.4. | USER, S10 |
+| 2026-11-07 | Q-S10-U3-1 (a) "test/demo": the demo program is `test/demo/demo.lang`, with its want file `test/demo/want.txt`. The examples loop counts stay the same. Edits: section 8.4. | USER, S10 |
+| 2026-11-07 | Q-S10-U3-2 (a) "fixed slots": each record KIND has a fixed OFF and LEN in [0, HOST_MEM), and the entry `demo` takes the OFF words. Edits: section 8.4. | USER, S10 |
+| 2026-11-07 | Q-S10-U3-3 (a) "share_verify": import 2 (`share_verify`) checks `certProof`. Edits: section 8.4. | USER, S10 |
+| 2026-11-07 | Q-S10-U3-4 (a) "certWt = no": the guest sets `certWt` = no for a target index that has no checked Policy. Edits: section 8.4. | USER, S10 |
+| 2026-11-08 | Q-S10-U3-6 (a) "policies.lang": `test/demo/policies.lang` has the policy definitions of `demo.lang` with no Nat. A guest-mode check row proves the O3, O4 and O5 decisions, and a sync row keeps the two files the same. Edits: section 10. | USER, S10 |
+| 2026-11-08 | Q-S10-U3-L (c) "split runtimes": `verify` does not lower (OI-16). The Wasm entry `demo` runs the 13 host checks and gives the flag word W. The entry `demoV` runs `verify` in the evaluator only. `build/demotool` runs the two in one process. Edits: section 8.4, OI-16. | USER, S10 |
 
 The (a) rulings keep the readings of sections 2 to 11; those sections now
 cite the ruled option. The rows for Q-S0-9 (b), Q-S0-13 (b) and Q-S1-1 to
@@ -137,8 +157,9 @@ an error:
   the bound of Q-S0-4 keeps it small. S7 sets the reason when no count in
   the range matches.
 - The T1 imports of module `ratify` are total (Q-S9-1 (a), Q-S9-6 (a)).
-  An operand outside memory (OFF + LEN above the memory size, computed
-  without wrap), or a fixed-size operand with a different LEN, gives 0,
+  An operand outside the host region (OFF + LEN above HOST_MEM, computed
+  without wrap; Q-S10-2 (a), section 8.2), or a fixed-size operand with a
+  different LEN, gives 0,
   and the import reads and writes nothing. It never traps. 0 is the
   refused value of each import: a check gives 1 or 0, and `combine` gives
   count + 1 (1 to n_j + 1), or 0 when no count in 0 to n_j fits.
@@ -382,14 +403,26 @@ SOURCE-ONLY.
   are overwritten by the pairs of the entry before an import reads them.
   The table key is the words, so node needs no bytes. A host that reads
   the operand bytes (the engine of `ratifyd`, wasmtime) needs a fixture
-  layout above the heap: S10, OI-10.
+  layout outside the heap: S10, OI-10.
+- T1 host region (S10; Q-S10-1 and Q-S10-2 (a)): a module with imports
+  has a host region [0, HOST_MEM) below its heap, HOST_MEM = 65536. Its
+  heap starts at HOST_MEM, and its memory is ceil((HOST_MEM + 8 * the
+  heap words) / 65536) pages. A module without imports does not change.
+  The host writes the operand bytes in the region before the call, and an
+  operand must lie in the region. `src/wasm.c`, `test/cryptotool.c` and
+  `host/ratifyd.c` use one constant HOST_MEM, in `src/hostmem.h`.
 - T1 tally (Q-S1-2 (a)): ElGamal can only add. T1 sums the ballots of each
   class, decrypts the count vector c and applies the rule in the clear. So
   the T1 output leaks c, not only b. The one-bit output of design sec 9
   stage 3 needs T2.
 - T1 engine: the Wasm engine of `ratifyd` is an own C99 interpreter, a
   copy of the permit-lang engine (Q-S0-11 (a), the relay-lang ruling).
-  Differential rows under node and wasmtime (OI-10).
+  Differential rows under node and wasmtime (OI-10). S10 (Q-S10-3 (a)):
+  `host/engine.c`, `engine.h`, `wasmread.c` and `wasmread.h` are a copy of
+  permit-lang `host/`, plus `engine_bytes`, the bound check of a byte
+  operand. The rows (Q-S10-6 (a)): the engine against node on each module
+  and on the host rows (table mode, both sides), and wasmtime CLI rows for
+  each module without imports.
 - T2: the FHE tally circuit for accept . count in TFHE (Q-S0-12 (a)), with
   a static depth bound per gate (O6). `REFUSE_APPROX` for CKKS.
 - T3: R_ballot and R_dec as Noir programs (Q-S0-13 (b)), with golden files
@@ -414,10 +447,65 @@ A committee in two classes: three operators, and one auditor in a class of
 its own (a veto, design sec 4 box). f = 1. Authorize rule: 2 of 3 operators
 and the auditor. Amend rule: 3 of 3 operators and the auditor. The checker
 shows O4 (margin 2) and O5 (margin 3). A log of two amendments, one of
-which adds a fourth operator. `ratifyd` gives a verdict for each of D1 to
-D8: a valid authorization, a valid amendment, a bad proof, a bad
-signature, a wrong height, an equivocation, an amendment whose P' fails O5
-(refused before a vote), and bytes that do not parse (`malformed`).
+which adds a fourth operator.
+
+The runtimes are split (Q-S10-U3-L (c), OI-16). The Wasm entry `demo` of
+`test/demo/demo.lang` (kit mode) runs the 13 host checks and gives the
+flag word W: bit k is 1 when check k holds, so a good set gives 8191. The
+entry `demoV` runs in the evaluator only. It reads W, the height, the
+action and the words `amend`, `target` and `signers`, runs `verify`, and
+gives the Verdict as one word: 0 is `valid`, 1 + the Reason index is
+`invalid REASON`. The W bit order is test code in `demo` and `demoV`; the
+gate rows of section 10 pin it.
+
+The input (Q-S10-4 (a), Q-S10-U3-2 (a)): one text file for each case, one
+line for each record. A record is `KIND HEX` for the 18 byte KINDs, or
+`KIND N` for the words `amend`, `target` and `signers`. Each byte KIND has
+a fixed slot (OFF, LEN) in the host region: `pk0` to `pk4` at 0, 64, 128,
+192 and 256 (64 bytes each); `body` 320 (48); `prev` 368 (48); `sig0` to
+`sig4` at 416, 512, 608, 704 and 800 (96 each); `proof` 896 (424: the
+share 232, the key 64, the cipher 128); `evA` 1320 (48); `evB` 1368 (48);
+`evH` 1416 (32); `sigA` 1448 and `sigB` 1544 (96 each). `demo` takes the
+18 OFFs in this order. The height and the action are the body bytes 0 to
+8 and 40 to 48, as big-endian words.
+
+The bits of W: k 0 to 4, the signature of party k on `body` (party 4 is
+the auditor); k 5, keccak256 of `prev` is the prev field of `body`; k 6,
+`share_verify` on `proof` (Q-S10-U3-3 (a)); k 7, keccak256 of `evB` is
+`evH`; k 8, `sigA` on `evA`; k 9 and k 12, the prev fields of `evA` and
+`evB`; k 10, keccak256 of `evA` is `evH`; k 11, `sigB` on `evB`.
+
+`build/cryptotool demo DIR` writes D1 to D8 from the real crypto (DIR must
+exist). `build/demotool MODULE DEMO.lang DK.txt` writes the records in a
+zero region, runs `demo` on the engine with the six imports of `ratifyd`,
+then runs `demoV` in the same process, and prints one line `W VERDICT`.
+Exit 0: a verdict. Exit 1: a load, engine or eval error. Exit 2: usage. A
+record set that does not parse gives `- invalid malformed` with exit 0,
+and the module does not run: an unknown KIND, a KIND two times, a missing
+KIND, a bad hex field or word, or a hex field with a byte count other than
+the slot LEN.
+
+| Case | Change from the good image | W | Verdict |
+|---|---|---|---|
+| D1 | none | 8191 | `valid` |
+| D2 | `sig1` bad | 8189 | `invalid badSignature` |
+| D3 | the prev field of `body` bad, all signatures again | 8159 | `invalid badPrevHash` |
+| D4 | `proof` with the key of party 1 | 8127 | `invalid badProof` |
+| D5 | `evB` with action 10, signed by party 0 | 8063 | `invalid equivocation` |
+| D6 | `body` height 3, all signatures again | 8191 | `invalid wrongHeight` |
+| D7 | `sig3` bad, `signers` 1 (operator 0 only) | 8183 | `invalid notAccepted` |
+| D8 | `evH` with 63 hex digits | - | `invalid malformed` |
+
+An amendment whose P' fails O5 is refused before a vote: the refusal row
+of `test/demo/bad-o5.lang` (`REFUSE_FORK`, rule O5). A large height word
+(for example a 64-bit value) makes `demoV` reach the arena limit of the
+evaluator (`langc: OOM`), so `demotool` gives exit 1, not `wrongHeight`
+(OI-17).
+
+The U2 mode (Q-S10-U2-4 (a)): `ratifyd --call IMAGE FILE NAME ARGS`
+writes the IMAGE bytes in the host region, runs entry NAME of FILE on
+ARGS and prints the i64 result. An IMAGE line is `OFF HEX`: a decimal
+region offset, then the bytes as lowercase hex.
 
 ## 9. Agent adoption (A1 to A6)
 
@@ -451,6 +539,13 @@ fits. Each item has one deliverable, one slice and one gate.
   --host` rows on `test/eval/host.lang`, and `test/run-wasm.mjs --host`
   rows on the module of `test/ir/host.lang`. Eval and node give the same
   answer from one table; a missing row and a missing table give rc 1.
+- Demo rows (S10, section 8.4): the check, build and abi rows of
+  `demo.lang`, the two `policies.lang` rows and the `bad-o5.lang` refusal;
+  9 verdict rows against `test/demo/want.txt` (D1 to D8, and D9: D1 with
+  `target 4` gives `invalid illTypedPolicy`); 4 malformed rows; 13
+  bit-order rows (`demoV` on W with one bit clear gives the Reason of that
+  check); 2 cross rows (`langc eval --host` and the engine on
+  `test/demo/host-table.txt` both give W 4709).
 - Golden files for T2, T3 (Noir) and T4.
 
 ## 11. Port sources
@@ -478,7 +573,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S7 | The crypto layer (Q-S0-9 (b), Q-S1-1 (a), Q-S1-3 (a)): `Enc`, `Share`, `Proof`, `Protocol` and their operations; port quorum-lang src/crypto and add Schnorr on BN254 G1; the test tool and the crypto rows (section 10); the ASSUMED rows; `REFUSE_APPROX`. On the USER S6 commit b44d1f6. `Enc` and `Share` are families on the code sort `Base`, and `El` gives the type of a code (Q-S7-1 (a)). `src/crypto/` has the 20 quorum-lang files, byte equal, and `schnorr.c` (Q-S7-2 (a)); a signature is (R, s), 96 bytes (Q-S7-3 (a)). The ASSUMED laws stay ASSUMED, and `docs/STATUS.md` gives their rows (Q-S7-4 (a)). `REFUSE_APPROX` refuses the 5 names `ckks`, `approx`, `approximate`, `float` and `double` at the 4 sites after `REFUSE_CLOCK`, with the hint "an exact scheme only" (Q-S7-5 (a)). `Proof` is `Trunc1` of the witness pair, and `trunc1` takes its type first (Q-S7-6 (a)). DECISION: a family with a function field gives `REFUSE_CELL` (R1), so `Protocol A B` is the function type `A -> B` and `protoOf` is a definition. The word is `protoOf`, not `ptOf`: `ptOf` is a field of `Party` (S4, rule R4). DECISION: `build/cryptotool rep` prints eval lines, and the gate runs `langc eval` on each. DECISION: `eval` has two inputs, so the sum is a chain of eval steps over `Enc (baseCounts (cmClass n cmNil))`: `zeroSum`, `addEnc`, then `openCount` (share 2 of 3, reconstruct, `ctTop`, `posVal`, `sizeNat`). Tool: `build/cryptotool` 97 rows (23 known-answer, 6 invalid-signature, 43 threshold, 17 reshare, 8 invalid-proof), with the row "schnorr s plus r"; 14 rep lines (TCM-C at T1). Gate: 35 examples, 17 parse refusals, 179 check refusals, 94 evals, 14 crypto rep lines, 38 Wasm modules valid, 998 differential cases with 0 mismatches. Mutants M1 to M5 KILLED. M1a (the R on-curve check of Schnorr verify) is EQUIVALENT: the challenge binds the R bytes, so R + e.P = s.G holds only for R = s.G - e.P, which is on the curve; the check stays. M4a (the body of `reshare`) is EQUIVALENT: the S7 domain bodies are parametric in b. | DONE |
 | S8 | `Certificate`, `Verdict`, `Reason`, `verify`, equivocation evidence; a faster O5 walk (Q-S8-6 (b)). On the USER S7 commit 796f442. `Reason` has the 8 reasons of Q-S8-3 (a), and `Verdict` is `valid` or `invalid r`. `Certificate P` is `certOf` with the height, the action, the signer set, b, P' and one `Decision` for each host byte check (Q-S8-1 (a)). `verify P Q l c evs` checks c against the tip Q of `l : Log P Q`; the first failure wins (`vdThen`), and `wrongHeight` is a height that is not `lgLen l` (Q-S8-2 (a), Q-S8-3 (a)). `Evidence c` is `evOf` (a party, a height, two hashes, two signature decisions), `equivocates` holds for two signed bodies at one height with two hashes, and `EvList c` is the input list (Q-S8-4 (a)). DECISION: the guest has no hash type, so a hash is a `Size` stand-in compared with `szEq`; the action is a `Size` code, because `authorize` takes any A. `examples/certificate.lang` has 18 closed `refl` rows: one for each reason, the valid rows and the first-failure rows. `test/cryptotool.c` has the cert section, 12 rows (Q-S8-5 (a)): the body bytes, Schnorr over keccak256 of the body, the check order height, prev hash, signature, and the evidence. O5 (Q-S8-6 (b), OI-14 closed): `rule_margins` in `src/front/check.c` is one upward pass over the count space, O(space k), with no list of minimal accepting vectors; on 18752 cases it gives the same least total and least overlap as the S5 walk. `examples/fork-margin.lang` (20 classes of 1, f = 3) checks in 12.0 s, and `test/check/fork-margin.lang` (f = 4) gives `REFUSE_FORK`. Gate: 37 examples, 17 parse refusals, 180 check refusals, 112 evals, 14 crypto rep lines, 40 Wasm modules valid, 998 differential cases with 0 mismatches, 109 crypto rows. Mutants M1a and M1b (the reason order), M2 (the height), M3 (the accept choice), M4 (the evidence), M5 (the C signature check), M6 to M9 (the O5 pass): KILLED. M1a was LIVE first; the USER added the row `rBothBad`, which kills it. | DONE |
 | S9 | T1 part 1: the Wasm module, the crypto import ABI (Q-S1-1 (a)), the notrap rows. On the USER S8 commit a2322ef. The module calls six function imports of module `ratify` (section 8.2; Q-S9-1, Q-S9-2, Q-S9-6 and Q-S9-8 (a)): `sig_verify`, `hash_eq`, `share_verify`, `ballot_verify`, `tally_add` and `combine`. Each is an internal builtin row whose part is the import number. `src/wasm.c` writes the import section, and the lowering gives each `Bytes` argument as its two fields and the `Decision` block from the import result. `langc eval --host FILE` and `test/run-wasm.mjs --host FILE` read one `NAME ARGS RESULT` table, which `build/cryptotool` writes from the real crypto (Q-S9-3 and Q-S9-4 (a)). `test/notraptool.c` has the import check and 4 new bad rows (Q-S9-5 (a)). DECISION: no memory image in S9; the key of the table is the guest words (section 8.2). Gate: 37 examples, 17 parse refusals, 180 check refusals, 112 evals, 14 crypto rep lines, 26 host table rows, 23 host evals, 5 notrap modules, 11 notrap bad rows, 9 host wasm rows, 40 Wasm modules valid, 998 differential cases with 0 mismatches, 109 crypto rows. Mutants M-h1 (the import name), M-h2 (the signature answer), M-h3 (the import section): KILLED. | DONE |
-| S10 | T1 part 2: `ratifyd`, the Wasm engine (Q-S0-11 (a)), the demo D1 to D8. | |
+| S10 | T1 part 2: `ratifyd`, the Wasm engine (Q-S0-11 (a)), the demo D1 to D8. Three units (Q-S10-7 (a)), each with its own serial gate: U1 the engine (`host/`, `test/enginetool.c`, the load refusal rows, the engine against node rows); U2 the host region and `ratifyd` with the real import bodies; U3 the demo D1 to D8, the docs and the close. U3 result (Q-S10-U3-L (c)): `build/demotool` gives the W and the verdict of D1 to D8 as section 8.4 says. The gate adds 5 demo rows, 1 demo refusal, 9 verdict rows, 4 malformed rows, 13 bit-order rows and 2 cross rows. Mutants u6 (two bits of `demo` swapped), u7 (`demoV` reads a wrong bit), u8 (the height from the wrong body bytes), u9 (`demoV` drops a signature check) and u10 (two Reason names swapped): KILLED. u11 (the length check `>` for `!=`) is EQUIVALENT: a short hex field still fails at its NUL. | DONE |
 | S11 | T4: the JSON report, `docs/REPORT-JSON.md`. | |
 | S12 | T2: the TFHE tally circuit (Q-S0-12 (a)), the depth bound (O6). | |
 | S13 | T3: R_ballot and R_dec as Noir (Q-S0-13 (b)), golden files. | |
@@ -517,10 +612,11 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
   implementation choices. No target emits them in v1.
 - OI-10 The node and wasmtime oracles of the differential rows need the
   crypto imports (Q-S1-1 (a)). S9 (Q-S9-4 (a)): node takes the answers
-  from the host table (`test/run-wasm.mjs --host FILE`). Open for wasmtime
-  and for a host that reads the operand bytes: the engine of `ratifyd`
-  (S10) gives the real import bodies, with a fixture layout above the heap
-  (section 8.2).
+  from the host table (`test/run-wasm.mjs --host FILE`). S10 (Q-S10-1,
+  Q-S10-2 and Q-S10-6 (a)): the operand bytes are in the host region below
+  the heap (section 8.2), the engine of `ratifyd` gives the real import
+  bodies, and wasmtime CLI rows cover each module without imports. Open:
+  wasmtime for a module with imports.
 - OI-11 The native field of Noir is the BN254 scalar field. The
   coordinates of a BN254 G1 point are in the base field, so the Noir
   R_ballot and R_dec of the ElGamal route need non-native field arithmetic
@@ -551,6 +647,13 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
   Sigma binders in their bodies while checking each binder's own type
   outside its scope. C regressions cover shadowing and constructor uses
   in binder annotations.
+- OI-16 `verify` does not lower: the kit lowering of `verify` gives a
+  stuck elim with a function motive (S10 survey L, option (a)). So the demo
+  is split (Q-S10-U3-L (c)): the Wasm entry `demo` gives W, and `demoV`
+  runs `verify` in the evaluator only (section 8.4). Open.
+- OI-17 `demoV` on a large height word reaches the arena limit of the
+  evaluator (`langc: OOM`, S10 mutant u8). `demotool` then gives exit 1,
+  not `wrongHeight`. Open.
 
 ## 14. Questions for the USER (S0)
 

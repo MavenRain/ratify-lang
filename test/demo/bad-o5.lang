@@ -1,0 +1,15 @@
+-- D7 (Q-S10-U3-4 (a)): the P' of the D7 amendment. Its amend rule is 2 of 4
+-- operators and 0 of 1 auditor. The O4 margin is 2 - 1 = 1, but the O5 margin is
+-- (2 + 2 - 4) + 0 - 1 = -1, so langc check refuses it with REFUSE_FORK before a vote.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def c0of1 : Pos (szS one) := posFirst one
+def c2of4 : Pos (szS four) := posNext four (posNext three (posFirst two))
+def aud : Committee := cmClass one cmNil
+def dc4 : Committee := cmClass four aud
+def amend2 : Rule dc4 := rlMin dc4 (ctClass four aud c2of4 (ctClass one cmNil c0of1 ctNil))
+def amend2Honest : Honest dc4 one := hoRule dc4 one amend2
+def amend2Fork : ForkFree dc4 one := ffRule dc4 one amend2
+def pBad : Policy := plOf dc4 one amend2Honest amend2Fork
