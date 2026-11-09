@@ -1,0 +1,16 @@
+{"kind":"program","logs":1,"policies":3,"ratify":1,"rules":8}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[4],"kind":"rule","leak_t1":"counts","min":[[3]],"min_count":1,"min_listed":1,"name":"maj","ratify":1,"reject_reveals_all":false,"reject_vectors":3,"type":"Rule"}
+{"accept_reveals_all":true,"accept_vectors":1,"classes":[4],"kind":"rule","leak_t1":"counts","min":[[4]],"min_count":1,"min_listed":1,"name":"all4","ratify":1,"reject_reveals_all":false,"reject_vectors":4,"type":"Rule"}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[4],"f":1,"kind":"rule","leak_t1":"counts","min":[[3]],"min_count":1,"min_listed":1,"name":"majHonest","o4_margin":2,"ratify":1,"reject_reveals_all":false,"reject_vectors":3,"type":"Honest"}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[4],"f":1,"kind":"rule","leak_t1":"counts","min":[[3]],"min_count":1,"min_listed":1,"name":"majFork","o4_margin":2,"o5_margin":1,"ratify":1,"read_set":3,"reject_reveals_all":false,"reject_vectors":3,"type":"ForkFree"}
+{"accept_reveals_all":true,"accept_vectors":1,"classes":[4],"f":1,"kind":"rule","leak_t1":"counts","min":[[4]],"min_count":1,"min_listed":1,"name":"allFork","o4_margin":3,"o5_margin":3,"ratify":1,"read_set":2,"reject_reveals_all":false,"reject_vectors":4,"type":"ForkFree"}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[2,3],"kind":"rule","leak_t1":"counts","min":[[2,2]],"min_count":1,"min_listed":1,"name":"duoBar","ratify":1,"reject_reveals_all":false,"reject_vectors":10,"type":"Rule"}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[2,3],"f":1,"kind":"rule","leak_t1":"counts","min":[[2,2]],"min_count":1,"min_listed":1,"name":"duoHonest","o4_margin":3,"ratify":1,"reject_reveals_all":false,"reject_vectors":10,"type":"Honest"}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[2,3],"f":1,"kind":"rule","leak_t1":"counts","min":[[2,2]],"min_count":1,"min_listed":1,"name":"duoFork","o4_margin":3,"o5_margin":2,"ratify":1,"read_set":3,"reject_reveals_all":false,"reject_vectors":10,"type":"ForkFree"}
+{"amend_o4_margin":2,"amend_o5_margin":1,"auth_o4_margin":2,"classes":[4],"f":1,"kind":"policy","name":"p0","ratify":1,"read_set":3}
+{"amend_o4_margin":3,"amend_o5_margin":3,"auth_o4_margin":2,"classes":[4],"f":1,"kind":"policy","name":"p1","ratify":1,"read_set":2}
+{"amend_o4_margin":3,"amend_o5_margin":2,"auth_o4_margin":3,"classes":[2,3],"f":1,"kind":"policy","name":"p2","ratify":1,"read_set":3}
+{"kind":"log","length":2,"name":"log012","ratify":1}
+{"amend_o4_margin":2,"amend_o5_margin":1,"auth_o4_margin":2,"classes":[4],"f":1,"height":0,"kind":"height","log":"log012","ratify":1,"read_set":3}
+{"amend_o4_margin":3,"amend_o5_margin":3,"approvals":[3],"auth_o4_margin":2,"classes":[4],"decision":"accept","f":1,"height":1,"kind":"height","log":"log012","ratify":1,"read_set":2}
+{"amend_o4_margin":3,"amend_o5_margin":2,"approvals":[4],"auth_o4_margin":3,"classes":[2,3],"decision":"accept","f":1,"height":2,"kind":"height","log":"log012","ratify":1,"read_set":3}

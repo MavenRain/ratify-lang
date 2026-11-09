@@ -1,0 +1,12 @@
+-- Report row 6 (S11 U3): rlMin (2,2) over the classes [3,2]. The vector
+-- (3,2) accepts and its predecessor (3,1) in the last class rejects, but its
+-- predecessor (2,2) in the first class accepts, so (3,2) is not minimal. A
+-- minimal test that reads only the last class with a nonzero count lists
+-- (3,2) too (mutant M2).
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def c2of3 : Pos (szS three) := posNext three (posNext two (posFirst one))
+def c2of2 : Pos (szS two) := posNext two (posNext one (posFirst sz0))
+def com32 : Committee := cmClass three (cmClass two cmNil)
+def minLast : Rule com32 := rlMin com32 (ctClass three (cmClass two cmNil) c2of3 (ctClass two cmNil c2of2 ctNil))

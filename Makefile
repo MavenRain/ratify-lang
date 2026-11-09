@@ -7,7 +7,10 @@ CFLAGS = -std=c99 -Wall -Werror -Isrc
 CLANG_FLAGS = -std=c99 -Wall -Wextra -Wswitch-enum -Werror -fsyntax-only -Isrc
 FRONT = src/front/base.c src/front/lexer.c src/front/parser.c src/front/front.c src/front/eval.c src/front/check.c src/front/lower.c
 TARGET = src/wasm.c
-SRC = src/main.c $(FRONT) $(TARGET)
+# The JSON report (S11, Q-S11-3 (a)): src/jsonout.c, host/jsonin.c and host/jcs.c
+# are copies of permit-lang; src/front/report.c writes the report lines.
+REPORT = src/front/report.c src/jsonout.c host/jsonin.c host/jcs.c
+SRC = src/main.c $(FRONT) $(TARGET) $(REPORT)
 FRONT_TOOL = test/fronttool.c $(filter-out src/front/front.c,$(FRONT))
 PATH_TOOL = test/pathtool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
 NOTRAP_TOOL = test/notraptool.c
@@ -24,19 +27,23 @@ RATIFYD = host/ratifyd.c host/imports.c host/engine.c host/wasmread.c $(CRYPTO)
 # The S10 U3 runner (Part C, Form (ii)): the front end and the domain (as build/langc)
 # and the engine and the six import bodies (as build/ratifyd).
 DEMO_TOOL = test/demotool.c $(FRONT) build/domain.c host/engine.c host/wasmread.c host/imports.c $(CRYPTO)
+# The write errors of langc report (S11 U3): a port of permit-lang test/reporttool.c.
+REPORT_TOOL = test/reporttool.c
+# The string escapes of src/jsonout.c (S11 U4, Q-S11-10 (a)).
+JSON_TOOL = test/jsontool.c src/jsonout.c host/jsonin.c host/jcs.c src/front/base.c
 HOST_HEADERS = $(wildcard host/*.h)
 HEADERS = $(wildcard src/*.h src/front/*.h src/crypto/*.h)
 
 .PHONY: build check check-clang clean
 
-build: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool
+build: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool
 
 build/domain.c: domain/domain.lang gen/embed.c
 	mkdir -p build
 	$(TCC) -run gen/embed.c domain/domain.lang build/domain.c
 
-build/langc: $(SRC) $(HEADERS) build/domain.c
-	$(TCC) $(CFLAGS) -o build/langc $(SRC) build/domain.c
+build/langc: $(SRC) $(HEADERS) $(HOST_HEADERS) build/domain.c
+	$(TCC) $(CFLAGS) -Ihost -o build/langc $(SRC) build/domain.c
 
 build/fronttool: $(FRONT_TOOL) $(HEADERS)
 	mkdir -p build
@@ -70,8 +77,16 @@ build/demotool: $(DEMO_TOOL) $(HOST_HEADERS) $(HEADERS)
 	mkdir -p build
 	$(TCC) $(CFLAGS) -Ihost -o build/demotool $(DEMO_TOOL)
 
+build/reporttool: $(REPORT_TOOL)
+	mkdir -p build
+	$(TCC) $(CFLAGS) -o build/reporttool $(REPORT_TOOL)
+
+build/jsontool: $(JSON_TOOL) $(HOST_HEADERS) $(HEADERS)
+	mkdir -p build
+	$(TCC) $(CFLAGS) -Ihost -o build/jsontool $(JSON_TOOL)
+
 check-clang: build/domain.c
-	$(CC) $(CLANG_FLAGS) $(SRC) build/domain.c
+	$(CC) $(CLANG_FLAGS) -Ihost $(SRC) build/domain.c
 	$(CC) $(CLANG_FLAGS) $(FRONT_TOOL)
 	$(CC) $(CLANG_FLAGS) $(PATH_TOOL)
 	$(CC) $(CLANG_FLAGS) $(NOTRAP_TOOL)
@@ -80,8 +95,10 @@ check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(ENGINE_API_TOOL)
 	$(CC) $(CLANG_FLAGS) -Ihost $(RATIFYD)
 	$(CC) $(CLANG_FLAGS) -Ihost $(DEMO_TOOL)
+	$(CC) $(CLANG_FLAGS) $(REPORT_TOOL)
+	$(CC) $(CLANG_FLAGS) -Ihost $(JSON_TOOL)
 
-check: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool check-clang
+check: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool check-clang
 	sh test/gate.sh
 	sh test/review.sh
 	build/engineapitool

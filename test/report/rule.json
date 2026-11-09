@@ -1,0 +1,4 @@
+{"kind":"program","logs":0,"policies":0,"ratify":1,"rules":3}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[5],"kind":"rule","leak_t1":"counts","min":[[4]],"min_count":1,"min_listed":1,"name":"bar","ratify":1,"reject_reveals_all":false,"reject_vectors":4,"type":"Rule"}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[5],"f":1,"kind":"rule","leak_t1":"counts","min":[[4]],"min_count":1,"min_listed":1,"name":"barHonest","o4_margin":3,"ratify":1,"reject_reveals_all":false,"reject_vectors":4,"type":"Honest"}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[5],"f":1,"kind":"rule","leak_t1":"counts","min":[[4]],"min_count":1,"min_listed":1,"name":"barFork","o4_margin":3,"o5_margin":2,"ratify":1,"read_set":3,"reject_reveals_all":false,"reject_vectors":4,"type":"ForkFree"}

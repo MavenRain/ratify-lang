@@ -1,0 +1,3 @@
+{"kind":"program","logs":0,"policies":0,"ratify":1,"rules":2}
+{"accept_reveals_all":false,"accept_vectors":4,"classes":[4],"kind":"rule","leak_t1":"counts","min":[[1]],"min_count":1,"min_listed":1,"name":"any1","ratify":1,"reject_reveals_all":true,"reject_vectors":1,"type":"Rule"}
+{"accept_reveals_all":false,"accept_vectors":8,"classes":[2,2],"kind":"rule","leak_t1":"counts","min":[[1,0],[0,1]],"min_count":2,"min_listed":2,"name":"anyPair","ratify":1,"reject_reveals_all":true,"reject_vectors":1,"type":"Rule"}

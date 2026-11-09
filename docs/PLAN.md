@@ -31,13 +31,14 @@ kernel gives `REFUSE_ORBIT`, `REFUSE_BOUND`, `REFUSE_RULE`,
 Q-S5-3 (a), Q-S6-1 to Q-S6-4 (a), Q-S7-1 to Q-S7-6 (a), Q-S8-1 to Q-S8-5
 (a), Q-S8-6 (b), Q-S9-1 to Q-S9-6 and Q-S9-8 (a), Q-S9-7 not needed,
 Q-S10-1 to Q-S10-7, Q-S10-U2-1 to Q-S10-U2-4, Q-S10-U3-1 to Q-S10-U3-4
-and Q-S10-U3-6 (a), Q-S10-U3-L (c)).
+and Q-S10-U3-6 (a), Q-S10-U3-L (c), Q-S11-1 to Q-S11-10 (a)).
 `src/crypto/` has the crypto C of quorum-lang and
 Schnorr on BN254 G1, and `build/cryptotool` runs the crypto rows and the
 certificate rows, and writes the host table. The T1 module calls six
 host imports of module `ratify` (section 8.2). Section 1 has the rulings.
 S10 adds `ratifyd`, the Wasm engine of `host/` and the demo of section
-8.4 (`build/demotool`). Next: S11 (section 12).
+8.4 (`build/demotool`). S11 adds the T4 report `langc report`
+(`docs/REPORT-JSON.md`). Next: S12 (section 12).
 
 ## 1. Rulings
 
@@ -114,6 +115,16 @@ S10 adds `ratifyd`, the Wasm engine of `host/` and the demo of section
 | 2026-11-07 | Q-S10-U3-4 (a) "certWt = no": the guest sets `certWt` = no for a target index that has no checked Policy. Edits: section 8.4. | USER, S10 |
 | 2026-11-08 | Q-S10-U3-6 (a) "policies.lang": `test/demo/policies.lang` has the policy definitions of `demo.lang` with no Nat. A guest-mode check row proves the O3, O4 and O5 decisions, and a sync row keeps the two files the same. Edits: section 10. | USER, S10 |
 | 2026-11-08 | Q-S10-U3-L (c) "split runtimes": `verify` does not lower (OI-16). The Wasm entry `demo` runs the 13 host checks and gives the flag word W. The entry `demoV` runs `verify` in the evaluator only. `build/demotool` runs the two in one process. Edits: section 8.4, OI-16. | USER, S10 |
+| 2026-11-08 | Q-S11-1 (a) "langc report": `langc [--kit] report PROG` checks PROG and writes JSON Lines to stdout, with the exit status 0, 1 or 2 of permit-lang. Edits: section 8.2. | USER, S11 |
+| 2026-11-08 | Q-S11-2 (a) "JSON Lines": each line has `"ratify":1` and `"kind"` (`program`, `rule`, `policy`, `log`, `height`). Numbers are JSON integers; each value is below 2^53. Edits: section 8.2. | USER, S11 |
+| 2026-11-08 | Q-S11-3 (a) "copy the JCS files": `src/jsonout.c`, `host/jsonin.c` and `host/jcs.c` are copies of permit-lang. Each line is the RFC 8785 form after a parse round trip. S15 uses the files again. Edits: section 8.2. | USER, S11 |
+| 2026-11-08 | Q-S11-4 (a) "cap 64": `min` lists the minimal accepting vectors in index order, at most 64. `min_count` counts all of them and `min_listed` counts the list. Edits: section 4.2. | USER, S11 |
+| 2026-11-08 | Q-S11-5 (a) "read set": each `ForkFree` definition gives `read_set` = n - least + f + 1 (n the sum of the class sizes, least the O4 least total). For a plain t-of-n rule this is n - t + f + 1. Edits: section 4.2. | USER, S11 |
+| 2026-11-08 | Q-S11-6 (a) "leakage fields": each rule line has `leak_t1` `"counts"`, `accept_vectors`, `reject_vectors`, `accept_reveals_all` and `reject_reveals_all` (OI-5). Edits: section 13. | USER, S11 |
+| 2026-11-08 | Q-S11-7 (a) "height lines": each closed `Log` definition gives one `height` line for h = 0 to its length, with the facts of policyAt h; for h >= 1 also the approvals and the decision `accept`. Edits: section 8.2. | USER, S11 |
+| 2026-11-08 | Q-S11-8 (a) "S11 and S15": S11 owns `langc report`, the RuleFacts record and the writer. S15 `check --json` shows the margins through them. Edits: section 12. | USER, S11 |
+| 2026-11-08 | Q-S11-9 (a) "golden rows": `test/report/NAME.lang` and `NAME.json`, the gate line `report rows: N checked`, and `test/reporttool.c` for the write errors. Edits: section 10. | USER, S11 |
+| 2026-11-09 | Q-S11-10 (a) "jsontool": `test/jsontool.c` writes strings with `"`, `\`, a newline, U+0001 and a bad UTF-8 byte through the writer, and compares each line with its RFC 8785 form. No report string has these bytes, so only this tool kills the escape mutant M4. Edits: section 10. | USER, S11 |
 
 The (a) rulings keep the readings of sections 2 to 11; those sections now
 cite the ruled option. The rows for Q-S0-9 (b), Q-S0-13 (b) and Q-S1-1 to
@@ -285,6 +296,9 @@ the minimal accepting vectors of each rule, the O4 margin (smallest
 accepting total minus f), the O5 margin (the smallest
 sum_j max(0, a_j + b_j - n_j) minus f over minimal accepting a, b), and the
 read-set size n - t + f + 1 for a plain t-of-n amend rule (design sec 10).
+S11: `langc report` gives these facts (`docs/REPORT-JSON.md`). The read
+set of each `ForkFree` rule is n - least + f + 1 (Q-S11-5 (a)), and `min`
+lists at most 64 vectors (Q-S11-4 (a)).
 
 ## 5. Time
 
@@ -430,7 +444,9 @@ SOURCE-ONLY.
 - T4: the JSON report: the policy facts, the minimal accepting vectors, the
   O4 and O5 margins, the read-set size, the per-height log verdicts, and
   what the output leaks for each rule (design sec 13, first item; at T1
-  the leakage is c, Q-S1-2 (a)).
+  the leakage is c, Q-S1-2 (a)). S11: `langc [--kit] report PROG`, JSON
+  Lines in RFC 8785 form (Q-S11-1 to Q-S11-3 (a)); the schema is
+  `docs/REPORT-JSON.md`.
 
 ### 8.3 Two C programs
 
@@ -546,7 +562,10 @@ fits. Each item has one deliverable, one slice and one gate.
   bit-order rows (`demoV` on W with one bit clear gives the Reason of that
   check); 2 cross rows (`langc eval --host` and the engine on
   `test/demo/host-table.txt` both give W 4709).
-- Golden files for T2, T3 (Noir) and T4.
+- Golden files for T2, T3 (Noir) and T4. T4 (S11): the 7 rows of
+  `test/report/` (`report rows: 7 checked`), `build/reporttool`
+  (`report write errors: 2 checked`) and `build/jsontool` (`json
+  escapes: 5 checked`, Q-S11-10 (a)).
 
 ## 11. Port sources
 
@@ -574,7 +593,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S8 | `Certificate`, `Verdict`, `Reason`, `verify`, equivocation evidence; a faster O5 walk (Q-S8-6 (b)). On the USER S7 commit 796f442. `Reason` has the 8 reasons of Q-S8-3 (a), and `Verdict` is `valid` or `invalid r`. `Certificate P` is `certOf` with the height, the action, the signer set, b, P' and one `Decision` for each host byte check (Q-S8-1 (a)). `verify P Q l c evs` checks c against the tip Q of `l : Log P Q`; the first failure wins (`vdThen`), and `wrongHeight` is a height that is not `lgLen l` (Q-S8-2 (a), Q-S8-3 (a)). `Evidence c` is `evOf` (a party, a height, two hashes, two signature decisions), `equivocates` holds for two signed bodies at one height with two hashes, and `EvList c` is the input list (Q-S8-4 (a)). DECISION: the guest has no hash type, so a hash is a `Size` stand-in compared with `szEq`; the action is a `Size` code, because `authorize` takes any A. `examples/certificate.lang` has 18 closed `refl` rows: one for each reason, the valid rows and the first-failure rows. `test/cryptotool.c` has the cert section, 12 rows (Q-S8-5 (a)): the body bytes, Schnorr over keccak256 of the body, the check order height, prev hash, signature, and the evidence. O5 (Q-S8-6 (b), OI-14 closed): `rule_margins` in `src/front/check.c` is one upward pass over the count space, O(space k), with no list of minimal accepting vectors; on 18752 cases it gives the same least total and least overlap as the S5 walk. `examples/fork-margin.lang` (20 classes of 1, f = 3) checks in 12.0 s, and `test/check/fork-margin.lang` (f = 4) gives `REFUSE_FORK`. Gate: 37 examples, 17 parse refusals, 180 check refusals, 112 evals, 14 crypto rep lines, 40 Wasm modules valid, 998 differential cases with 0 mismatches, 109 crypto rows. Mutants M1a and M1b (the reason order), M2 (the height), M3 (the accept choice), M4 (the evidence), M5 (the C signature check), M6 to M9 (the O5 pass): KILLED. M1a was LIVE first; the USER added the row `rBothBad`, which kills it. | DONE |
 | S9 | T1 part 1: the Wasm module, the crypto import ABI (Q-S1-1 (a)), the notrap rows. On the USER S8 commit a2322ef. The module calls six function imports of module `ratify` (section 8.2; Q-S9-1, Q-S9-2, Q-S9-6 and Q-S9-8 (a)): `sig_verify`, `hash_eq`, `share_verify`, `ballot_verify`, `tally_add` and `combine`. Each is an internal builtin row whose part is the import number. `src/wasm.c` writes the import section, and the lowering gives each `Bytes` argument as its two fields and the `Decision` block from the import result. `langc eval --host FILE` and `test/run-wasm.mjs --host FILE` read one `NAME ARGS RESULT` table, which `build/cryptotool` writes from the real crypto (Q-S9-3 and Q-S9-4 (a)). `test/notraptool.c` has the import check and 4 new bad rows (Q-S9-5 (a)). DECISION: no memory image in S9; the key of the table is the guest words (section 8.2). Gate: 37 examples, 17 parse refusals, 180 check refusals, 112 evals, 14 crypto rep lines, 26 host table rows, 23 host evals, 5 notrap modules, 11 notrap bad rows, 9 host wasm rows, 40 Wasm modules valid, 998 differential cases with 0 mismatches, 109 crypto rows. Mutants M-h1 (the import name), M-h2 (the signature answer), M-h3 (the import section): KILLED. | DONE |
 | S10 | T1 part 2: `ratifyd`, the Wasm engine (Q-S0-11 (a)), the demo D1 to D8. Three units (Q-S10-7 (a)), each with its own serial gate: U1 the engine (`host/`, `test/enginetool.c`, the load refusal rows, the engine against node rows); U2 the host region and `ratifyd` with the real import bodies; U3 the demo D1 to D8, the docs and the close. U3 result (Q-S10-U3-L (c)): `build/demotool` gives the W and the verdict of D1 to D8 as section 8.4 says. The gate adds 5 demo rows, 1 demo refusal, 9 verdict rows, 4 malformed rows, 13 bit-order rows and 2 cross rows. Mutants u6 (two bits of `demo` swapped), u7 (`demoV` reads a wrong bit), u8 (the height from the wrong body bytes), u9 (`demoV` drops a signature check) and u10 (two Reason names swapped): KILLED. u11 (the length check `>` for `!=`) is EQUIVALENT: a short hex field still fails at its NUL. | DONE |
-| S11 | T4: the JSON report, `docs/REPORT-JSON.md`. | |
+| S11 | T4: the JSON report, `docs/REPORT-JSON.md`. On the USER commit ae31fa7. `langc [--kit] report PROG` writes JSON Lines in RFC 8785 form (Q-S11-1 to Q-S11-3 (a)): a `program` line, a `rule` line for each decided rule definition, a `policy` line for each closed `Policy` definition, and a `log` line and its `height` lines for each closed `Log` definition (Q-S11-7 (a)). The check pass keeps a RuleFacts record of each decided definition, so the report does not decide again: the class sizes, f, the least total, the overlap, the accept count and the minimal accepting vectors (at most 64 listed, Q-S11-4 (a)). The rule line gives the O4 and O5 margins, `read_set` = n - least + f + 1 (Q-S11-5 (a)) and the leakage fields (Q-S11-6 (a), OI-5). `src/jsonout.c`, `host/jsonin.c` and `host/jcs.c` are copies of permit-lang. Gate: 7 report rows, 2 report write errors, 5 json escapes (Q-S11-10 (a)); the 33 count lines of S10 do not change. Mutants M1 (the O4 margin), M2a and M2b (the minimal test), M3 (the read set), M4 (the `"` escape, killed by `build/jsontool`), M5 (no JCS round trip), M6 (the cap), M7a (the height policy) and M8 (height 0): KILLED. M7b (the height committee from `amTo`) is EQUIVALENT: the count vector counts the approval set, and the committee is only the motive index of that elimination. | DONE |
 | S12 | T2: the TFHE tally circuit (Q-S0-12 (a)), the depth bound (O6). | |
 | S13 | T3: R_ballot and R_dec as Noir (Q-S0-13 (b)), golden files. | |
 | S14 | A1: canonical forms and `langc fmt`. | |
@@ -599,7 +618,9 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
   receipt-freeness.
 - OI-5 The output leaks what the rule implies (design sec 13). T4 states it
   for each rule. At T1 the output also leaks the count vector c (Q-S1-2
-  (a)). T2 gives the one-bit output.
+  (a)). T2 gives the one-bit output. S11: each `rule` line of T4 has
+  `leak_t1`, `accept_vectors`, `reject_vectors`, `accept_reveals_all`
+  and `reject_reveals_all` (Q-S11-6 (a), `docs/REPORT-JSON.md`).
 - OI-6 CLOSED at S3. The kit row "a trap is equal to a trap" (section 2)
   is gone: in the Wasm and differential rows a `trap` line is a FAIL. The
   row `pick 2 4 9` gives 4 and does not trap: the entry sets a Flag

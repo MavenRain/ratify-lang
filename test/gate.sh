@@ -699,6 +699,38 @@ echo "wasmtime modules: $wasmtimemods checked, $wasmtimemismatches mismatches"
 # trap.
 got=$(node test/run-wasm.mjs "$tmp/entries.wasm" pick 2 4 9 2>&1) || true
 [ "$got" = "4" ] || { echo "FAIL wasm pick 2 4 9: want 4, got $got"; fail=$((fail + 1)); }
+# The JSON report (S11 U1, Q-S11-2 (a)): test/report/NAME.json is the
+# `langc report` text of test/report/NAME.lang (guest mode, no --kit). Each
+# run exits 0 with no stderr, and the text equals NAME.json byte for byte.
+reports=0
+for want in $(printf '%s\n' test/report/*.json | LC_ALL=C sort); do
+  reports=$((reports + 1))
+  name=$(basename "$want" .json)
+  status=0
+  build/langc report "test/report/$name.lang" >"$tmp/r.out" 2>"$tmp/r.err" || status=$?
+  if [ "$status" -ne 0 ] || [ -s "$tmp/r.err" ]; then
+    echo "FAIL report $name: exit $status $(head -n 1 "$tmp/r.err" | cut -c1-120)"
+    fail=$((fail + 1))
+  elif ! cmp -s "$want" "$tmp/r.out"; then
+    echo "FAIL report $name: the text is not $want: $(cmp "$want" "$tmp/r.out" 2>&1 | cut -c1-120)"
+    fail=$((fail + 1))
+  fi
+done
+echo "report rows: $reports checked"
+# The write errors of langc report (S11 U3, a port of permit-lang
+# test/reporttool.c): build/reporttool runs the report of
+# test/report/rule.lang with a writable and with a read-only stdout, and
+# writes one count line.
+if ! build/reporttool build/langc test/report/rule.lang; then
+  fail=$((fail + 1))
+fi
+# The string escapes of src/jsonout.c (S11 U4, Q-S11-10 (a)): build/jsontool
+# writes 5 strings with '"', '\', a newline, U+0001 and a bad UTF-8 byte
+# through out_bytes and out_line, and compares each line with its RFC 8785
+# form. It writes the count line.
+if ! build/jsontool; then
+  fail=$((fail + 1))
+fi
 
 status=0
 build/langc 2>/dev/null || status=$?

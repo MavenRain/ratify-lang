@@ -1,0 +1,2 @@
+{"kind":"program","logs":0,"policies":0,"ratify":1,"rules":1}
+{"accept_reveals_all":false,"accept_vectors":2,"classes":[3,2],"kind":"rule","leak_t1":"counts","min":[[2,2]],"min_count":1,"min_listed":1,"name":"minLast","ratify":1,"reject_reveals_all":false,"reject_vectors":10,"type":"Rule"}

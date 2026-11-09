@@ -27,6 +27,14 @@ typedef enum {
 } CheckMode;
 
 int check_program(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, CheckMode mode);
+/* S11 (Q-S11-4 (a)): as check_program, and keeps a RuleFacts record on M
+   for each decided rule def (Machine.rule_facts) for `langc report`. */
+int check_program_facts(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, CheckMode mode);
+/* S11: decides the rule value RULE at the closed committee COMMITTEE as
+   KIND (0 Rule, 1 Honest, 2 ForkFree) at the fault bound F, and fills OUT
+   from the arena of M (name NULL). Returns 1 when the rule passes O3 (and
+   O4, O5 by KIND); 0 for an open committee, a refusal or out of memory. */
+int check_rule_facts(Machine *m, const Value *committee, const Value *rule, int kind, int64_t f, RuleFacts *out);
 /* Returns 1 when TYPE is the type of an entry. */
 int entry_of(Machine *m, const Value *type, Entry *out);
 /* Evaluates the definition NAME on ARGS and prints the result. Returns 0, 1

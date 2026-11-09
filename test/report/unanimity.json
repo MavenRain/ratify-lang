@@ -1,0 +1,3 @@
+{"kind":"program","logs":0,"policies":0,"ratify":1,"rules":2}
+{"accept_reveals_all":true,"accept_vectors":1,"classes":[3],"kind":"rule","leak_t1":"counts","min":[[3]],"min_count":1,"min_listed":1,"name":"all3","ratify":1,"reject_reveals_all":false,"reject_vectors":3,"type":"Rule"}
+{"accept_reveals_all":true,"accept_vectors":1,"classes":[3],"f":1,"kind":"rule","leak_t1":"counts","min":[[3]],"min_count":1,"min_listed":1,"name":"all3Fork","o4_margin":2,"o5_margin":2,"ratify":1,"read_set":2,"reject_reveals_all":false,"reject_vectors":3,"type":"ForkFree"}

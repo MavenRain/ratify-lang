@@ -310,6 +310,28 @@ typedef struct HostRow {
 
 /* The checked program and the evaluation state. No global state: every
    function gets this context. */
+/* S11 (Q-S11-4 (a)): the facts of one decided rule def for `langc report`.
+   KIND 0 is Rule, 1 Honest, 2 ForkFree. N holds the K class sizes. LEAST
+   (KIND 1, 2) is the least total of an accepted vector and OVERLAP (KIND
+   2) the least overlap of two accepted vectors; each is INT64_MAX when the
+   kind does not decide it. MIN holds the first MIN_LISTED minimal accepting
+   vectors (K counts each) in index order; MIN_COUNT counts all of them. */
+#define RULE_FACTS_MIN_CAP 64u
+typedef struct {
+  const char *name;
+  int kind;
+  uint32_t k;
+  uint32_t *n;
+  int64_t f;
+  int64_t least;
+  int64_t overlap;
+  uint64_t space;
+  uint64_t accept;
+  uint64_t min_count;
+  uint32_t min_listed;
+  uint32_t *min;
+} RuleFacts;
+
 typedef struct {
   Arena *arena;
   Diag *diag;
@@ -335,6 +357,10 @@ typedef struct {
      there is no table. */
   const HostRow *host_rows;
   uint32_t host_count;
+  /* S11: one record for each decided rule def, in def order, when the
+     check ran as check_program_facts. NULL otherwise. */
+  RuleFacts *rule_facts;
+  uint32_t rule_fact_count;
 } Machine;
 
 /* The name of host import J and its word count, or NULL after the last

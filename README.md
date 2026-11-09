@@ -29,7 +29,8 @@ adds the certificate words `Certificate`, `Verdict`, `Reason`,
 adds `build/ratifyd`, its Wasm engine (`host/`) and the demo
 (`test/demo/`): `build/cryptotool demo DIR` writes the cases D1 to D8,
 and `build/demotool MODULE DEMO.lang DK.txt` prints the flag word W and
-the verdict of one case (`docs/PLAN.md` section 8.4). The
+the verdict of one case (`docs/PLAN.md` section 8.4). S11 adds
+`langc report PROG`, the T4 JSON report (`docs/REPORT-JSON.md`). The
 other ratify-lang types, refusals and targets do not exist yet.
 `docs/PLAN.md` gives the plan, and its section 14 gives the open
 questions.

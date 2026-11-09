@@ -4405,10 +4405,45 @@ static void rule_margins(const RuleSpace *x, const unsigned char *acc, uint32_t 
   }
 }
 
+/* S11 (Q-S11-4 (a)): the report facts of a rule that passed O3. By
+   monotonicity an accepted i is minimal when no i - s_j with a_j > 0 is
+   accepted. One upward pass in index order, O(space k). Returns 0 on OOM. */
+static int rule_record(const RuleSpace *x, const unsigned char *acc, uint32_t *cur, Arena *arena, RuleFacts *facts) {
+  uint64_t i;
+  uint32_t j;
+  facts->k = x->k;
+  facts->space = x->space;
+  facts->accept = 0;
+  facts->min_count = 0;
+  facts->min_listed = 0;
+  facts->n = arena_alloc(arena, ((size_t)x->k + 1u) * sizeof *facts->n);
+  facts->min = arena_alloc(arena, ((size_t)RULE_FACTS_MIN_CAP * x->k + 1u) * sizeof *facts->min);
+  if (facts->n == NULL || facts->min == NULL)
+    return 0;
+  memcpy(facts->n, x->n, (size_t)x->k * sizeof *facts->n);
+  memset(cur, 0, ((size_t)x->k + 1u) * sizeof *cur);
+  for (i = 0; i < x->space; i++) {
+    int minimal = acc[i] != 0u;
+    for (j = 0; j < x->k; j++) {
+      if (cur[j] > 0u && acc[i - x->s[j]] != 0u)
+        minimal = 0;
+    }
+    facts->accept += acc[i] != 0u ? 1u : 0u;
+    if (minimal && facts->min_listed < RULE_FACTS_MIN_CAP) {
+      memcpy(facts->min + (size_t)facts->min_listed * x->k, cur, (size_t)x->k * sizeof *cur);
+      facts->min_listed++;
+    }
+    facts->min_count += minimal ? 1u : 0u;
+    rule_next(x, cur);
+  }
+  return 1;
+}
+
 /* Decide the rule value V on the space X (S5-SURVEY section 4). KIND 0 is
    Rule (O3), 1 is Honest (O3, O4), 2 is ForkFree (O3, O4, O5). A margin
-   is a total minus F; a margin of 0 or less is a refusal. */
-static RuleVerdict rule_decide(const RuleSpace *x, const Value *v, int kind, int64_t f) {
+   is a total minus F; a margin of 0 or less is a refusal. When FACTS is
+   not NULL, an accepted rule also fills it (S11) from ARENA. */
+static RuleVerdict rule_decide(const RuleSpace *x, const Value *v, int kind, int64_t f, Arena *arena, RuleFacts *facts) {
   unsigned char *acc = malloc(x->space);
   uint32_t *cur = calloc((size_t)x->k + 1u, sizeof *cur);
   uint32_t *e = NULL;
@@ -4446,6 +4481,12 @@ static RuleVerdict rule_decide(const RuleSpace *x, const Value *v, int kind, int
   }
   if (r == RULE_OK && kind == 2 && overlap <= f)
     r = RULE_FORK;
+  if (r == RULE_OK && facts != NULL) {
+    facts->least = least;
+    facts->overlap = overlap;
+    if (!rule_record(x, acc, cur, arena, facts))
+      r = RULE_OOM;
+  }
   free(e);
   free(cur);
   free(acc);
@@ -4465,6 +4506,7 @@ static int rule_def(Checker *c, const Decl *d, const Value *tv, const Core *body
   const Value *v;
   RuleSpace x;
   RuleVerdict r;
+  RuleFacts *facts = m->rule_facts != NULL ? m->rule_facts + m->rule_fact_count : NULL;
   if (is_family(tv, find_family(m, "Honest")))
     kind = 1;
   if (is_family(tv, find_family(m, "ForkFree")))
@@ -4482,11 +4524,17 @@ static int rule_def(Checker *c, const Decl *d, const Value *tv, const Core *body
   v = here(c, body);
   if (kind != 0)
     v = v != NULL && val_is(v, OP_CTOR) && v->argc >= 1u ? v->args[v->argc - 1u] : NULL;
-  r = rule_space(m, cv, &x) ? rule_decide(&x, v, kind, (int64_t)f) : RULE_OOM;
+  r = rule_space(m, cv, &x) ? rule_decide(&x, v, kind, (int64_t)f, m->arena, facts) : RULE_OOM;
   free(x.n);
   free(x.s);
   switch (r) {
   case RULE_OK:
+    if (facts != NULL) {
+      facts->name = d->name;
+      facts->kind = kind;
+      facts->f = (int64_t)f;
+      m->rule_fact_count++;
+    }
     return 1;
   case RULE_OOM:
     return FAIL(c, "OOM", "out of memory");
@@ -4504,6 +4552,23 @@ static int rule_def(Checker *c, const Decl *d, const Value *tv, const Core *body
     return FAIL(c, "REFUSE_FORK", "%s has an O5 margin of 0 or less (the least overlap of two minimal accepting vectors, minus f); rule O5", d->name);
   }
   return 0;
+}
+
+/* S11 (Q-S11-4 (a)): the policy lines decide hoBody and ffBody again at a
+   closed committee and f. See check.h. */
+int check_rule_facts(Machine *m, const Value *committee, const Value *rule, int kind, int64_t f, RuleFacts *out) {
+  uint64_t space = count_space(m, committee);
+  RuleSpace x;
+  int ok;
+  if (space == 0 || space > COUNT_SPACE_BOUND)
+    return 0;
+  ok = rule_space(m, committee, &x) && rule_decide(&x, rule, kind, f, m->arena, out) == RULE_OK;
+  free(x.n);
+  free(x.s);
+  out->name = NULL;
+  out->kind = kind;
+  out->f = f;
+  return ok;
 }
 
 /* Q-S6-3 (a): the number of leaves of the Sum tree T. A value that is not a
@@ -5098,7 +5163,18 @@ static int check_decl(Checker *c, const Decl *d) {
   return check_def(c, d);
 }
 
+static int check_run(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, CheckMode mode, int keep);
+
 int check_program(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, CheckMode mode) {
+  return check_run(arena, decls, m, diag, mode, 0);
+}
+
+int check_program_facts(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, CheckMode mode) {
+  return check_run(arena, decls, m, diag, mode, 1);
+}
+
+/* KEEP (S11): keep a RuleFacts record for each decided rule def. */
+static int check_run(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, CheckMode mode, int keep) {
   Checker c;
   size_t ctors = 0;
   size_t extra = 0;
@@ -5118,7 +5194,8 @@ int check_program(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, C
   m->defs = arena_alloc(arena, (decls->count + extra + 1u) * sizeof *m->defs);
   m->families = arena_alloc(arena, (decls->count + extra + 1u) * sizeof *m->families);
   m->ctors = arena_alloc(arena, (ctors + 1u) * sizeof *m->ctors);
-  if (m->defs == NULL || m->families == NULL || m->ctors == NULL)
+  m->rule_facts = keep ? arena_alloc(arena, (decls->count + extra + 1u) * sizeof *m->rule_facts) : NULL;
+  if (m->defs == NULL || m->families == NULL || m->ctors == NULL || (keep && m->rule_facts == NULL))
     return diag_fail(diag, "OOM", NULL, "out of memory");
   m->def_cap = (uint32_t)(decls->count + extra);
   m->family_cap = (uint32_t)(decls->count + extra);
