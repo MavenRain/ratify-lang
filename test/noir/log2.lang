@@ -1,0 +1,41 @@
+-- Report row 5 (S11 U2): a log of 2 amendments p0 -> p1 -> p2, so the
+-- heights 0, 1 and 2. Step 1 has 3 of 4 approvals (the amend bar of p0 is
+-- t = 3), step 2 has 4 of 4 (the amend bar of p1 is t = 4). p2 has a
+-- committee of 2 classes, so the committee of amTo is not the committee of
+-- amFrom at height 2.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def yes : Decision := inr unit
+def no : Decision := inl unit
+def k3 : Pos (szS four) := posNext four (posNext three (posNext two (posFirst one)))
+def k4 : Pos (szS four) := posNext four (posNext three (posNext two (posNext one (posFirst sz0))))
+def fig : Committee := cmClass four cmNil
+def maj : Rule fig := rlMin fig (ctClass four cmNil k3 ctNil)
+def all4 : Rule fig := rlMin fig (ctClass four cmNil k4 ctNil)
+def majHonest : Honest fig one := hoRule fig one maj
+def majFork : ForkFree fig one := ffRule fig one maj
+def allFork : ForkFree fig one := ffRule fig one all4
+def p0 : Policy := plOf fig one majHonest majFork
+def p1 : Policy := plOf fig one majHonest allFork
+def c2of2 : Pos (szS two) := posNext two (posNext one (posFirst sz0))
+def c2of3 : Pos (szS three) := posNext three (posNext two (posFirst one))
+def duoCom : Committee := cmClass two (cmClass three cmNil)
+def duoBar : Rule duoCom := rlMin duoCom (ctClass two (cmClass three cmNil) c2of2 (ctClass three cmNil c2of3 ctNil))
+def duoHonest : Honest duoCom one := hoRule duoCom one duoBar
+def duoFork : ForkFree duoCom one := ffRule duoCom one duoBar
+def p2 : Policy := plOf duoCom one duoHonest duoFork
+-- Approval sets: 3 of 4 (no approval at the first position), and all 4.
+def s3 : Approvals fig := apClass four cmNil (fun (p : Pos four) => elim (fun (k : Size) (q : Pos k) => Sum Unit Unit) (fun (m : Size) => no) (fun (m : Size) (q : Pos m) (ih : Sum Unit Unit) => yes) p) apNil
+def s4 : Approvals fig := apClass four cmNil (fun (p : Pos four) => yes) apNil
+def am01 : Amendment p0 p1 := amOf p0 p1 s3 refl
+def am12 : Amendment p1 p2 := amOf p1 p2 s4 refl
+def log012 : Log p0 p2 := lgCons p0 p1 p2 am01 (lgCons p1 p2 p2 am12 (lgNil p2))
+-- O10 at each height of the log.
+def h0 : Pos three := posFirst two
+def h1 : Pos three := posNext two (posFirst one)
+def h2 : Pos three := posNext two (posNext one (posFirst sz0))
+def o10At0 : Path Policy (policyAt p0 p2 log012 h0) p0 := refl
+def o10At1 : Path Policy (policyAt p0 p2 log012 h1) p1 := refl
+def o10At2 : Path Policy (policyAt p0 p2 log012 h2) p2 := refl

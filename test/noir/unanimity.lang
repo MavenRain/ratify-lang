@@ -1,0 +1,10 @@
+-- Report row 3 (S11 U2): unanimity, one class of 3 parties, the bar t = n = 3,
+-- f = 1. A Rule and a ForkFree def: only the full count vector accepts
+-- (design D:624), so accept_reveals_all is true.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def k3 : Pos (szS three) := posNext three (posNext two (posNext one (posFirst sz0)))
+def trioCom : Committee := cmClass three cmNil
+def all3 : Rule trioCom := rlMin trioCom (ctClass three cmNil k3 ctNil)
+def all3Fork : ForkFree trioCom one := ffRule trioCom one all3

@@ -32,7 +32,9 @@ and `build/demotool MODULE DEMO.lang DK.txt` prints the flag word W and
 the verdict of one case (`docs/PLAN.md` section 8.4). S11 adds
 `langc report PROG`, the T4 JSON report (`docs/REPORT-JSON.md`). S12
 adds `langc tfhe PROG`, the T2 TFHE tally circuit
-(`docs/TFHE-CIRCUIT.md`). The other ratify-lang types, refusals and targets do not exist yet.
+(`docs/TFHE-CIRCUIT.md`). S13 adds `langc noir PROG`, the T3 relations
+R_ballot and R_dec as Noir (`docs/NOIR-RELATIONS.md`), and the Nargo
+packages in `noir/`. The other ratify-lang types, refusals and targets do not exist yet.
 `docs/PLAN.md` gives the plan, and its section 14 gives the open
 questions.
 

@@ -1,0 +1,24 @@
+# The Prover.toml of R_ballot (S13 U2): the b = 1 row of src/kat.nr in
+# the slot j = 0. `cryptotool noir DIR` writes this text.
+b = "1"
+ctx = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+j = "0"
+r = "0x1863f329a3fbad9107495e535a6992e4d40c2c9db09f373c307ea07187813a9a"
+
+[pk_x]
+limbs = ["0xef5293e4059daa0768d1548ff33191", "0xda5f3cebed9f06b48a0d7dd69c8b0d", "0x1eaf"]
+
+[pk_y]
+limbs = ["0x0ddd01599155a531604cba456683b0", "0xbe1d4f0127d7b59d9f59fc4f290b87", "0x2ae3"]
+
+[c1_x]
+limbs = ["0xb2796aaeadf92871e4ca355378cbc7", "0x620194426b06bf79f266002351e563", "0x1822"]
+
+[c1_y]
+limbs = ["0x9bb4aac83c8d7189a6434b2cbdf14f", "0xb4feaeb794f7fe88b0bcbb2ec15daf", "0x138c"]
+
+[c2_x]
+limbs = ["0x7bb06b9c231bd7d870af789b1ef6e1", "0xcef2227821b2ebd56fa0066115d195", "0x03ee"]
+
+[c2_y]
+limbs = ["0xd675fdb6507fbdaa14ff3a9fe11586", "0xad2ee3b53d2951399ba0c7d273cf06", "0x1ec6"]

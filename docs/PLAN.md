@@ -32,7 +32,7 @@ Q-S5-3 (a), Q-S6-1 to Q-S6-4 (a), Q-S7-1 to Q-S7-6 (a), Q-S8-1 to Q-S8-5
 (a), Q-S8-6 (b), Q-S9-1 to Q-S9-6 and Q-S9-8 (a), Q-S9-7 not needed,
 Q-S10-1 to Q-S10-7, Q-S10-U2-1 to Q-S10-U2-4, Q-S10-U3-1 to Q-S10-U3-4
 and Q-S10-U3-6 (a), Q-S10-U3-L (c), Q-S11-1 to Q-S11-10 (a), Q-S12-1 to
-Q-S12-8 (a)).
+Q-S12-8 (a), Q-S13-1, Q-S13-2 and Q-S13-4 to Q-S13-8 (a), Q-S13-3 (c)).
 `src/crypto/` has the crypto C of quorum-lang and
 Schnorr on BN254 G1, and `build/cryptotool` runs the crypto rows and the
 certificate rows, and writes the host table. The T1 module calls six
@@ -40,7 +40,9 @@ host imports of module `ratify` (section 8.2). Section 1 has the rulings.
 S10 adds `ratifyd`, the Wasm engine of `host/` and the demo of section
 8.4 (`build/demotool`). S11 adds the T4 report `langc report`
 (`docs/REPORT-JSON.md`). S12 adds the T2 TFHE tally circuit `langc
-tfhe` (`docs/TFHE-CIRCUIT.md`). Next: S13 (section 12).
+tfhe` (`docs/TFHE-CIRCUIT.md`). S13 adds the T3 relations R_ballot and
+R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). Next: S14
+(section 12).
 
 ## 1. Rulings
 
@@ -135,6 +137,24 @@ tfhe` (`docs/TFHE-CIRCUIT.md`). Next: S13 (section 12).
 | 2026-11-09 | Q-S12-6 (a) "C simulator vs T4 min list": `test/tfhetool.c` is a Boolean simulator that parses with `host/jsonin.c`. It runs each input assignment, compares the out bit with an oracle from the `min` list (checked against the T4 report), and computes D again; gate line `tfhe sims: N checked`. No TFHE library. Edits: section 10. | USER, S12 |
 | 2026-11-09 | Q-S12-7 (a) "The 7 report rules": `test/tfhe/NAME.lang` and `NAME.jsonl` for the 7 rows of `test/report/` (`tfhe rows: 7 checked`), the `REFUSE_DEPTH` rows (`tfhe refusals: N checked`), and the mutants M1 to M8. Edits: section 10. | USER, S12 |
 | 2026-11-09 | Q-S12-8 (a) "U1-U4": S12 has four units: the builder and the depth pass, the command and the golden rows, the simulator and the mutants, and the docs. Edits: section 12. | USER, S12 |
+| 2026-11-09 | Q-S13-1 (a) "BN254 + bigcurve": BN254 G1, non-native, through noir-bignum and noir_bigcurve at pinned tags. The relations use the T1 bytes, so T3 exports O8 for T1. The cost goes in OI-11. Edits: sections 6 (O8), 8.2, 13. | USER, S13 |
+| 2026-11-09 | Q-S13-2 (a) "Per ciphertext": as the T1 imports. R_ballot = one bit ciphertext (J = 3): public PK, CT, CTX, j; witness b, r; b in {0, 1}, c1 = r G, c2 = b G + r PK, j < K of PROG. R_dec = one DLEQ share (J = 2): public KEY, C1, D; witness s; s G = KEY, s C1 = D. No Fiat-Shamir in the circuit. Edits: section 8.2. | USER, S13 |
+| 2026-11-09 | Q-S13-3 (c) "Both": not the recommendation. `langc [--kit] noir PROG` writes the Noir text of both relations for PROG; golden rows `test/noir/NAME.lang` and `NAME.nr`, gate line `noir rows: N checked`. Also the checked-in Nargo packages `noir/ratify`, `noir/r_ballot` and `noir/r_dec` that the command produces. Edits: sections 8.2, 10. | USER, S13 |
+| 2026-11-09 | Q-S13-4 (a) "Bytes only + USER script": the gate compares bytes only. A USER script outside the repo runs `nargo check`, `test`, `execute` and `info` for each package; the results go in OI-11. Edits: sections 10, 13. | USER, S13 |
+| 2026-11-09 | Q-S13-5 (a) "KAT + both kills": KAT witnesses from cryptotool fixtures as Noir `#[test]` rows; `#[test(should_fail)]` rows for a bad bit, a bad r and a bad s; emitter mutants (drop each constraint, swap G and PK) killed by the golden cmp and by the Noir tests in the USER run. Edits: section 10. | USER, S13 |
+| 2026-11-09 | Q-S13-6 (a) "Four units": S13 has four units: the emitter, the command, the golden rows and the packages; the KAT rows; the emitter mutants; the docs. Edits: section 12. | USER, S13 |
+| 2026-11-09 | Q-S13-7 (a) "Latest + rc.0": noir_bigcurve v0.15.0, noir-bignum v0.11.0, nargo 1.0.0-rc.0; `compiler_version = ">=1.0.0"` in each Nargo.toml. Edits: section 8.2. | USER, S13 |
+| 2026-11-09 | Q-S13-8 (a) "K = I per rule def": `pub global K_<DEF>: u32` = the sum of n_j for each decided rule definition; R_ballot takes k and asserts j < k. Edits: section 8.2. | USER, S13 |
+
+The S13 decisions D-U1-1 to D-U1-5, D-U2-1 to D-U2-6 and D-U3-1 to D-U3-3
+are not USER rulings; the USER can overturn each. They are in
+`docs/NOIR-RELATIONS.md` section 11.
+
+S13 review (2026-11-10) aligns public point decoding with T1: each
+coordinate is canonical in the base field, and (0, 0) encodes the
+identity. The expanded Noir suites pass 10 + 5 tests. Focused mutation
+runs kill M1 to M7 and three point-decoding mutants. Section 13 gives
+the updated circuit costs; `docs/NOIR-RELATIONS.md` records the checks.
 
 The (a) rulings keep the readings of sections 2 to 11; those sections now
 cite the ruled option. The rows for Q-S0-9 (b), Q-S0-13 (b) and Q-S1-1 to
@@ -342,7 +362,7 @@ rows that apply to the program), `laws_assumed`, `laws_at_target` and
 | O5 | fork freedom of the amend rule | DISCHARGED | decided on the count space: one upward pass gives the least overlap of two accepted vectors (S8, Q-S8-6 (b), `rule_margins` in `src/front/check.c`) |
 | O6 | FHE exactness for accept . count | AT TARGET (T2) | a static depth bound: per gate (noise depth 1), B per circuit (Q-S12-4 (a)); S12: `langc tfhe` gives D and B, and `build/tfhetool` checks D <= B |
 | O7 | threshold decryption matches the ideal | ASSUMED | DDH and the DLEQ proofs (T1, Q-S0-9 (b)); noise flooding proof (T2) |
-| O8 | ZK for R_ballot and R_dec | ASSUMED (T1); exported at T3 | Chaum-Pedersen and DLEQ in the random oracle model (T1); Noir at T3 (Q-S0-13 (b)) |
+| O8 | ZK for R_ballot and R_dec | ASSUMED (T1); exported at T3 | Chaum-Pedersen and DLEQ in the random oracle model (T1); Noir at T3 (Q-S0-13 (b)); S13: `langc noir`, 10 + 5 `nargo test` rows pass and the 7 emitter mutants are KILLED (`docs/NOIR-RELATIONS.md`); no proof backend run |
 | O9 | resharing on a committee change | ASSUMED | proactive secret sharing |
 | O10 | causality of the log | DISCHARGED | by construction (section 5) |
 | O11 | at most one entry per height | EXTERNAL (Lean) | O5 and honest single signing (Lean T3) |
@@ -354,8 +374,9 @@ ASSUMED 8 (TCM-C, TCM-D, three view equations, O7, O8, O9), AT TARGET 1
 ## 7. Refusals
 
 The eleven new check codes (Q-S0-6 (a)). Each one gets a `fix` hint at A2.
-The last row, `REFUSE_DEPTH` (S12, Q-S12-4 (a)), is not a check code: only
-`langc tfhe` gives it.
+The last two rows are not check codes: only `langc tfhe` gives
+`REFUSE_DEPTH` (S12, Q-S12-4 (a)), and only `langc noir` gives
+`REFUSE_NOIR` (S13, D-U1-1).
 
 | Code | When | Design |
 |---|---|---|
@@ -371,6 +392,7 @@ The last row, `REFUSE_DEPTH` (S12, Q-S12-4 (a)), is not a check code: only
 | `REFUSE_PARTIAL` | A partial kit word. | R0 |
 | `REFUSE_FORMER` | A type constructor that is not CM or CC. | R1 |
 | `REFUSE_DEPTH` | At `langc tfhe` only: more than `TFHE_GATE_MAX` 65536 gates, or more than `TFHE_MIN_CAP` 4096 minimal vectors. `langc check` and T1 do not change. | O6 |
+| `REFUSE_NOIR` | At `langc noir` only: two decided rule definitions with one K name, or a member count above the u32 range. Exit 1, no text. `langc check` and T1 do not change. | O8 |
 
 ## 8. Route
 
@@ -455,7 +477,12 @@ SOURCE-ONLY.
   `langc [--kit] tfhe PROG`, JSON Lines in RFC 8785 form (Q-S12-5 (a));
   the format is `docs/TFHE-CIRCUIT.md`.
 - T3: R_ballot and R_dec as Noir programs (Q-S0-13 (b)), with golden files
-  (O8). See OI-11.
+  (O8). See OI-11. S13: `langc [--kit] noir PROG` writes one Noir library
+  text: a K global for each decided rule definition and the two relations
+  over BN254 G1 (Q-S13-1 to Q-S13-3, Q-S13-8). Pins: noir_bigcurve v0.15.0,
+  noir-bignum v0.11.0, nargo 1.0.0-rc.0 (Q-S13-7 (a)). The packages are
+  `noir/ratify`, `noir/r_ballot` and `noir/r_dec`; the format is
+  `docs/NOIR-RELATIONS.md`.
 - T4: the JSON report: the policy facts, the minimal accepting vectors, the
   O4 and O5 margins, the read-set size, the per-height log verdicts, and
   what the output leaks for each rule (design sec 13, first item; at T1
@@ -584,6 +611,12 @@ fits. Each item has one deliverable, one slice and one gate.
   `test/tfhe/` (`tfhe rows: 7 checked`), 1 refusal row (`tfhe refusals:
   1 checked`) and `build/tfhetool`, a Boolean simulator checked against
   the T4 `min` list (`tfhe sims: 19 checked`, Q-S12-6 (a), Q-S12-7 (a)).
+  T3 (S13): the 7 rows of `test/noir/` (`noir rows: 7 checked`), 1
+  refusal row (`noir refusals: 1 checked`), the package text (`noir
+  package: 1 checked`) and the 4 KAT files of `build/cryptotool noir`
+  (`noir kat: 4 checked`). The gate compares bytes only (Q-S13-4 (a)).
+  Outside the gate, validation runs nargo: 10 + 5 `nargo test` rows pass,
+  and the 7 emitter mutants are KILLED (Q-S13-5 (a)).
 
 ## 11. Port sources
 
@@ -613,7 +646,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S10 | T1 part 2: `ratifyd`, the Wasm engine (Q-S0-11 (a)), the demo D1 to D8. Three units (Q-S10-7 (a)), each with its own serial gate: U1 the engine (`host/`, `test/enginetool.c`, the load refusal rows, the engine against node rows); U2 the host region and `ratifyd` with the real import bodies; U3 the demo D1 to D8, the docs and the close. U3 result (Q-S10-U3-L (c)): `build/demotool` gives the W and the verdict of D1 to D8 as section 8.4 says. The gate adds 5 demo rows, 1 demo refusal, 9 verdict rows, 4 malformed rows, 13 bit-order rows and 2 cross rows. Mutants u6 (two bits of `demo` swapped), u7 (`demoV` reads a wrong bit), u8 (the height from the wrong body bytes), u9 (`demoV` drops a signature check) and u10 (two Reason names swapped): KILLED. u11 (the length check `>` for `!=`) is EQUIVALENT: a short hex field still fails at its NUL. | DONE |
 | S11 | T4: the JSON report, `docs/REPORT-JSON.md`. On the USER commit ae31fa7. `langc [--kit] report PROG` writes JSON Lines in RFC 8785 form (Q-S11-1 to Q-S11-3 (a)): a `program` line, a `rule` line for each decided rule definition, a `policy` line for each closed `Policy` definition, and a `log` line and its `height` lines for each closed `Log` definition (Q-S11-7 (a)). The check pass keeps a RuleFacts record of each decided definition, so the report does not decide again: the class sizes, f, the least total, the overlap, the accept count and the minimal accepting vectors (at most 64 listed, Q-S11-4 (a)). The rule line gives the O4 and O5 margins, `read_set` = n - least + f + 1 (Q-S11-5 (a)) and the leakage fields (Q-S11-6 (a), OI-5). `src/jsonout.c`, `host/jsonin.c` and `host/jcs.c` are copies of permit-lang. Gate: 7 report rows, 2 report write errors, 5 json escapes (Q-S11-10 (a)); the 33 count lines of S10 do not change. Mutants M1 (the O4 margin), M2a and M2b (the minimal test), M3 (the read set), M4 (the `"` escape, killed by `build/jsontool`), M5 (no JCS round trip), M6 (the cap), M7a (the height policy) and M8 (height 0): KILLED. M7b (the height committee from `amTo`) is EQUIVALENT: the count vector counts the approval set, and the committee is only the motive index of that elimination. | DONE |
 | S12 | T2: the TFHE tally circuit, `docs/TFHE-CIRCUIT.md`. On the USER commit 591a3f9. `langc [--kit] tfhe PROG` writes JSON Lines in RFC 8785 form (Q-S12-5 (a)): a `program` line and a `circuit` line for each decided rule definition. The circuit has one input bit for each member and gives only the accept bit (Q-S12-1 (a), OI-5): a popcount for each class, a constant comparator chain for each threshold, an AND tree for each minimal vector and an OR tree over the minimal vectors (Q-S12-2 (a)). RuleFacts keeps up to 4096 minimal vectors (`TFHE_MIN_CAP`); T4 still lists 64. The gates are AND, OR, XOR, NAND, NOR and XNOR (one bootstrap each) and NOT (no bootstrap) (Q-S12-3 (a)). Each line gives the depth D and the static bound B from n_j, k and M; D > B is a writer fault, and `REFUSE_DEPTH` at `langc tfhe` only refuses more than 65536 gates or more than 4096 minimal vectors (Q-S12-4 (a)). Gate: 7 tfhe rows, 1 tfhe refusal and 19 tfhe sims (`build/tfhetool`, Q-S12-6 (a)); the 36 count lines of S11 do not change. Mutants M1 (the comparator), M2 (the OR tree cut at 64), M3 (the popcount carry), M5b (B = 0), M6 (m_j = 0 read as 1), M6s (the m_j = 0 skip removed: the golden bytes only) and M8 (no JCS round trip): KILLED. M7a and M7b (the caps off by one): KILLED by a scratch driver, not by the gate, because no guest row is at a cap. M4 (NOT counted in D) and M5 (no D <= B check) are EQUIVALENT: the builder writes no NOT row, and D <= B holds by the bound proof in `src/front/tfhe.h`. | DONE |
-| S13 | T3: R_ballot and R_dec as Noir (Q-S0-13 (b)), golden files. | |
+| S13 | T3: R_ballot and R_dec as Noir, `docs/NOIR-RELATIONS.md`. On the USER commit 26b94d7. `langc [--kit] noir PROG` writes one Noir library text (Q-S13-3 (c)): a `K_<DEF>` global for each decided rule definition (Q-S13-8 (a)) and the two relations over BN254 G1 with noir_bigcurve v0.15.0 and noir-bignum v0.11.0 (Q-S13-1 (a), Q-S13-7 (a)). R_ballot: b in {0, 1}, c1 = r G, c2 = b G + r PK, j < k; R_dec: s G = KEY, s C1 = D (Q-S13-2 (a)). `REFUSE_NOIR` at `langc noir` only refuses two decided rule definitions with one K name. The packages are `noir/ratify`, `noir/r_ballot` and `noir/r_dec`; `build/cryptotool noir DIR` writes their KAT files. Gate (bytes only, Q-S13-4 (a)): 7 noir rows, 1 noir refusal, 1 noir package and 4 noir kat files; the 39 count lines of S12 do not change. Validation (nargo 1.0.0-rc.0): check, test, execute and info rc 0 in each package, and 10 + 5 test rows pass. The emitter mutants M1 to M7 (drop each constraint, swap G and PK) are KILLED by the Noir tests, 7 of 7 (Q-S13-5 (a)). The cost is in OI-11. | DONE |
 | S14 | A1: canonical forms and `langc fmt`. | |
 | S15 | A2: `langc check --json`. | |
 | S16 | A4: `langc mcp`. | |
@@ -661,7 +694,16 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
 - OI-11 The native field of Noir is the BN254 scalar field. The
   coordinates of a BN254 G1 point are in the base field, so the Noir
   R_ballot and R_dec of the ElGamal route need non-native field arithmetic
-  (Q-S0-13 (b)). S13 measures the cost.
+  (Q-S0-13 (b)). S13 measured the cost (nargo 1.0.0-rc.0, `nargo info`,
+  function main): r_ballot 68506 ACIR opcodes and 145210 Brillig
+  opcodes; r_dec 45398 ACIR opcodes and 115084 Brillig opcodes. The
+  original `nargo test` peak memory footprint of r_ballot was 4.04e9 bytes with its
+  6 tests in parallel and 1.93e9 bytes or less with 2 threads. N-U2-1:
+  `nargo execute` of r_ballot prints a `bug:` note on the `+` of
+  noir_bigcurve v0.15.0 (`src/bigcurve.nr:371`); the upstream comment
+  says that `add_with_hint` checks the result. Open: the soundness of
+  that `+`, and a proof backend run (`docs/NOIR-RELATIONS.md` section
+  10).
 - OI-12 The gate gap from S2 to S3 (Q-S2-1 (a)). `src/front/lower.c`,
   `src/wasm.c` and `src/ir.h` are out of the build, and `langc build` gives
   `REFUSE_LOWER` "target pending S3". Until S3 the gate has no IR rows, no

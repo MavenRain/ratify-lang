@@ -1093,6 +1093,212 @@ static int demo_files(const char *dir) {
   return bad;
 }
 
+/* The fixed scalars of the Noir KAT rows (S13 U2): sha256 of "ratify-lang
+   S13 U2 " and the name, mod r (s13/u2-apply.py). */
+static const char NOIR_SK[] = "2736d1ef15613d5cd270a7d03c0f071edabfbfd156d4c8e7bec11447a4bbd1d2";
+static const char NOIR_R0[] = "0d43608bdd32191dcee81c3166ccbbf836261878e6f555d143347c0360878512";
+static const char NOIR_R1[] = "1863f329a3fbad9107495e535a6992e4d40c2c9db09f373c307ea07187813a9a";
+static const char NOIR_S[] = "1756b31798aeb241bccc404198ee51fc3d7e8a92b4582d5813c13a1afd7a037f";
+
+/* The T1 values of the Noir KAT rows. A bad point adds G or pk to a good
+   point, so it stays on the curve: a should_fail row fails on one
+   constraint only. */
+typedef struct {
+  U256 r0;
+  U256 r1;
+  U256 s;
+  G1 pk;          /* sk G */
+  ElgCipher bit0; /* b = 0, r0 */
+  ElgCipher bit1; /* b = 1, r1 */
+  ElgCipher bit2; /* b = 2, r1 */
+  G1 c1_bad;      /* bit1.c1 + G */
+  G1 c2_bad;      /* bit1.c2 + pk */
+  G1 key;         /* s G */
+  G1 d;           /* s bit1.c1 */
+  G1 key_bad;     /* key + G */
+  G1 d_bad;       /* d + G */
+} NoirKat;
+
+static void noir_kat(NoirKat *k) {
+  U256 sk;
+  U256 m;
+  G1 g;
+  word_hex(&sk, NOIR_SK);
+  word_hex(&k->r0, NOIR_R0);
+  word_hex(&k->r1, NOIR_R1);
+  word_hex(&k->s, NOIR_S);
+  elg_generator(&g);
+  elg_public(&k->pk, &sk);
+  u256_from_u64(&m, 0u);
+  elg_encrypt(&k->bit0, &k->pk, &m, &k->r0);
+  u256_from_u64(&m, 1u);
+  elg_encrypt(&k->bit1, &k->pk, &m, &k->r1);
+  u256_from_u64(&m, 2u);
+  elg_encrypt(&k->bit2, &k->pk, &m, &k->r1);
+  g1_add(&k->c1_bad, &k->bit1.c1, &g);
+  g1_add(&k->c2_bad, &k->bit1.c2, &k->pk);
+  elg_public(&k->key, &k->s);
+  g1_mul(&k->d, &k->bit1.c1, &k->s);
+  g1_add(&k->key_bad, &k->key, &g);
+  g1_add(&k->d_bad, &k->d, &g);
+}
+
+static void noir_hex(FILE *f, const unsigned char *b, size_t n) {
+  size_t i;
+  for (i = 0; i < n; i++)
+    fprintf(f, "%02x", b[i]);
+}
+
+/* W as the 3 limbs of a BN254_Fq, 120 bits each, the least significant limb
+   first (noir-bignum from_limbs). Q quotes each limb (Prover.toml). */
+static void noir_limbs(FILE *f, const U256 *w, const char *q) {
+  unsigned char be[32];
+  u256_to_be(be, w);
+  fprintf(f, "[%s0x", q);
+  noir_hex(f, be + 17, 15u);
+  fprintf(f, "%s, %s0x", q, q);
+  noir_hex(f, be + 2, 15u);
+  fprintf(f, "%s, %s0x", q, q);
+  noir_hex(f, be, 2u);
+  fprintf(f, "%s]", q);
+}
+
+/* The Noir global NAME of the point P: [x limbs, y limbs]. */
+static void noir_point(FILE *f, const char *name, const G1 *p) {
+  U256 x;
+  U256 y;
+  g1_to_words(&x, &y, p);
+  fprintf(f, "pub global %s: [[u128; 3]; 2] = [\n    ", name);
+  noir_limbs(f, &x, "");
+  fputs(",\n    ", f);
+  noir_limbs(f, &y, "");
+  fputs("\n];\n", f);
+}
+
+/* The Noir global NAME of the scalar K, a Field. */
+static void noir_scalar(FILE *f, const char *name, const U256 *k) {
+  unsigned char be[32];
+  u256_to_be(be, k);
+  fprintf(f, "pub global %s: Field = 0x", name);
+  noir_hex(f, be, 32u);
+  fputs(";\n", f);
+}
+
+/* The Prover.toml tables NAME_x and NAME_y of the point P. */
+static void noir_toml_point(FILE *f, const char *name, const G1 *p) {
+  U256 x;
+  U256 y;
+  g1_to_words(&x, &y, p);
+  fprintf(f, "\n[%s_x]\nlimbs = ", name);
+  noir_limbs(f, &x, "\"");
+  fprintf(f, "\n\n[%s_y]\nlimbs = ", name);
+  noir_limbs(f, &y, "\"");
+  fputs("\n", f);
+}
+
+/* The context bytes 0, 1, .., 31 of the R_ballot rows (no constraint reads
+   them). */
+static void noir_ctx(FILE *f) {
+  uint32_t i;
+  fputs("[", f);
+  for (i = 0; i < 32u; i++)
+    fprintf(f, "%s%u", i == 0u ? "" : ", ", (unsigned)i);
+  fputs("]", f);
+}
+
+static void noir_ballot_nr(FILE *f, const NoirKat *k) {
+  fputs("// The KAT values of the R_ballot tests (S13 U2). `cryptotool noir DIR`\n"
+        "// writes this text: the T1 ElGamal of the bits 0, 1 and 2 under one key\n"
+        "// PK, with fixed scalars. Do not edit it: the gate compares it byte for\n"
+        "// byte. A point is [x, y]; a coordinate is the 3 limbs of a BN254_Fq.\n"
+        "// C2_B2 = 2 G + R1 PK. C1_BAD = C1_B1 + G. C2_BAD = C2_B1 + PK.\n", f);
+  noir_scalar(f, "R0", &k->r0);
+  noir_scalar(f, "R1", &k->r1);
+  fputs("pub global CTX: [u8; 32] = ", f);
+  noir_ctx(f);
+  fputs(";\n", f);
+  noir_point(f, "PK", &k->pk);
+  noir_point(f, "C1_B0", &k->bit0.c1);
+  noir_point(f, "C2_B0", &k->bit0.c2);
+  noir_point(f, "C1_B1", &k->bit1.c1);
+  noir_point(f, "C2_B1", &k->bit1.c2);
+  noir_point(f, "C2_B2", &k->bit2.c2);
+  noir_point(f, "C1_BAD", &k->c1_bad);
+  noir_point(f, "C2_BAD", &k->c2_bad);
+}
+
+static void noir_ballot_toml(FILE *f, const NoirKat *k) {
+  unsigned char be[32];
+  fputs("# The Prover.toml of R_ballot (S13 U2): the b = 1 row of src/kat.nr in\n"
+        "# the slot j = 0. `cryptotool noir DIR` writes this text.\n"
+        "b = \"1\"\nctx = ", f);
+  noir_ctx(f);
+  fputs("\nj = \"0\"\nr = \"0x", f);
+  u256_to_be(be, &k->r1);
+  noir_hex(f, be, 32u);
+  fputs("\"\n", f);
+  noir_toml_point(f, "pk", &k->pk);
+  noir_toml_point(f, "c1", &k->bit1.c1);
+  noir_toml_point(f, "c2", &k->bit1.c2);
+}
+
+static void noir_dec_nr(FILE *f, const NoirKat *k) {
+  fputs("// The KAT values of the R_dec tests (S13 U2). `cryptotool noir DIR`\n"
+        "// writes this text: the key share KEY = S G and the decryption share\n"
+        "// D = S C1 of C1 = C1_B1 of the R_ballot rows, with a fixed scalar S.\n"
+        "// Do not edit it: the gate compares it byte for byte.\n"
+        "// KEY_BAD = KEY + G. D_BAD = D + G.\n", f);
+  noir_scalar(f, "S", &k->s);
+  noir_point(f, "KEY", &k->key);
+  noir_point(f, "C1", &k->bit1.c1);
+  noir_point(f, "D", &k->d);
+  noir_point(f, "KEY_BAD", &k->key_bad);
+  noir_point(f, "D_BAD", &k->d_bad);
+}
+
+static void noir_dec_toml(FILE *f, const NoirKat *k) {
+  unsigned char be[32];
+  fputs("# The Prover.toml of R_dec (S13 U2): the honest row of src/kat.nr.\n"
+        "# `cryptotool noir DIR` writes this text.\ns = \"0x", f);
+  u256_to_be(be, &k->s);
+  noir_hex(f, be, 32u);
+  fputs("\"\n", f);
+  noir_toml_point(f, "key", &k->key);
+  noir_toml_point(f, "c1", &k->bit1.c1);
+  noir_toml_point(f, "d", &k->d);
+}
+
+/* DIR/NAME from BODY. 1 when the file does not open or close. */
+static int noir_write(const char *dir, const char *name, const NoirKat *k,
+                      void (*body)(FILE *, const NoirKat *)) {
+  char path[4096];
+  FILE *f = NULL;
+  int n = snprintf(path, sizeof path, "%s/%s", dir, name);
+  if (n > 0 && (size_t)n < sizeof path)
+    f = fopen(path, "w");
+  if (f == NULL) {
+    fprintf(stderr, "noir: cannot write %s/%s\n", dir, name);
+    return 1;
+  }
+  body(f, k);
+  return fclose(f) == 0 ? 0 : 1;
+}
+
+/* The `noir DIR` mode (S13 U2): the KAT values of the Noir tests and the
+   Prover.toml of each bin, in the layout of noir/: DIR/r_ballot/src/kat.nr,
+   DIR/r_ballot/Prover.toml, DIR/r_dec/src/kat.nr, DIR/r_dec/Prover.toml.
+   The directories must exist. */
+static int noir_files(const char *dir) {
+  NoirKat k;
+  int bad;
+  noir_kat(&k);
+  bad = noir_write(dir, "r_ballot/src/kat.nr", &k, noir_ballot_nr);
+  bad |= noir_write(dir, "r_ballot/Prover.toml", &k, noir_ballot_toml);
+  bad |= noir_write(dir, "r_dec/src/kat.nr", &k, noir_dec_nr);
+  bad |= noir_write(dir, "r_dec/Prover.toml", &k, noir_dec_toml);
+  return bad;
+}
+
 int main(int argc, char **argv) {
   Count kat = {0u, 0u};
   Count badsig = {0u, 0u};
@@ -1111,8 +1317,10 @@ int main(int argc, char **argv) {
     return image_lines();
   if (argc == 3 && strcmp(argv[1], "demo") == 0)
     return demo_files(argv[2]);
+  if (argc == 3 && strcmp(argv[1], "noir") == 0)
+    return noir_files(argv[2]);
   if (argc != 1) {
-    fputs("usage: cryptotool [rep|host|image|demo DIR]\n", stderr);
+    fputs("usage: cryptotool [rep|host|image|demo DIR|noir DIR]\n", stderr);
     return 2;
   }
   known_rows(&kat);

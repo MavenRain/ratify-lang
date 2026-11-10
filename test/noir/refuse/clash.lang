@@ -1,0 +1,13 @@
+-- Noir refusal row (S13 U1): the decided rule defs barHonest and barhonest
+-- have one K name, K_BARHONEST. `langc noir` refuses with REFUSE_NOIR.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def five : Size := szS four
+def k4 : Pos (szS five) := posNext five (posNext four (posNext three (posNext two (posFirst one))))
+def com : Committee := cmClass five cmNil
+def bar : Rule com := rlMin com (ctClass five cmNil k4 ctNil)
+def barHonest : Honest com one := hoRule com one bar
+def barFork : ForkFree com one := ffRule com one bar
+def barhonest : Honest com one := hoRule com one bar

@@ -1,0 +1,21 @@
+# The Prover.toml of R_dec (S13 U2): the honest row of src/kat.nr.
+# `cryptotool noir DIR` writes this text.
+s = "0x1756b31798aeb241bccc404198ee51fc3d7e8a92b4582d5813c13a1afd7a037f"
+
+[key_x]
+limbs = ["0x0899899670ea8075478ed254b9ae64", "0xcd4cdc4ae86c5a45c9fc3a32f8313b", "0x259b"]
+
+[key_y]
+limbs = ["0x7298502c4b433784f22f9190e0f662", "0x7934111ffc084c0c2457ec73911a87", "0x1a58"]
+
+[c1_x]
+limbs = ["0xb2796aaeadf92871e4ca355378cbc7", "0x620194426b06bf79f266002351e563", "0x1822"]
+
+[c1_y]
+limbs = ["0x9bb4aac83c8d7189a6434b2cbdf14f", "0xb4feaeb794f7fe88b0bcbb2ec15daf", "0x138c"]
+
+[d_x]
+limbs = ["0x9b37581eb0ba2ed94514dea69c3f18", "0x5c6aab0349aedecb27f757d17a8653", "0x29b7"]
+
+[d_y]
+limbs = ["0x31c1d86fabc37268180e16aaa2d13b", "0xc01563ed5a3f98a30a751ca2bff8d1", "0x0684"]

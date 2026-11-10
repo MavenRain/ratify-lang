@@ -12,7 +12,9 @@ TARGET = src/wasm.c
 REPORT = src/front/report.c src/jsonout.c host/jsonin.c host/jcs.c
 # S12 (Q-S12-8 (a)): src/front/tfhe.c builds the T2 TFHE tally circuits.
 TFHE = src/front/tfhe.c
-SRC = src/main.c $(FRONT) $(TARGET) $(REPORT) $(TFHE)
+# S13 (Q-S13-3 (c)): src/front/noir.c writes the T3 Noir text of `langc noir`.
+NOIR = src/front/noir.c
+SRC = src/main.c $(FRONT) $(TARGET) $(REPORT) $(TFHE) $(NOIR)
 FRONT_TOOL = test/fronttool.c $(filter-out src/front/front.c,$(FRONT))
 PATH_TOOL = test/pathtool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
 NOTRAP_TOOL = test/notraptool.c

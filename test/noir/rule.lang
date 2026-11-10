@@ -1,0 +1,12 @@
+-- Report row 1 (S11 U1): one class of 5 parties, the bar t = 4, f = 1.
+-- A Rule, an Honest and a ForkFree def at one plain t-of-n class.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def five : Size := szS four
+def k4 : Pos (szS five) := posNext five (posNext four (posNext three (posNext two (posFirst one))))
+def com : Committee := cmClass five cmNil
+def bar : Rule com := rlMin com (ctClass five cmNil k4 ctNil)
+def barHonest : Honest com one := hoRule com one bar
+def barFork : ForkFree com one := ffRule com one bar

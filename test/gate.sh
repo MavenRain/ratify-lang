@@ -781,6 +781,70 @@ echo "tfhe refusals: $tfhe_refused checked"
 if ! build/tfhetool; then
   fail=$((fail + 1))
 fi
+# The T3 Noir text (S13 U1, Q-S13-3 (c)): test/noir/NAME.nr is the `langc
+# noir` text of test/noir/NAME.lang (guest mode, no --kit). Each run exits 0
+# with no stderr, and the text equals NAME.nr byte for byte.
+noir=0
+for want in $(printf '%s\n' test/noir/*.nr | LC_ALL=C sort); do
+  noir=$((noir + 1))
+  name=$(basename "$want" .nr)
+  status=0
+  build/langc noir "test/noir/$name.lang" >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+  if [ "$status" -ne 0 ] || [ -s "$tmp/t.err" ]; then
+    echo "FAIL noir $name: exit $status $(head -n 1 "$tmp/t.err" | cut -c1-120)"
+    fail=$((fail + 1))
+  elif ! cmp -s "$want" "$tmp/t.out"; then
+    echo "FAIL noir $name: the text is not $want: $(cmp "$want" "$tmp/t.out" 2>&1 | cut -c1-120)"
+    fail=$((fail + 1))
+  fi
+done
+echo "noir rows: $noir checked"
+# The T3 refusal rows (S13 U1): `langc noir` on each test/noir/refuse/NAME.lang
+# (guest mode) exits 1 with no stdout, and the first stderr line starts with
+# `langc: REFUSE_NOIR: `. `langc check` takes these programs.
+noir_refused=0
+for prog in $(printf '%s\n' test/noir/refuse/*.lang | LC_ALL=C sort); do
+  noir_refused=$((noir_refused + 1))
+  name=$(basename "$prog" .lang)
+  status=0
+  build/langc noir "$prog" >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+  first=$(head -n 1 "$tmp/t.err")
+  case "$status:$first" in
+    "1:langc: REFUSE_NOIR: "*) ;;
+    *)
+      echo "FAIL noir refusal $name: want exit 1 and REFUSE_NOIR, got exit $status: $(printf '%s' "$first" | cut -c1-120)"
+      fail=$((fail + 1))
+      ;;
+  esac
+  if [ -s "$tmp/t.out" ]; then
+    echo "FAIL noir refusal $name: stdout is not empty"
+    fail=$((fail + 1))
+  fi
+done
+echo "noir refusals: $noir_refused checked"
+# The Noir package (S13 U1): noir/ratify/src/lib.nr is the `langc noir` text
+# of test/noir/rule.lang. noir/r_ballot and noir/r_dec call it.
+status=0
+build/langc noir test/noir/rule.lang >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+if [ "$status" -ne 0 ] || [ -s "$tmp/t.err" ] || ! cmp -s noir/ratify/src/lib.nr "$tmp/t.out"; then
+  echo "FAIL noir package: noir/ratify/src/lib.nr is not the text of test/noir/rule.lang (exit $status)"
+  fail=$((fail + 1))
+else
+  echo "noir package: 1 checked"
+fi
+# The T3 KAT values (S13 U2): `build/cryptotool noir DIR` writes the Noir
+# values of the T1 rows and the Prover.toml of each bin. Each of the 4 files
+# equals its copy under noir/ byte for byte.
+mkdir -p "$tmp/nk/r_ballot/src" "$tmp/nk/r_dec/src"
+status=0
+build/cryptotool noir "$tmp/nk" >/dev/null 2>"$tmp/err" || status=$?
+[ "$status" -eq 0 ] || { echo "FAIL noir kat: want exit 0, got exit $status: $(head -n 1 "$tmp/err")"; fail=$((fail + 1)); }
+noir_kat=0
+for f in r_ballot/src/kat.nr r_ballot/Prover.toml r_dec/src/kat.nr r_dec/Prover.toml; do
+  noir_kat=$((noir_kat + 1))
+  cmp -s "noir/$f" "$tmp/nk/$f" || { echo "FAIL noir kat: noir/$f is not the cryptotool text"; fail=$((fail + 1)); }
+done
+echo "noir kat: $noir_kat checked"
 
 status=0
 build/langc 2>/dev/null || status=$?
