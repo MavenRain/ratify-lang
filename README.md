@@ -34,7 +34,8 @@ the verdict of one case (`docs/PLAN.md` section 8.4). S11 adds
 adds `langc tfhe PROG`, the T2 TFHE tally circuit
 (`docs/TFHE-CIRCUIT.md`). S13 adds `langc noir PROG`, the T3 relations
 R_ballot and R_dec as Noir (`docs/NOIR-RELATIONS.md`), and the Nargo
-packages in `noir/`. The other ratify-lang types, refusals and targets do not exist yet.
+packages in `noir/`. S14 adds `langc fmt PROG [--check]`, the canonical
+printer (`docs/FMT.md`). The other ratify-lang types, refusals and targets do not exist yet.
 `docs/PLAN.md` gives the plan, and its section 14 gives the open
 questions.
 

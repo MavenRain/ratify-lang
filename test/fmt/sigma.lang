@@ -1,0 +1,5 @@
+def s1 : (x : Nat) * Path Nat x x := p
+def s2 : Sigma (x y : Nat) (Path Nat x y) := p
+def s3 : (x y : Nat) * Path Nat x y := p
+def s4 : Sigma (x : Nat) (Nat) := p
+def s5 : f ((x : Nat) * Nat) := p

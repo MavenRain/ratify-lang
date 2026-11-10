@@ -1,0 +1,9 @@
+state State := makeState (held : Nat) history (earned : Nat)
+sealed family Secret := hidden (v : Nat)
+law def myLaw : Size := sz0
+def rec loop : Nat -> Nat := fun n => loop n
+family Even := ezero
+  | esucc (o : Odd)
+and Odd := osucc (e : Even)
+cofamily Stream (A : Type 0) := sCorec (sHead : A) (sTail : Stream A)
+axiom magic : Nat

@@ -1,0 +1,4 @@
+def f1 : Nat -> Nat -> Nat := fun x y => x
+def f2 : (A : Type 0) -> A -> A := fun (A : Type 0) (a : A) => a
+def f3 : (A : Type 0) -> A -> A -> A := fun (A : Type 0) a (b : A) (c : A) => a
+def f4 : Nat := (fun z => z) y

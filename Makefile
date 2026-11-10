@@ -14,8 +14,12 @@ REPORT = src/front/report.c src/jsonout.c host/jsonin.c host/jcs.c
 TFHE = src/front/tfhe.c
 # S13 (Q-S13-3 (c)): src/front/noir.c writes the T3 Noir text of `langc noir`.
 NOIR = src/front/noir.c
-SRC = src/main.c $(FRONT) $(TARGET) $(REPORT) $(TFHE) $(NOIR)
+# S14 (Q-S14-8 (a)): src/front/fmt.c prints the canonical text of `langc fmt`.
+FMT = src/front/fmt.c
+SRC = src/main.c $(FRONT) $(TARGET) $(REPORT) $(TFHE) $(NOIR) $(FMT)
 FRONT_TOOL = test/fronttool.c $(filter-out src/front/front.c,$(FRONT))
+# The AST dump of the fmt laws (S14 U2).
+AST_TOOL = test/asttool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
 PATH_TOOL = test/pathtool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
 NOTRAP_TOOL = test/notraptool.c
 # The crypto layer (S7). langc does not link it; only build/cryptotool does.
@@ -42,7 +46,7 @@ HEADERS = $(wildcard src/*.h src/front/*.h src/crypto/*.h)
 
 .PHONY: build check check-clang clean
 
-build: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool
+build: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool
 
 build/domain.c: domain/domain.lang gen/embed.c
 	mkdir -p build
@@ -54,6 +58,9 @@ build/langc: $(SRC) $(HEADERS) $(HOST_HEADERS) build/domain.c
 build/fronttool: $(FRONT_TOOL) $(HEADERS)
 	mkdir -p build
 	$(TCC) $(CFLAGS) -o build/fronttool $(FRONT_TOOL)
+
+build/asttool: $(AST_TOOL) $(HEADERS)
+	$(TCC) $(CFLAGS) -o build/asttool $(AST_TOOL)
 
 build/pathtool: $(PATH_TOOL) $(HEADERS)
 	mkdir -p build
@@ -98,6 +105,7 @@ build/tfhetool: $(TFHE_TOOL) $(HOST_HEADERS) $(HEADERS)
 check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(SRC) build/domain.c
 	$(CC) $(CLANG_FLAGS) $(FRONT_TOOL)
+	$(CC) $(CLANG_FLAGS) $(AST_TOOL)
 	$(CC) $(CLANG_FLAGS) $(PATH_TOOL)
 	$(CC) $(CLANG_FLAGS) $(NOTRAP_TOOL)
 	$(CC) $(CLANG_FLAGS) -Ihost $(CRYPTO_TOOL)
@@ -109,7 +117,7 @@ check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(JSON_TOOL)
 	$(CC) $(CLANG_FLAGS) -Ihost $(TFHE_TOOL)
 
-check: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool check-clang
+check: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool check-clang
 	sh test/gate.sh
 	sh test/review.sh
 	build/engineapitool

@@ -1,0 +1,9 @@
+def w100 : Nat := ff x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+def w101 : Nat :=
+  fff x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+family LongFamilyName (Alpha : Type 0) (Beta : Type 0) (Gamma : Type 0) (Delta : Type 0) :=
+  first (x : Alpha)
+  | second (y : Beta)
+family Short := one
+  | two (aVeryLongFieldName : Nat) (anotherVeryLongFieldName : Nat) (yetAnotherLongFieldName : Nat) (more : Nat)
+axiom longAxiom : Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat -> Nat

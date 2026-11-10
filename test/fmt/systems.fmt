@@ -1,0 +1,3 @@
+def t1 : I -> A := fun (i : I) => [ ~i -> a, i -> b ]
+def t2 : A := hcomp A (i \/ ~i) (fun (k : I) => [ ]) base
+def t3 : I -> A := fun (i : I) => [ i -> fun (j : I) => [ j -> a ], ~i -> b ]

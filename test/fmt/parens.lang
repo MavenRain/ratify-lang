@@ -1,0 +1,8 @@
+def q1 : A := f (g x)
+def q2 : A := f (Type 0)
+def q3 : (A -> B) -> C := c
+def q4 : ((x : A) -> B) -> C := c
+def q5 : A := f (x -> y)
+def q6 : A := ((f) (x))
+def q7 : A -> (B -> C) := c
+def q8 : A := (f x) y

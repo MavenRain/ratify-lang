@@ -32,7 +32,8 @@ Q-S5-3 (a), Q-S6-1 to Q-S6-4 (a), Q-S7-1 to Q-S7-6 (a), Q-S8-1 to Q-S8-5
 (a), Q-S8-6 (b), Q-S9-1 to Q-S9-6 and Q-S9-8 (a), Q-S9-7 not needed,
 Q-S10-1 to Q-S10-7, Q-S10-U2-1 to Q-S10-U2-4, Q-S10-U3-1 to Q-S10-U3-4
 and Q-S10-U3-6 (a), Q-S10-U3-L (c), Q-S11-1 to Q-S11-10 (a), Q-S12-1 to
-Q-S12-8 (a), Q-S13-1, Q-S13-2 and Q-S13-4 to Q-S13-8 (a), Q-S13-3 (c)).
+Q-S12-8 (a), Q-S13-1, Q-S13-2 and Q-S13-4 to Q-S13-8 (a), Q-S13-3 (c),
+Q-S14-1 to Q-S14-8 (a)).
 `src/crypto/` has the crypto C of quorum-lang and
 Schnorr on BN254 G1, and `build/cryptotool` runs the crypto rows and the
 certificate rows, and writes the host table. The T1 module calls six
@@ -41,8 +42,9 @@ S10 adds `ratifyd`, the Wasm engine of `host/` and the demo of section
 8.4 (`build/demotool`). S11 adds the T4 report `langc report`
 (`docs/REPORT-JSON.md`). S12 adds the T2 TFHE tally circuit `langc
 tfhe` (`docs/TFHE-CIRCUIT.md`). S13 adds the T3 relations R_ballot and
-R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). Next: S14
-(section 12).
+R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). S14 adds
+`langc fmt`, the canonical printer (`docs/FMT.md`). Next: S15 (section
+12).
 
 ## 1. Rulings
 
@@ -145,10 +147,22 @@ R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). Next: S14
 | 2026-11-09 | Q-S13-6 (a) "Four units": S13 has four units: the emitter, the command, the golden rows and the packages; the KAT rows; the emitter mutants; the docs. Edits: section 12. | USER, S13 |
 | 2026-11-09 | Q-S13-7 (a) "Latest + rc.0": noir_bigcurve v0.15.0, noir-bignum v0.11.0, nargo 1.0.0-rc.0; `compiler_version = ">=1.0.0"` in each Nargo.toml. Edits: section 8.2. | USER, S13 |
 | 2026-11-09 | Q-S13-8 (a) "K = I per rule def": `pub global K_<DEF>: u32` = the sum of n_j for each decided rule definition; R_ballot takes k and asserts j < k. Edits: section 8.2. | USER, S13 |
+| 2026-11-10 | Q-S14-1 (a) "Comment table": the comments go in a side table (a second scan of the text in `src/front/fmt.c`). fmt prints each full-line `--` comment above the declaration that follows it, or at the end of the file. fmt refuses a comment after code on the same line (`FMT_TRAILING_COMMENT`). Edits: sections 9, 12; `docs/FMT.md`. | USER, S14 |
+| 2026-11-10 | Q-S14-2 (a) "Parser keeps both": the parser keeps the two forms of each syntax and fmt prints one. `fmt --check` in the gate keeps `examples/` canonical. No refusal changes; the 181 check rows keep their bytes. Edits: sections 9, 10. | USER, S14 |
+| 2026-11-10 | Q-S14-3 (a) "Sigma kw, split, merge fun": `Sigma (x : A) B`; one name in each group `(x : A) (y : A)`; consecutive fun binders merge: `fun (x : A) (y : B) => b`. Pi and bare `fun x` print as written (their AST is different). Edits: `docs/FMT.md`. | USER, S14 |
+| 2026-11-10 | Q-S14-4 (a) "Break after := at 100 cols": one line for each declaration; above 100 columns, one break after `:=` and the body indented by 2, no other break. Each later family constructor on its own line `  \| c ...`. One space between tokens. Edits: `docs/FMT.md`. | USER, S14 |
+| 2026-11-10 | Q-S14-5 (a) "AST dump laws, all files": over each `.lang` file that parses, fmt(fmt x) = fmt x (bytes) and dump(parse(fmt x)) = dump(parse x); dump is the AST S-expression without positions. `fmt --check` on `examples/`, rewritten once by fmt. Gate lines `fmt rows`, `fmt refusals`, `fmt idempotent`, `fmt ast`, `fmt examples`. Edits: sections 9, 10. | USER, S14 |
+| 2026-11-10 | Q-S14-6 (a) "One row per rule": `test/fmt/NAME.lang` and `NAME.fmt`, byte equal: 10 rows (Sigma star, binder group, chained fun, comments, the 100-column break, family constructors, the other declaration forms, interval terms, systems, parentheses) and 1 refusal row (trailing comment). Edits: section 10. | USER, S14 |
+| 2026-11-10 | Q-S14-7 (a) "6 printer mutants": M1 Sigma printed as `*`, M2 no group split, M3 a comment dropped, M4 a needed paren dropped on an app argument, M5 `--check` exits 0 always, M6 break at 99 columns. The gate kills each one. Edits: section 10. | USER, S14 |
+| 2026-11-10 | Q-S14-8 (a) "U1, U2, U3": U1 the printer, `langc fmt` and `--check`, the rows; U2 the corpus laws, the `examples/` rewrite and the gate lines; U3 the mutants, the docs and the close. Edits: section 12. | USER, S14 |
 
 The S13 decisions D-U1-1 to D-U1-5, D-U2-1 to D-U2-6 and D-U3-1 to D-U3-3
 are not USER rulings; the USER can overturn each. They are in
 `docs/NOIR-RELATIONS.md` section 11.
+
+The S14 decisions N-1 to N-3, N-U1-1 to N-U1-8 and N-U2-1 to N-U2-7 are
+not USER rulings; the USER can overturn each. They are in `docs/FMT.md`
+section 6.
 
 S13 review (2026-11-10) aligns public point decoding with T1: each
 coordinate is canonical in the base field, and (0, 0) encodes the
@@ -572,7 +586,7 @@ fits. Each item has one deliverable, one slice and one gate.
 
 | Item | Pasted line | Deliverable | Slice | Gate |
 |---|---|---|---|---|
-| A1 | "one canonical form per operation and a langc fmt canonical printer" | No aliases, no second syntax. `langc fmt FILE` prints the canonical form. `langc fmt --check` exits 1 when a file is not canonical. | S14 | `fmt` is idempotent; `parse (fmt x)` has the same core term as `x`; each example is canonical. |
+| A1 | "one canonical form per operation and a langc fmt canonical printer" | No aliases, no second syntax. `langc fmt FILE` prints the canonical form. `langc fmt --check` exits 1 when a file is not canonical. | S14 | `fmt` is idempotent; `parse (fmt x)` has the same core term as `x`; each example is canonical. S14: DONE. The gate lines `fmt idempotent`, `fmt ast` and `fmt examples` hold the laws over the 284 `.lang` files of the corpus (`docs/FMT.md`). |
 | A2 | "langc check --json, giving fix hints and progress counts (parsed, typed, laws discharged)" | One JSON object: `diagnostics` (code, span, expected, found, `fix`) and `progress` (`parsed`, `typed`, `laws_discharged`, `laws_total`, `laws_assumed`, `laws_at_target`, `laws_external`). Schema in `docs/CHECK-JSON.md`. | S15 | Rows in `test/json/`, byte equal. Each code of section 7 has a `fix` row. |
 | A3 | "a SKILL.md with 3 to 5 graded examples" | `skills/ratify-lang/SKILL.md` with five graded examples: G1 a plain t-of-n policy, G2 two classes and a veto, G3 an amendment that changes the amend rule, G4 a log replay with `policyAt`, G5 the demo. | S17 | Each example checks; each SKILL.md block and its file are byte equal. |
 | A4 | "an MCP server written in TinyCC (langc mcp)" | An MCP server over stdio (JSON-RPC 2.0, one message on each line), in C, in the same `langc`. Tools: section 8.3. The MCP spec version is pinned in `docs/MCP.md`. | S16 | `test/mcptool.c` sends `test/mcp/*.in` and compares the replies with `*.out`. |
@@ -617,6 +631,13 @@ fits. Each item has one deliverable, one slice and one gate.
   (`noir kat: 4 checked`). The gate compares bytes only (Q-S13-4 (a)).
   Outside the gate, validation runs nargo: 10 + 5 `nargo test` rows pass,
   and the 7 emitter mutants are KILLED (Q-S13-5 (a)).
+- `langc fmt` (S14, `docs/FMT.md`): the 10 rows of `test/fmt/` (`fmt
+  rows: 10 checked`), 1 refusal row (`fmt refusals: 1 checked`) and the
+  laws over the 284 `.lang` files of the corpus (`fmt idempotent: 267
+  checked, 17 refused`, `fmt ast: 267 checked`, `fmt examples: 37
+  checked`; Q-S14-5 (a), Q-S14-6 (a)). The gate has 49 count lines (S13:
+  43). The gate kills the 6 printer mutants M1 to M6, 6 of 6 (Q-S14-7
+  (a)).
 
 ## 11. Port sources
 
@@ -647,7 +668,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S11 | T4: the JSON report, `docs/REPORT-JSON.md`. On the USER commit ae31fa7. `langc [--kit] report PROG` writes JSON Lines in RFC 8785 form (Q-S11-1 to Q-S11-3 (a)): a `program` line, a `rule` line for each decided rule definition, a `policy` line for each closed `Policy` definition, and a `log` line and its `height` lines for each closed `Log` definition (Q-S11-7 (a)). The check pass keeps a RuleFacts record of each decided definition, so the report does not decide again: the class sizes, f, the least total, the overlap, the accept count and the minimal accepting vectors (at most 64 listed, Q-S11-4 (a)). The rule line gives the O4 and O5 margins, `read_set` = n - least + f + 1 (Q-S11-5 (a)) and the leakage fields (Q-S11-6 (a), OI-5). `src/jsonout.c`, `host/jsonin.c` and `host/jcs.c` are copies of permit-lang. Gate: 7 report rows, 2 report write errors, 5 json escapes (Q-S11-10 (a)); the 33 count lines of S10 do not change. Mutants M1 (the O4 margin), M2a and M2b (the minimal test), M3 (the read set), M4 (the `"` escape, killed by `build/jsontool`), M5 (no JCS round trip), M6 (the cap), M7a (the height policy) and M8 (height 0): KILLED. M7b (the height committee from `amTo`) is EQUIVALENT: the count vector counts the approval set, and the committee is only the motive index of that elimination. | DONE |
 | S12 | T2: the TFHE tally circuit, `docs/TFHE-CIRCUIT.md`. On the USER commit 591a3f9. `langc [--kit] tfhe PROG` writes JSON Lines in RFC 8785 form (Q-S12-5 (a)): a `program` line and a `circuit` line for each decided rule definition. The circuit has one input bit for each member and gives only the accept bit (Q-S12-1 (a), OI-5): a popcount for each class, a constant comparator chain for each threshold, an AND tree for each minimal vector and an OR tree over the minimal vectors (Q-S12-2 (a)). RuleFacts keeps up to 4096 minimal vectors (`TFHE_MIN_CAP`); T4 still lists 64. The gates are AND, OR, XOR, NAND, NOR and XNOR (one bootstrap each) and NOT (no bootstrap) (Q-S12-3 (a)). Each line gives the depth D and the static bound B from n_j, k and M; D > B is a writer fault, and `REFUSE_DEPTH` at `langc tfhe` only refuses more than 65536 gates or more than 4096 minimal vectors (Q-S12-4 (a)). Gate: 7 tfhe rows, 1 tfhe refusal and 19 tfhe sims (`build/tfhetool`, Q-S12-6 (a)); the 36 count lines of S11 do not change. Mutants M1 (the comparator), M2 (the OR tree cut at 64), M3 (the popcount carry), M5b (B = 0), M6 (m_j = 0 read as 1), M6s (the m_j = 0 skip removed: the golden bytes only) and M8 (no JCS round trip): KILLED. M7a and M7b (the caps off by one): KILLED by a scratch driver, not by the gate, because no guest row is at a cap. M4 (NOT counted in D) and M5 (no D <= B check) are EQUIVALENT: the builder writes no NOT row, and D <= B holds by the bound proof in `src/front/tfhe.h`. | DONE |
 | S13 | T3: R_ballot and R_dec as Noir, `docs/NOIR-RELATIONS.md`. On the USER commit 26b94d7. `langc [--kit] noir PROG` writes one Noir library text (Q-S13-3 (c)): a `K_<DEF>` global for each decided rule definition (Q-S13-8 (a)) and the two relations over BN254 G1 with noir_bigcurve v0.15.0 and noir-bignum v0.11.0 (Q-S13-1 (a), Q-S13-7 (a)). R_ballot: b in {0, 1}, c1 = r G, c2 = b G + r PK, j < k; R_dec: s G = KEY, s C1 = D (Q-S13-2 (a)). `REFUSE_NOIR` at `langc noir` only refuses two decided rule definitions with one K name. The packages are `noir/ratify`, `noir/r_ballot` and `noir/r_dec`; `build/cryptotool noir DIR` writes their KAT files. Gate (bytes only, Q-S13-4 (a)): 7 noir rows, 1 noir refusal, 1 noir package and 4 noir kat files; the 39 count lines of S12 do not change. Validation (nargo 1.0.0-rc.0): check, test, execute and info rc 0 in each package, and 10 + 5 test rows pass. The emitter mutants M1 to M7 (drop each constraint, swap G and PK) are KILLED by the Noir tests, 7 of 7 (Q-S13-5 (a)). The cost is in OI-11. | DONE |
-| S14 | A1: canonical forms and `langc fmt`. | |
+| S14 | A1: canonical forms and `langc fmt`, `docs/FMT.md`. On the USER commit 8926869. `langc fmt PROG [--check]` writes the canonical text; with `--check` it writes nothing and exits 1 with `FMT_DIFF` when the bytes are different (Q-S14-2 (a)). The canonical form: one declaration on one line, one break after `:=` above 100 columns, each later family constructor on its own line (Q-S14-4 (a)); `Sigma (x : A) B`, one name in each group, merged fun binders (Q-S14-3 (a)); full-line comments kept, a comment after code refused with `FMT_TRAILING_COMMENT` (Q-S14-1 (a)). The laws over the corpus: fmt is idempotent and keeps the AST dump of `test/asttool.c` (Q-S14-5 (a)). `langc fmt` rewrote 34 of the 37 examples once. Gate: 10 fmt rows, 1 fmt refusal, `fmt idempotent: 267 checked, 17 refused`, `fmt ast: 267 checked`, `fmt examples: 37 checked`; 49 count lines. The gate kills the printer mutants M1 to M6, 6 of 6 (Q-S14-7 (a)). | DONE |
 | S15 | A2: `langc check --json`. | |
 | S16 | A4: `langc mcp`. | |
 | S17 | A3 and A5: SKILL.md, G1 to G5, AGENTS.md and the README table final. | |

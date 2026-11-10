@@ -717,10 +717,10 @@ for want in $(printf '%s\n' test/report/*.json | LC_ALL=C sort); do
   fi
 done
 echo "report rows: $reports checked"
-# The write errors of langc report (S11 U3, a port of permit-lang
-# test/reporttool.c): build/reporttool runs the report of
+# The write errors of langc report and fmt (S11 U3, S14 review, a port of
+# permit-lang test/reporttool.c): build/reporttool runs both commands on
 # test/report/rule.lang with a writable and with a read-only stdout, and
-# writes one count line.
+# writes one count line for each command.
 if ! build/reporttool build/langc test/report/rule.lang; then
   fail=$((fail + 1))
 fi
@@ -845,6 +845,115 @@ for f in r_ballot/src/kat.nr r_ballot/Prover.toml r_dec/src/kat.nr r_dec/Prover.
   cmp -s "noir/$f" "$tmp/nk/$f" || { echo "FAIL noir kat: noir/$f is not the cryptotool text"; fail=$((fail + 1)); }
 done
 echo "noir kat: $noir_kat checked"
+# The canonical text (S14 U1, Q-S14-6 (a)): test/fmt/NAME.fmt is the `langc
+# fmt` text of test/fmt/NAME.lang. `fmt --check` exits 0 on NAME.fmt with no
+# output, and exits 1 with FMT_DIFF on NAME.lang when the bytes differ.
+fmt_rows=0
+for want in $(printf '%s\n' test/fmt/*.fmt | LC_ALL=C sort); do
+  fmt_rows=$((fmt_rows + 1))
+  name=$(basename "$want" .fmt)
+  status=0
+  build/langc fmt "test/fmt/$name.lang" >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+  if [ "$status" -ne 0 ] || [ -s "$tmp/t.err" ]; then
+    echo "FAIL fmt $name: exit $status $(head -n 1 "$tmp/t.err" | cut -c1-120)"
+    fail=$((fail + 1))
+  elif ! cmp -s "$want" "$tmp/t.out"; then
+    echo "FAIL fmt $name: the text is not $want: $(cmp "$want" "$tmp/t.out" 2>&1 | cut -c1-120)"
+    fail=$((fail + 1))
+  fi
+  status=0
+  build/langc fmt "$want" --check >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+  if [ "$status" -ne 0 ] || [ -s "$tmp/t.out" ] || [ -s "$tmp/t.err" ]; then
+    echo "FAIL fmt $name: --check on $want: want exit 0 and no output, got exit $status"
+    fail=$((fail + 1))
+  fi
+  if ! cmp -s "$want" "test/fmt/$name.lang"; then
+    status=0
+    build/langc fmt "test/fmt/$name.lang" --check >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+    first=$(head -n 1 "$tmp/t.err")
+    case "$status:$first" in
+      1:*FMT_DIFF*) ;;
+      *)
+        echo "FAIL fmt $name: --check on the .lang: want exit 1 and FMT_DIFF, got exit $status"
+        fail=$((fail + 1))
+        ;;
+    esac
+    [ ! -s "$tmp/t.out" ] || { echo "FAIL fmt $name: --check wrote to stdout"; fail=$((fail + 1)); }
+  fi
+done
+echo "fmt rows: $fmt_rows checked"
+# The fmt refusal rows (S14 U1, Q-S14-1 (a)): a comment after code on the
+# same line. Exit 1, FMT_TRAILING_COMMENT, no stdout.
+fmt_refused=0
+for prog in $(printf '%s\n' test/fmt/refuse/*.lang | LC_ALL=C sort); do
+  fmt_refused=$((fmt_refused + 1))
+  name=$(basename "$prog" .lang)
+  status=0
+  build/langc fmt "$prog" >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+  first=$(head -n 1 "$tmp/t.err")
+  case "$status:$first" in
+    1:*FMT_TRAILING_COMMENT*) ;;
+    *)
+      echo "FAIL fmt refusal $name: want exit 1 and FMT_TRAILING_COMMENT, got exit $status: $(printf '%s' "$first" | cut -c1-120)"
+      fail=$((fail + 1))
+      ;;
+  esac
+  [ ! -s "$tmp/t.out" ] || { echo "FAIL fmt refusal $name: stdout is not empty"; fail=$((fail + 1)); }
+done
+echo "fmt refusals: $fmt_refused checked"
+# The fmt laws (S14 U2, Q-S14-5 (a)) over every .lang under domain/,
+# examples/ and test/: fmt(fmt x) = fmt x (bytes), and the AST dump of
+# fmt x is the dump of x (build/asttool, no positions). A file that fmt
+# refuses counts as refused; its code must be a lex or parse code or
+# FMT_TRAILING_COMMENT. The laws write only into $tmp.
+fmt_idem=0
+fmt_law_refused=0
+fmt_ast=0
+for prog in $(rg --files -g '*.lang' domain examples test | LC_ALL=C sort); do
+  status=0
+  build/langc fmt "$prog" >"$tmp/law1.lang" 2>"$tmp/law.err" || status=$?
+  if [ "$status" -ne 0 ]; then
+    first=$(head -n 1 "$tmp/law.err")
+    case "$status:$first" in
+      1:*LEX_*|1:*PARSE_*|1:*FMT_TRAILING_COMMENT*) fmt_law_refused=$((fmt_law_refused + 1)) ;;
+      *)
+        echo "FAIL fmt law $prog: want exit 0, or exit 1 and a lex, parse or FMT_TRAILING_COMMENT code, got exit $status: $(printf '%s' "$first" | cut -c1-120)"
+        fail=$((fail + 1))
+        ;;
+    esac
+    continue
+  fi
+  fmt_idem=$((fmt_idem + 1))
+  status=0
+  build/langc fmt "$tmp/law1.lang" >"$tmp/law2.lang" 2>"$tmp/law.err" || status=$?
+  if [ "$status" -ne 0 ] || ! cmp -s "$tmp/law1.lang" "$tmp/law2.lang"; then
+    echo "FAIL fmt idempotent $prog: fmt(fmt x) is not fmt x (exit $status)"
+    fail=$((fail + 1))
+  fi
+  fmt_ast=$((fmt_ast + 1))
+  status=0
+  build/asttool "$prog" >"$tmp/ast0.txt" 2>"$tmp/ast.err" || status=$?
+  build/asttool "$tmp/law1.lang" >"$tmp/ast1.txt" 2>>"$tmp/ast.err" || status=$?
+  if [ "$status" -ne 0 ] || [ ! -s "$tmp/ast0.txt" ] || ! cmp -s "$tmp/ast0.txt" "$tmp/ast1.txt"; then
+    echo "FAIL fmt ast $prog: dump(fmt x) is not dump(x) (exit $status)"
+    fail=$((fail + 1))
+  fi
+done
+echo "fmt idempotent: $fmt_idem checked, $fmt_law_refused refused"
+echo "fmt ast: $fmt_ast checked"
+# The examples are canonical (S14 U2, Q-S14-2 (a)): `langc fmt --check`
+# exits 0 with no output on each examples/*.lang.
+fmt_examples=0
+for prog in $(printf '%s\n' examples/*.lang | LC_ALL=C sort); do
+  fmt_examples=$((fmt_examples + 1))
+  status=0
+  build/langc fmt "$prog" --check >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+  if [ "$status" -ne 0 ] || [ -s "$tmp/t.out" ] || [ -s "$tmp/t.err" ]; then
+    echo "FAIL fmt examples $prog: --check: want exit 0 and no output, got exit $status"
+    fail=$((fail + 1))
+  fi
+done
+echo "fmt examples: $fmt_examples checked"
 
 status=0
 build/langc 2>/dev/null || status=$?

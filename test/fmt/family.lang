@@ -1,0 +1,8 @@
+family Vec (A : Type 0) : Nat -> Type 0 :=
+  vnil : Vec A zero
+  | vcons (n : Nat) (head : A) (tail : Vec A n)
+      : Vec A (succ n)
+family S1 := base
+  | loop (i : I)
+    [ ~i -> base,
+      i -> base ]

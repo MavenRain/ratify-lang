@@ -18,7 +18,8 @@ def allFork : ForkFree fig one := ffRule fig one all4
 def p0 : Policy := plOf fig one majHonest majFork
 def p1 : Policy := plOf fig one majHonest allFork
 -- Approval sets: all 4 parties, no party, the first party only, all but the first.
-def firstOnly : Pos four -> Decision := fun (p : Pos four) => elim (fun (k : Size) (q : Pos k) => Decision) (fun (m : Size) => yes) (fun (m : Size) (q : Pos m) (ih : Decision) => no) p
+def firstOnly : Pos four -> Decision :=
+  fun (p : Pos four) => elim (fun (k : Size) (q : Pos k) => Decision) (fun (m : Size) => yes) (fun (m : Size) (q : Pos m) (ih : Decision) => no) p
 def s4 : Approvals fig := apClass four cmNil (fun (p : Pos four) => yes) apNil
 def s0 : Approvals fig := apClass four cmNil (fun (p : Pos four) => no) apNil
 def s1 : Approvals fig := apClass four cmNil firstOnly apNil
@@ -41,7 +42,8 @@ def cert0 : Approvals fig -> Decision -> Decision -> Decision -> Decision -> Dec
 def vGood : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes yes yes) evNone
 def vMalformed : Verdict := verify p0 p0 l0 (cert0 s4 no yes yes yes yes) evNone
 def vIllTyped : Verdict := verify p0 p0 l0 (cert0 s4 yes no yes yes yes) evNone
-def vWrongHeight : Verdict := verify p0 p0 l0 (certOf p0 one sz0 s4 no (inl unit) yes yes yes yes yes) evNone
+def vWrongHeight : Verdict :=
+  verify p0 p0 l0 (certOf p0 one sz0 s4 no (inl unit) yes yes yes yes yes) evNone
 def vBadPrev : Verdict := verify p0 p0 l0 (cert0 s4 yes yes no yes yes) evNone
 def vBadSig : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes no yes) evNone
 def vBadProof : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes yes no) evNone
@@ -56,9 +58,12 @@ def vSigFirst : Verdict := verify p0 p0 l0 (cert0 s4 yes yes yes no no) evNone
 def vAcceptFirst : Verdict := verify p0 p0 l0 (cert0 s1 yes yes yes yes yes) evTwo
 def vBothBad : Verdict := verify p0 p0 l0 (cert0 s4 no no yes yes yes) evNone
 -- The rule of the tip p1: authorize (t = 3) when b is no, amend (t = 4) when b is yes.
-def vAuth3 : Verdict := verify p0 p1 l1 (certOf p1 one sz0 s3 no (inl unit) yes yes yes yes yes) (evNil fig)
-def vAmend3 : Verdict := verify p0 p1 l1 (certOf p1 one sz0 s3 yes (inr p0) yes yes yes yes yes) (evNil fig)
-def vAmend4 : Verdict := verify p0 p1 l1 (certOf p1 one sz0 s4 yes (inr p0) yes yes yes yes yes) (evNil fig)
+def vAuth3 : Verdict :=
+  verify p0 p1 l1 (certOf p1 one sz0 s3 no (inl unit) yes yes yes yes yes) (evNil fig)
+def vAmend3 : Verdict :=
+  verify p0 p1 l1 (certOf p1 one sz0 s3 yes (inr p0) yes yes yes yes yes) (evNil fig)
+def vAmend4 : Verdict :=
+  verify p0 p1 l1 (certOf p1 one sz0 s4 yes (inr p0) yes yes yes yes yes) (evNil fig)
 -- Closed rows.
 def rGood : Path Verdict vGood valid := refl
 def rMalformed : Path Verdict vMalformed (invalid malformed) := refl

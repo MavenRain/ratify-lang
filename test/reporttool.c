@@ -1,4 +1,4 @@
-/* Checks that langc report observes a buffered write error (a port of
+/* Checks that langc report and fmt observe a buffered write error (a port of
  * permit-lang test/reporttool.c, S11 U3). */
 #include <errno.h>
 #include <fcntl.h>
@@ -45,5 +45,5 @@ int main(int argc, char **argv) {
     fputs("usage: reporttool LANGC PROG\n", stderr);
     return 2;
   }
-  return check(argv[1], "report", argv[2]) ? 0 : 1;
+  return check(argv[1], "report", argv[2]) && check(argv[1], "fmt", argv[2]) ? 0 : 1;
 }

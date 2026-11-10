@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "front/check.h"
+#include "front/fmt.h"
 #include "front/front.h"
 #include "front/lower.h"
 #include "front/noir.h"
@@ -22,6 +23,7 @@ typedef enum {
   CMD_REPORT,
   CMD_TFHE,
   CMD_NOIR,
+  CMD_FMT,
 } Command;
 
 typedef struct {
@@ -35,6 +37,7 @@ typedef struct {
   int json;
   CheckMode mode; /* orbit-lang S3: --kit selects the kit mode */
   const char *host_path; /* S9 step d: langc eval ... --host FILE */
+  int check; /* S14 A1: langc fmt PROG --check */
 } Options;
 
 /* S9 step d: read the host table at PATH into M. */
@@ -60,6 +63,7 @@ static const struct {
   {"report", CMD_REPORT},
   {"tfhe", CMD_TFHE},
   {"noir", CMD_NOIR},
+  {"fmt", CMD_FMT},
 };
 
 static int usage(FILE *err) {
@@ -71,6 +75,7 @@ static int usage(FILE *err) {
         "       langc [--kit] report PROG\n"
         "       langc [--kit] tfhe PROG\n"
         "       langc [--kit] noir PROG\n"
+        "       langc fmt PROG [--check]\n"
         "--kit: the kit mode, the trusted test scope of the kit gate\n", err);
   return 2;
 }
@@ -115,6 +120,11 @@ static int parse_options(int argc, char **argv, Options *opt, Diag *diag) {
       opt->json = argc == 3;
       return argc == 3 || (argc == 4 && strcmp(argv[3], "--text") == 0) ? 1
         : diag_fail(diag, "USAGE", NULL, "abi takes only --text after the program");
+    case CMD_FMT:
+      /* S14 A1 (N-2): --check compares the text with its canonical text. */
+      opt->check = argc == 4;
+      return argc == 3 || (argc == 4 && strcmp(argv[3], "--check") == 0) ? 1
+        : diag_fail(diag, "USAGE", NULL, "fmt takes only --check after the program");
     case CMD_EVAL:
       if (argc < 4) return diag_fail(diag, "USAGE", NULL, "eval needs a definition name");
       opt->entry = argv[3];
@@ -168,6 +178,7 @@ static int run_target(const Options *opt, Machine *machine, Diag *diag) {
     case CMD_REPORT:
     case CMD_TFHE:
     case CMD_NOIR:
+    case CMD_FMT:
       break;
   }
   out = fopen(opt->out_path, "wb");
@@ -180,6 +191,8 @@ static int run(const Options *opt, Arena *arena, Diag *diag) {
   char *text = NULL;
   size_t len = 0;
   if (!read_source(arena, opt->prog_path, &text, &len, diag)) return 2;
+  /* S14 A1: fmt lexes and parses the program as check does, and checks nothing. */
+  if (opt->command == CMD_FMT) return fmt_program(arena, opt->prog_path, text, len, opt->check, stdout, diag);
   DeclList decls;
   if (!front_load(arena, opt->prog_path, text, len, &decls, diag)) return 1;
   Machine machine;
@@ -207,6 +220,7 @@ static int run(const Options *opt, Arena *arena, Diag *diag) {
     case CMD_IR:
     case CMD_ABI:
     case CMD_BUILD:
+    case CMD_FMT:
       break;
   }
   return run_target(opt, &machine, diag);

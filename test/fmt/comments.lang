@@ -1,0 +1,20 @@
+
+
+-- top comment one
+-- top comment two   
+
+def a : Nat := zero
+
+
+
+-- between, after 3 blank lines
+def b : Nat := zero
+    -- indented comment
+def c : Nat :=
+  -- inside a declaration
+
+  zero
+
+-- at EOF
+
+

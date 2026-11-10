@@ -1,0 +1,3 @@
+def g1 : (x y : Nat) -> Path Nat x y := p
+family Pair (A B : Type 0) := mkPair (a b : A)
+def g2 : Nat := fun (x y : Nat) => x

@@ -1,4 +1,5 @@
 -- The count space bound (S4, Q-S0-4 (a), Q-S4-3 (a)), guest mode: 20 classes of one party give 2^20 count vectors, the bound itself.
 def one : Size := szS sz0
-def edge : Committee := cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmNil))))))))))))))))))))
+def edge : Committee :=
+  cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one (cmClass one cmNil)))))))))))))))))))
 def keepEdge : Counts edge -> Counts edge := fun (x : Counts edge) => x

@@ -31,12 +31,14 @@ def log01 : Log p0 p1 := lgCons p0 p1 p1 am01 (lgNil p1)
 -- TCM-E on a closed log.
 def eNilL : Path (Log p0 p1) (append p0 p0 p1 (lgNil p0) log01) log01 := appendNilL p0 p1 log01
 def eNilR : Path (Log p0 p1) (append p0 p1 p1 log01 (lgNil p1)) log01 := appendNilR p0 p1 log01
-def eAssoc : Path (Log p0 p1) (append p0 p1 p1 log01 (append p1 p1 p1 (lgNil p1) (lgNil p1))) (append p0 p1 p1 (append p0 p1 p1 log01 (lgNil p1)) (lgNil p1)) := appendAssoc p0 p1 p1 p1 log01 (lgNil p1) (lgNil p1)
+def eAssoc : Path (Log p0 p1) (append p0 p1 p1 log01 (append p1 p1 p1 (lgNil p1) (lgNil p1))) (append p0 p1 p1 (append p0 p1 p1 log01 (lgNil p1)) (lgNil p1)) :=
+  appendAssoc p0 p1 p1 p1 log01 (lgNil p1) (lgNil p1)
 -- O10: p0 at height 0, p1 at height 1, and p1 past the end of the log.
 def h0 : Pos two := posFirst one
 def h1 : Pos two := posNext one (posFirst sz0)
 def o10At0 : Path Policy (policyAt p0 p1 log01 h0) p0 := refl
 def o10At1 : Path Policy (policyAt p0 p1 log01 h1) p1 := refl
-def o10Past : Path Policy (sHead Policy (sTail Policy (sTail Policy (sTail Policy (systemOf p0 p1 log01))))) p1 := refl
+def o10Past : Path Policy (sHead Policy (sTail Policy (sTail Policy (sTail Policy (systemOf p0 p1 log01))))) p1 :=
+  refl
 -- A count vector that gives a Decision passes REFUSE_ARROW.
 def figDecide : Counts fig -> Decision := fun (w : Counts fig) => accept fig maj w

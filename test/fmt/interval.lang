@@ -1,0 +1,8 @@
+def i1 : I := ~(i /\ j)
+def i2 : I := (i \/ j) /\ k
+def i3 : I := p @ i /\ j
+def i4 : A := p @ (f x)
+def i5 : I := ~~i
+def i6 : I := (i /\ j) \/ (k /\ l)
+def i7 : I := i \/ (j \/ k)
+def i8 : I := (i \/ j) \/ k
