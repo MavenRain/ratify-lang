@@ -4411,13 +4411,16 @@ static void rule_margins(const RuleSpace *x, const unsigned char *acc, uint32_t 
 static int rule_record(const RuleSpace *x, const unsigned char *acc, uint32_t *cur, Arena *arena, RuleFacts *facts) {
   uint64_t i;
   uint32_t j;
+  /* S12: keep up to TFHE_MIN_CAP minimal vectors (no more than SPACE). */
+  uint32_t keep = x->space < TFHE_MIN_CAP ? (uint32_t)x->space : TFHE_MIN_CAP;
   facts->k = x->k;
   facts->space = x->space;
   facts->accept = 0;
   facts->min_count = 0;
   facts->min_listed = 0;
+  facts->min_kept = 0;
   facts->n = arena_alloc(arena, ((size_t)x->k + 1u) * sizeof *facts->n);
-  facts->min = arena_alloc(arena, ((size_t)RULE_FACTS_MIN_CAP * x->k + 1u) * sizeof *facts->min);
+  facts->min = arena_alloc(arena, ((size_t)keep * x->k + 1u) * sizeof *facts->min);
   if (facts->n == NULL || facts->min == NULL)
     return 0;
   memcpy(facts->n, x->n, (size_t)x->k * sizeof *facts->n);
@@ -4429,13 +4432,14 @@ static int rule_record(const RuleSpace *x, const unsigned char *acc, uint32_t *c
         minimal = 0;
     }
     facts->accept += acc[i] != 0u ? 1u : 0u;
-    if (minimal && facts->min_listed < RULE_FACTS_MIN_CAP) {
-      memcpy(facts->min + (size_t)facts->min_listed * x->k, cur, (size_t)x->k * sizeof *cur);
-      facts->min_listed++;
+    if (minimal && facts->min_kept < keep) {
+      memcpy(facts->min + (size_t)facts->min_kept * x->k, cur, (size_t)x->k * sizeof *cur);
+      facts->min_kept++;
     }
     facts->min_count += minimal ? 1u : 0u;
     rule_next(x, cur);
   }
+  facts->min_listed = facts->min_kept < RULE_FACTS_MIN_CAP ? facts->min_kept : RULE_FACTS_MIN_CAP;
   return 1;
 }
 

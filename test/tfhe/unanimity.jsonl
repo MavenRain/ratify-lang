@@ -1,0 +1,3 @@
+{"circuits":2,"gate_max":65536,"kind":"program","min_cap":4096,"ratify":1}
+{"bound":5,"classes":[3],"depth":4,"gate_count":6,"gates":[["XOR",0,1],["AND",0,1],["XOR",3,2],["AND",3,2],["XOR",4,6],["AND",7,5]],"inputs":3,"kind":"circuit","min":[[3]],"min_count":1,"name":"all3","nots":0,"out":8,"ratify":1,"type":"Rule"}
+{"bound":5,"classes":[3],"depth":4,"gate_count":6,"gates":[["XOR",0,1],["AND",0,1],["XOR",3,2],["AND",3,2],["XOR",4,6],["AND",7,5]],"inputs":3,"kind":"circuit","min":[[3]],"min_count":1,"name":"all3Fork","nots":0,"out":8,"ratify":1,"type":"ForkFree"}

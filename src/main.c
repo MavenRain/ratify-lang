@@ -19,6 +19,7 @@ typedef enum {
   CMD_ABI,
   CMD_BUILD,
   CMD_REPORT,
+  CMD_TFHE,
 } Command;
 
 typedef struct {
@@ -55,6 +56,7 @@ static const struct {
   {"abi", CMD_ABI},
   {"build", CMD_BUILD},
   {"report", CMD_REPORT},
+  {"tfhe", CMD_TFHE},
 };
 
 static int usage(FILE *err) {
@@ -64,6 +66,7 @@ static int usage(FILE *err) {
         "       langc [--kit] abi PROG [--text]\n"
         "       langc [--kit] build PROG -o OUT [--runtime]\n"
         "       langc [--kit] report PROG\n"
+        "       langc [--kit] tfhe PROG\n"
         "--kit: the kit mode, the trusted test scope of the kit gate\n", err);
   return 2;
 }
@@ -100,6 +103,7 @@ static int parse_options(int argc, char **argv, Options *opt, Diag *diag) {
     case CMD_CHECK:
     case CMD_IR:
     case CMD_REPORT:
+    case CMD_TFHE:
       return argc == 3 ? 1 : diag_fail(diag, "USAGE", NULL, "too many arguments");
     case CMD_ABI:
       /* The JSON ABI is the default; --text gives the C-K4-16 lines (C-c7-1). */
@@ -157,6 +161,7 @@ static int run_target(const Options *opt, Machine *machine, Diag *diag) {
     case CMD_EVAL:
     case CMD_BUILD:
     case CMD_REPORT:
+    case CMD_TFHE:
       break;
   }
   out = fopen(opt->out_path, "wb");
@@ -172,9 +177,11 @@ static int run(const Options *opt, Arena *arena, Diag *diag) {
   DeclList decls;
   if (!front_load(arena, opt->prog_path, text, len, &decls, diag)) return 1;
   Machine machine;
-  /* S11: the report keeps the facts of each decided rule def (no second decide). */
-  int checked = opt->command == CMD_REPORT ? check_program_facts(arena, &decls, &machine, diag, opt->mode)
-                                           : check_program(arena, &decls, &machine, diag, opt->mode);
+  /* S11: the report keeps the facts of each decided rule def (no second decide).
+     S12: so does tfhe (the T2 circuits are built from the facts). */
+  int facts = opt->command == CMD_REPORT || opt->command == CMD_TFHE;
+  int checked = facts ? check_program_facts(arena, &decls, &machine, diag, opt->mode)
+                      : check_program(arena, &decls, &machine, diag, opt->mode);
   if (!checked) return 1;
   switch (opt->command) {
     case CMD_CHECK:
@@ -186,6 +193,8 @@ static int run(const Options *opt, Arena *arena, Diag *diag) {
       return eval_command(&machine, opt->entry, opt->args, opt->arg_count, stdout, stderr);
     case CMD_REPORT:
       return report_program(&machine, stdout) ? 0 : 1;
+    case CMD_TFHE:
+      return report_tfhe(&machine, stdout) ? 0 : 1;
     case CMD_IR:
     case CMD_ABI:
     case CMD_BUILD:

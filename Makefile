@@ -10,7 +10,9 @@ TARGET = src/wasm.c
 # The JSON report (S11, Q-S11-3 (a)): src/jsonout.c, host/jsonin.c and host/jcs.c
 # are copies of permit-lang; src/front/report.c writes the report lines.
 REPORT = src/front/report.c src/jsonout.c host/jsonin.c host/jcs.c
-SRC = src/main.c $(FRONT) $(TARGET) $(REPORT)
+# S12 (Q-S12-8 (a)): src/front/tfhe.c builds the T2 TFHE tally circuits.
+TFHE = src/front/tfhe.c
+SRC = src/main.c $(FRONT) $(TARGET) $(REPORT) $(TFHE)
 FRONT_TOOL = test/fronttool.c $(filter-out src/front/front.c,$(FRONT))
 PATH_TOOL = test/pathtool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
 NOTRAP_TOOL = test/notraptool.c
@@ -31,12 +33,14 @@ DEMO_TOOL = test/demotool.c $(FRONT) build/domain.c host/engine.c host/wasmread.
 REPORT_TOOL = test/reporttool.c
 # The string escapes of src/jsonout.c (S11 U4, Q-S11-10 (a)).
 JSON_TOOL = test/jsontool.c src/jsonout.c host/jsonin.c host/jcs.c src/front/base.c
+# The T2 circuit simulator (S12 U3, Q-S12-6 (a)).
+TFHE_TOOL = test/tfhetool.c host/jsonin.c src/front/base.c
 HOST_HEADERS = $(wildcard host/*.h)
 HEADERS = $(wildcard src/*.h src/front/*.h src/crypto/*.h)
 
 .PHONY: build check check-clang clean
 
-build: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool
+build: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool
 
 build/domain.c: domain/domain.lang gen/embed.c
 	mkdir -p build
@@ -85,6 +89,10 @@ build/jsontool: $(JSON_TOOL) $(HOST_HEADERS) $(HEADERS)
 	mkdir -p build
 	$(TCC) $(CFLAGS) -Ihost -o build/jsontool $(JSON_TOOL)
 
+build/tfhetool: $(TFHE_TOOL) $(HOST_HEADERS) $(HEADERS)
+	mkdir -p build
+	$(TCC) $(CFLAGS) -Ihost -o build/tfhetool $(TFHE_TOOL)
+
 check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(SRC) build/domain.c
 	$(CC) $(CLANG_FLAGS) $(FRONT_TOOL)
@@ -97,8 +105,9 @@ check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(DEMO_TOOL)
 	$(CC) $(CLANG_FLAGS) $(REPORT_TOOL)
 	$(CC) $(CLANG_FLAGS) -Ihost $(JSON_TOOL)
+	$(CC) $(CLANG_FLAGS) -Ihost $(TFHE_TOOL)
 
-check: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool check-clang
+check: build/langc build/fronttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool check-clang
 	sh test/gate.sh
 	sh test/review.sh
 	build/engineapitool

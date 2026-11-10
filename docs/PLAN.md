@@ -31,14 +31,16 @@ kernel gives `REFUSE_ORBIT`, `REFUSE_BOUND`, `REFUSE_RULE`,
 Q-S5-3 (a), Q-S6-1 to Q-S6-4 (a), Q-S7-1 to Q-S7-6 (a), Q-S8-1 to Q-S8-5
 (a), Q-S8-6 (b), Q-S9-1 to Q-S9-6 and Q-S9-8 (a), Q-S9-7 not needed,
 Q-S10-1 to Q-S10-7, Q-S10-U2-1 to Q-S10-U2-4, Q-S10-U3-1 to Q-S10-U3-4
-and Q-S10-U3-6 (a), Q-S10-U3-L (c), Q-S11-1 to Q-S11-10 (a)).
+and Q-S10-U3-6 (a), Q-S10-U3-L (c), Q-S11-1 to Q-S11-10 (a), Q-S12-1 to
+Q-S12-8 (a)).
 `src/crypto/` has the crypto C of quorum-lang and
 Schnorr on BN254 G1, and `build/cryptotool` runs the crypto rows and the
 certificate rows, and writes the host table. The T1 module calls six
 host imports of module `ratify` (section 8.2). Section 1 has the rulings.
 S10 adds `ratifyd`, the Wasm engine of `host/` and the demo of section
 8.4 (`build/demotool`). S11 adds the T4 report `langc report`
-(`docs/REPORT-JSON.md`). Next: S12 (section 12).
+(`docs/REPORT-JSON.md`). S12 adds the T2 TFHE tally circuit `langc
+tfhe` (`docs/TFHE-CIRCUIT.md`). Next: S13 (section 12).
 
 ## 1. Rulings
 
@@ -125,6 +127,14 @@ S10 adds `ratifyd`, the Wasm engine of `host/` and the demo of section
 | 2026-11-08 | Q-S11-8 (a) "S11 and S15": S11 owns `langc report`, the RuleFacts record and the writer. S15 `check --json` shows the margins through them. Edits: section 12. | USER, S11 |
 | 2026-11-08 | Q-S11-9 (a) "golden rows": `test/report/NAME.lang` and `NAME.json`, the gate line `report rows: N checked`, and `test/reporttool.c` for the write errors. Edits: section 10. | USER, S11 |
 | 2026-11-09 | Q-S11-10 (a) "jsontool": `test/jsontool.c` writes strings with `"`, `\`, a newline, U+0001 and a bad UTF-8 byte through the writer, and compares each line with its RFC 8785 form. No report string has these bytes, so only this tool kills the escape mutant M4. Edits: section 10. | USER, S11 |
+| 2026-11-09 | Q-S12-1 (a) "Member bits": one TFHE bit for each member (the sum of n_j inputs, in class order and then member order). The circuit computes the count (a popcount for each class) and accept; only the accept bit leaves it (OI-5). Edits: sections 8.2, 13. | USER, S12 |
+| 2026-11-09 | Q-S12-2 (a) "Min-vector OR-AND": accept(c) = OR over the minimal vectors m of AND over j of (c_j >= m_j). This is exact, because O3 makes each decided rule upward closed. T2 keeps each minimal vector up to `TFHE_MIN_CAP` 4096; the T4 `min` list stays at 64. Edits: section 8.2. | USER, S12 |
+| 2026-11-09 | Q-S12-3 (a) "TFHE gate set": AND, OR, XOR, NAND, NOR and XNOR (two inputs, one bootstrap each), NOT with no bootstrap, and constants folded at build time. D = the longest bootstrap chain from an input to the output (NOT adds 0). Edits: section 8.2. | USER, S12 |
+| 2026-11-09 | Q-S12-4 (a) "Per gate + B + REFUSE_DEPTH": the noise depth of each gate is 1; each circuit has a static bound B from n_j, k and M before the build; the line gives D and B; D > B is a writer fault (exit 1). `REFUSE_DEPTH` at `langc tfhe` only (not at check; T1 does not change) for more than `TFHE_GATE_MAX` 65536 gates or more than `TFHE_MIN_CAP` 4096 minimal vectors. Edits: sections 6 (O6), 7. | USER, S12 |
+| 2026-11-09 | Q-S12-5 (a) "JSON Lines via jsonout": `langc [--kit] tfhe PROG` writes RFC 8785 JSON Lines through `src/jsonout.c`: a `program` line, then one `circuit` line for each decided rule definition (the name, the type, the classes, the inputs, the gates as `[op, a, b]` rows, the output wire, the gate count, D and B). Edits: section 8.2. | USER, S12 |
+| 2026-11-09 | Q-S12-6 (a) "C simulator vs T4 min list": `test/tfhetool.c` is a Boolean simulator that parses with `host/jsonin.c`. It runs each input assignment, compares the out bit with an oracle from the `min` list (checked against the T4 report), and computes D again; gate line `tfhe sims: N checked`. No TFHE library. Edits: section 10. | USER, S12 |
+| 2026-11-09 | Q-S12-7 (a) "The 7 report rules": `test/tfhe/NAME.lang` and `NAME.jsonl` for the 7 rows of `test/report/` (`tfhe rows: 7 checked`), the `REFUSE_DEPTH` rows (`tfhe refusals: N checked`), and the mutants M1 to M8. Edits: section 10. | USER, S12 |
+| 2026-11-09 | Q-S12-8 (a) "U1-U4": S12 has four units: the builder and the depth pass, the command and the golden rows, the simulator and the mutants, and the docs. Edits: section 12. | USER, S12 |
 
 The (a) rulings keep the readings of sections 2 to 11; those sections now
 cite the ruled option. The rows for Q-S0-9 (b), Q-S0-13 (b) and Q-S1-1 to
@@ -330,7 +340,7 @@ rows that apply to the program), `laws_assumed`, `laws_at_target` and
 | O3 | monotone, accept(0) = false, accept(n) = true | DISCHARGED | decided on the finite count space |
 | O4 | each accepting set holds an honest party | DISCHARGED | decided on the count space: the least total of an accepted vector (the S8 pass, Q-S8-6 (b)) |
 | O5 | fork freedom of the amend rule | DISCHARGED | decided on the count space: one upward pass gives the least overlap of two accepted vectors (S8, Q-S8-6 (b), `rule_margins` in `src/front/check.c`) |
-| O6 | FHE exactness for accept . count | AT TARGET (T2) | a static depth bound per circuit |
+| O6 | FHE exactness for accept . count | AT TARGET (T2) | a static depth bound: per gate (noise depth 1), B per circuit (Q-S12-4 (a)); S12: `langc tfhe` gives D and B, and `build/tfhetool` checks D <= B |
 | O7 | threshold decryption matches the ideal | ASSUMED | DDH and the DLEQ proofs (T1, Q-S0-9 (b)); noise flooding proof (T2) |
 | O8 | ZK for R_ballot and R_dec | ASSUMED (T1); exported at T3 | Chaum-Pedersen and DLEQ in the random oracle model (T1); Noir at T3 (Q-S0-13 (b)) |
 | O9 | resharing on a committee change | ASSUMED | proactive secret sharing |
@@ -344,6 +354,8 @@ ASSUMED 8 (TCM-C, TCM-D, three view equations, O7, O8, O9), AT TARGET 1
 ## 7. Refusals
 
 The eleven new check codes (Q-S0-6 (a)). Each one gets a `fix` hint at A2.
+The last row, `REFUSE_DEPTH` (S12, Q-S12-4 (a)), is not a check code: only
+`langc tfhe` gives it.
 
 | Code | When | Design |
 |---|---|---|
@@ -358,6 +370,7 @@ The eleven new check codes (Q-S0-6 (a)). Each one gets a `fix` hint at A2.
 | `REFUSE_BOUND` | The product of (n_j + 1) is above 2^20 (Q-S0-4 (a)). | R0 |
 | `REFUSE_PARTIAL` | A partial kit word. | R0 |
 | `REFUSE_FORMER` | A type constructor that is not CM or CC. | R1 |
+| `REFUSE_DEPTH` | At `langc tfhe` only: more than `TFHE_GATE_MAX` 65536 gates, or more than `TFHE_MIN_CAP` 4096 minimal vectors. `langc check` and T1 do not change. | O6 |
 
 ## 8. Route
 
@@ -438,7 +451,9 @@ SOURCE-ONLY.
   and on the host rows (table mode, both sides), and wasmtime CLI rows for
   each module without imports.
 - T2: the FHE tally circuit for accept . count in TFHE (Q-S0-12 (a)), with
-  a static depth bound per gate (O6). `REFUSE_APPROX` for CKKS.
+  a static depth bound per gate (O6). `REFUSE_APPROX` for CKKS. S12:
+  `langc [--kit] tfhe PROG`, JSON Lines in RFC 8785 form (Q-S12-5 (a));
+  the format is `docs/TFHE-CIRCUIT.md`.
 - T3: R_ballot and R_dec as Noir programs (Q-S0-13 (b)), with golden files
   (O8). See OI-11.
 - T4: the JSON report: the policy facts, the minimal accepting vectors, the
@@ -565,7 +580,10 @@ fits. Each item has one deliverable, one slice and one gate.
 - Golden files for T2, T3 (Noir) and T4. T4 (S11): the 7 rows of
   `test/report/` (`report rows: 7 checked`), `build/reporttool`
   (`report write errors: 2 checked`) and `build/jsontool` (`json
-  escapes: 5 checked`, Q-S11-10 (a)).
+  escapes: 5 checked`, Q-S11-10 (a)). T2 (S12): the 7 rows of
+  `test/tfhe/` (`tfhe rows: 7 checked`), 1 refusal row (`tfhe refusals:
+  1 checked`) and `build/tfhetool`, a Boolean simulator checked against
+  the T4 `min` list (`tfhe sims: 19 checked`, Q-S12-6 (a), Q-S12-7 (a)).
 
 ## 11. Port sources
 
@@ -594,7 +612,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S9 | T1 part 1: the Wasm module, the crypto import ABI (Q-S1-1 (a)), the notrap rows. On the USER S8 commit a2322ef. The module calls six function imports of module `ratify` (section 8.2; Q-S9-1, Q-S9-2, Q-S9-6 and Q-S9-8 (a)): `sig_verify`, `hash_eq`, `share_verify`, `ballot_verify`, `tally_add` and `combine`. Each is an internal builtin row whose part is the import number. `src/wasm.c` writes the import section, and the lowering gives each `Bytes` argument as its two fields and the `Decision` block from the import result. `langc eval --host FILE` and `test/run-wasm.mjs --host FILE` read one `NAME ARGS RESULT` table, which `build/cryptotool` writes from the real crypto (Q-S9-3 and Q-S9-4 (a)). `test/notraptool.c` has the import check and 4 new bad rows (Q-S9-5 (a)). DECISION: no memory image in S9; the key of the table is the guest words (section 8.2). Gate: 37 examples, 17 parse refusals, 180 check refusals, 112 evals, 14 crypto rep lines, 26 host table rows, 23 host evals, 5 notrap modules, 11 notrap bad rows, 9 host wasm rows, 40 Wasm modules valid, 998 differential cases with 0 mismatches, 109 crypto rows. Mutants M-h1 (the import name), M-h2 (the signature answer), M-h3 (the import section): KILLED. | DONE |
 | S10 | T1 part 2: `ratifyd`, the Wasm engine (Q-S0-11 (a)), the demo D1 to D8. Three units (Q-S10-7 (a)), each with its own serial gate: U1 the engine (`host/`, `test/enginetool.c`, the load refusal rows, the engine against node rows); U2 the host region and `ratifyd` with the real import bodies; U3 the demo D1 to D8, the docs and the close. U3 result (Q-S10-U3-L (c)): `build/demotool` gives the W and the verdict of D1 to D8 as section 8.4 says. The gate adds 5 demo rows, 1 demo refusal, 9 verdict rows, 4 malformed rows, 13 bit-order rows and 2 cross rows. Mutants u6 (two bits of `demo` swapped), u7 (`demoV` reads a wrong bit), u8 (the height from the wrong body bytes), u9 (`demoV` drops a signature check) and u10 (two Reason names swapped): KILLED. u11 (the length check `>` for `!=`) is EQUIVALENT: a short hex field still fails at its NUL. | DONE |
 | S11 | T4: the JSON report, `docs/REPORT-JSON.md`. On the USER commit ae31fa7. `langc [--kit] report PROG` writes JSON Lines in RFC 8785 form (Q-S11-1 to Q-S11-3 (a)): a `program` line, a `rule` line for each decided rule definition, a `policy` line for each closed `Policy` definition, and a `log` line and its `height` lines for each closed `Log` definition (Q-S11-7 (a)). The check pass keeps a RuleFacts record of each decided definition, so the report does not decide again: the class sizes, f, the least total, the overlap, the accept count and the minimal accepting vectors (at most 64 listed, Q-S11-4 (a)). The rule line gives the O4 and O5 margins, `read_set` = n - least + f + 1 (Q-S11-5 (a)) and the leakage fields (Q-S11-6 (a), OI-5). `src/jsonout.c`, `host/jsonin.c` and `host/jcs.c` are copies of permit-lang. Gate: 7 report rows, 2 report write errors, 5 json escapes (Q-S11-10 (a)); the 33 count lines of S10 do not change. Mutants M1 (the O4 margin), M2a and M2b (the minimal test), M3 (the read set), M4 (the `"` escape, killed by `build/jsontool`), M5 (no JCS round trip), M6 (the cap), M7a (the height policy) and M8 (height 0): KILLED. M7b (the height committee from `amTo`) is EQUIVALENT: the count vector counts the approval set, and the committee is only the motive index of that elimination. | DONE |
-| S12 | T2: the TFHE tally circuit (Q-S0-12 (a)), the depth bound (O6). | |
+| S12 | T2: the TFHE tally circuit, `docs/TFHE-CIRCUIT.md`. On the USER commit 591a3f9. `langc [--kit] tfhe PROG` writes JSON Lines in RFC 8785 form (Q-S12-5 (a)): a `program` line and a `circuit` line for each decided rule definition. The circuit has one input bit for each member and gives only the accept bit (Q-S12-1 (a), OI-5): a popcount for each class, a constant comparator chain for each threshold, an AND tree for each minimal vector and an OR tree over the minimal vectors (Q-S12-2 (a)). RuleFacts keeps up to 4096 minimal vectors (`TFHE_MIN_CAP`); T4 still lists 64. The gates are AND, OR, XOR, NAND, NOR and XNOR (one bootstrap each) and NOT (no bootstrap) (Q-S12-3 (a)). Each line gives the depth D and the static bound B from n_j, k and M; D > B is a writer fault, and `REFUSE_DEPTH` at `langc tfhe` only refuses more than 65536 gates or more than 4096 minimal vectors (Q-S12-4 (a)). Gate: 7 tfhe rows, 1 tfhe refusal and 19 tfhe sims (`build/tfhetool`, Q-S12-6 (a)); the 36 count lines of S11 do not change. Mutants M1 (the comparator), M2 (the OR tree cut at 64), M3 (the popcount carry), M5b (B = 0), M6 (m_j = 0 read as 1), M6s (the m_j = 0 skip removed: the golden bytes only) and M8 (no JCS round trip): KILLED. M7a and M7b (the caps off by one): KILLED by a scratch driver, not by the gate, because no guest row is at a cap. M4 (NOT counted in D) and M5 (no D <= B check) are EQUIVALENT: the builder writes no NOT row, and D <= B holds by the bound proof in `src/front/tfhe.h`. | DONE |
 | S13 | T3: R_ballot and R_dec as Noir (Q-S0-13 (b)), golden files. | |
 | S14 | A1: canonical forms and `langc fmt`. | |
 | S15 | A2: `langc check --json`. | |
@@ -620,7 +638,9 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
   for each rule. At T1 the output also leaks the count vector c (Q-S1-2
   (a)). T2 gives the one-bit output. S11: each `rule` line of T4 has
   `leak_t1`, `accept_vectors`, `reject_vectors`, `accept_reveals_all`
-  and `reject_reveals_all` (Q-S11-6 (a), `docs/REPORT-JSON.md`).
+  and `reject_reveals_all` (Q-S11-6 (a), `docs/REPORT-JSON.md`). S12: the
+  T2 circuit gives only the accept bit, and the count vector c stays
+  inside the circuit (Q-S12-1 (a), `docs/TFHE-CIRCUIT.md`).
 - OI-6 CLOSED at S3. The kit row "a trap is equal to a trap" (section 2)
   is gone: in the Wasm and differential rows a `trap` line is a FAIL. The
   row `pick 2 4 9` gives 4 and does not trap: the entry sets a Flag

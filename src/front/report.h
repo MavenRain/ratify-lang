@@ -13,5 +13,13 @@
    line for each decided rule def in def order. M must come from
    check_program_facts. Returns 1, or 0 after a diagnostic. */
 int report_program(Machine *m, FILE *out);
+/* S12 (Q-S12-5 (a)): writes the T2 TFHE circuits of the checked program
+   on M to OUT: JSON Lines in the RFC 8785 (JCS) form, the program line,
+   then one circuit line for each decided rule def in def order (see
+   front/tfhe.h). All circuits are built before the first line: a
+   circuit above a cap refuses the program with REFUSE_DEPTH and writes
+   no line; D > B is an INTERNAL fault. M must come from
+   check_program_facts. Returns 1, or 0 after a diagnostic. */
+int report_tfhe(Machine *m, FILE *out);
 
 #endif

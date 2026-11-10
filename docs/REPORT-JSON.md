@@ -145,7 +145,7 @@ implies. T4 states this leak for each rule (Q-S11-6 (a)). When
 `accept_reveals_all` is `true`, an accept tells that each party approved.
 When `reject_reveals_all` is `true`, a reject tells that no party
 approved. At T1 the output also leaks the count vector c (`leak_t1`).
-T2 (S12) gives the one-bit output.
+T2 (S12) gives the one-bit output (`docs/TFHE-CIRCUIT.md`).
 
 ## Exit status
 

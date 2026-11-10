@@ -1,0 +1,15 @@
+-- Report row 4 (S11 U2): 1-of-n rules. any1: one class of 4 parties, the bar
+-- t = 1. anyPair: two classes of 2 parties, one approval in either class
+-- (rlOr), so it has two minimal vectors. Only the zero vector rejects, so
+-- reject_reveals_all is true. Plain Rule defs (O4 needs least > f).
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def k1 : Pos (szS four) := posNext four (posFirst three)
+def soloCom : Committee := cmClass four cmNil
+def any1 : Rule soloCom := rlMin soloCom (ctClass four cmNil k1 ctNil)
+def c0of2 : Pos (szS two) := posFirst two
+def c1of2 : Pos (szS two) := posNext two (posFirst one)
+def pairCom : Committee := cmClass two (cmClass two cmNil)
+def anyPair : Rule pairCom := rlOr pairCom (rlMin pairCom (ctClass two (cmClass two cmNil) c1of2 (ctClass two cmNil c0of2 ctNil))) (rlMin pairCom (ctClass two (cmClass two cmNil) c0of2 (ctClass two cmNil c1of2 ctNil)))

@@ -731,6 +731,56 @@ fi
 if ! build/jsontool; then
   fail=$((fail + 1))
 fi
+# The T2 TFHE circuits (S12 U2, Q-S12-5 (a)): test/tfhe/NAME.jsonl is the
+# `langc tfhe` text of test/tfhe/NAME.lang (guest mode, no --kit). Each run
+# exits 0 with no stderr, and the text equals NAME.jsonl byte for byte.
+tfhe=0
+for want in $(printf '%s\n' test/tfhe/*.jsonl | LC_ALL=C sort); do
+  tfhe=$((tfhe + 1))
+  name=$(basename "$want" .jsonl)
+  status=0
+  build/langc tfhe "test/tfhe/$name.lang" >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+  if [ "$status" -ne 0 ] || [ -s "$tmp/t.err" ]; then
+    echo "FAIL tfhe $name: exit $status $(head -n 1 "$tmp/t.err" | cut -c1-120)"
+    fail=$((fail + 1))
+  elif ! cmp -s "$want" "$tmp/t.out"; then
+    echo "FAIL tfhe $name: the text is not $want: $(cmp "$want" "$tmp/t.out" 2>&1 | cut -c1-120)"
+    fail=$((fail + 1))
+  fi
+done
+echo "tfhe rows: $tfhe checked"
+# The T2 refusal rows (S12 U2, Q-S12-7 (a)): `langc tfhe` on each
+# test/tfhe/refuse/NAME.lang (guest mode) exits 1 with no stdout, and the
+# first stderr line starts with `langc: REFUSE_DEPTH: `. `langc check` takes
+# these programs (T-5): the refusal is at `langc tfhe` only.
+tfhe_refused=0
+for prog in $(printf '%s\n' test/tfhe/refuse/*.lang | LC_ALL=C sort); do
+  tfhe_refused=$((tfhe_refused + 1))
+  name=$(basename "$prog" .lang)
+  status=0
+  build/langc tfhe "$prog" >"$tmp/t.out" 2>"$tmp/t.err" || status=$?
+  first=$(head -n 1 "$tmp/t.err")
+  case "$status:$first" in
+    "1:langc: REFUSE_DEPTH: "*) ;;
+    *)
+      echo "FAIL tfhe refusal $name: want exit 1 and REFUSE_DEPTH, got exit $status: $(printf '%s' "$first" | cut -c1-120)"
+      fail=$((fail + 1))
+      ;;
+  esac
+  if [ -s "$tmp/t.out" ]; then
+    echo "FAIL tfhe refusal $name: stdout is not empty"
+    fail=$((fail + 1))
+  fi
+done
+echo "tfhe refusals: $tfhe_refused checked"
+# The T2 circuit simulator (S12 U3, Q-S12-6 (a)): build/tfhetool reads
+# each test/tfhe/NAME.jsonl and test/report/NAME.json. It checks each
+# circuit line against the T4 rule line, the gate rows, the depth, and
+# each member assignment against the min vector oracle. It writes the
+# count line.
+if ! build/tfhetool; then
+  fail=$((fail + 1))
+fi
 
 status=0
 build/langc 2>/dev/null || status=$?

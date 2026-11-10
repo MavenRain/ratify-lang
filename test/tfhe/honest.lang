@@ -1,0 +1,13 @@
+-- Report row 2 (S11 U2): Honest defs only, one class of 5 parties: the bar
+-- t = 3 at f = 1 and the bar t = 4 at f = 2. No ForkFree def, so the rule
+-- lines have no o5_margin and no read_set.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def five : Size := szS four
+def k3 : Pos (szS five) := posNext five (posNext four (posNext three (posFirst two)))
+def k4 : Pos (szS five) := posNext five (posNext four (posNext three (posNext two (posFirst one))))
+def com : Committee := cmClass five cmNil
+def h3 : Honest com one := hoRule com one (rlMin com (ctClass five cmNil k3 ctNil))
+def h4 : Honest com two := hoRule com two (rlMin com (ctClass five cmNil k4 ctNil))

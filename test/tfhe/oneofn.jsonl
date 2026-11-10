@@ -1,0 +1,3 @@
+{"circuits":2,"gate_max":65536,"kind":"program","min_cap":4096,"ratify":1}
+{"bound":8,"classes":[4],"depth":5,"gate_count":13,"gates":[["XOR",0,1],["AND",0,1],["XOR",2,3],["AND",2,3],["XOR",4,6],["AND",4,6],["XOR",5,7],["XOR",10,9],["AND",5,7],["AND",9,10],["OR",12,13],["OR",11,8],["OR",14,15]],"inputs":4,"kind":"circuit","min":[[1]],"min_count":1,"name":"any1","nots":0,"out":16,"ratify":1,"type":"Rule"}
+{"bound":5,"classes":[2,2],"depth":3,"gate_count":7,"gates":[["XOR",0,1],["AND",0,1],["XOR",2,3],["AND",2,3],["OR",5,4],["OR",7,6],["OR",8,9]],"inputs":4,"kind":"circuit","min":[[1,0],[0,1]],"min_count":2,"name":"anyPair","nots":0,"out":10,"ratify":1,"type":"Rule"}

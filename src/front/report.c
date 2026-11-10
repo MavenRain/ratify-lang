@@ -5,6 +5,7 @@
 
 #include "front/check.h"
 #include "front/report.h"
+#include "front/tfhe.h"
 #include "jsonout.h"
 
 static const char *const RULE_TYPE[] = {"Rule", "Honest", "ForkFree"};
@@ -260,5 +261,66 @@ int report_program(Machine *m, FILE *file) {
     ok = items[i].log || out_policy_line(m, &items[i], file);
   for (i = 0; ok && i < count; i++)
     ok = !items[i].log || out_log_lines(m, &items[i], file);
+  return ok;
+}
+
+/* The circuit line of the record R and its circuit C (S12, Q-S12-5 (a)):
+   the classes, the inputs, min_count and all MIN_KEPT minimal vectors (the
+   T2 list, not the first 64 of the rule line), the gate rows as [op, a, b],
+   the output wire, the gate and NOT counts, D and B. */
+static int out_circuit(const RuleFacts *r, const TfheCircuit *c, JsonOut *out) {
+  uint32_t i;
+  int ok = out_text(out, "{\"kind\":\"circuit\",\"ratify\":1,\"name\":") && out_string(out, r->name) &&
+           out_text(out, ",\"type\":") && out_string(out, RULE_TYPE[r->kind]) && out_text(out, ",\"classes\":") &&
+           out_counts(out, r->n, r->k) && out_key_int(out, "inputs", (int64_t)c->inputs) &&
+           out_key_int(out, "min_count", (int64_t)r->min_count) && out_text(out, ",\"min\":[");
+  for (i = 0; ok && i < r->min_kept; i++)
+    ok = out_comma(out, i) && out_counts(out, r->min + (size_t)i * r->k, r->k);
+  ok = ok && out_text(out, "],\"gates\":[");
+  for (i = 0; ok && i < c->gate_count; i++)
+    ok = out_comma(out, i) && out_text(out, "[") && out_string(out, tfhe_op_name(c->gates[i].op)) &&
+         out_text(out, ",") && out_int(out, (int64_t)c->gates[i].a) && out_text(out, ",") &&
+         out_int(out, (int64_t)c->gates[i].b) && out_text(out, "]");
+  return ok && out_text(out, "]") && out_key_int(out, "out", (int64_t)c->out) &&
+         out_key_int(out, "gate_count", (int64_t)c->gate_count) && out_key_int(out, "nots", (int64_t)c->nots) &&
+         out_key_int(out, "depth", (int64_t)c->depth) && out_key_int(out, "bound", (int64_t)c->bound) &&
+         out_text(out, "}");
+}
+
+/* Builds the circuit of the record R into C. The caps refuse with
+   REFUSE_DEPTH (Q-S12-4 (a)); the faults are INTERNAL. */
+static int tfhe_circuit(Machine *m, const RuleFacts *r, TfheCircuit *c) {
+  switch (tfhe_build(m->arena, r, c)) {
+    case TFHE_OK:
+      return 1;
+    case TFHE_REFUSE_GATES:
+      return diag_fail(m->diag, "REFUSE_DEPTH", r->name, "the circuit needs more than %u gates", TFHE_GATE_MAX);
+    case TFHE_REFUSE_MIN:
+      return diag_fail(m->diag, "REFUSE_DEPTH", r->name, "the rule has %llu minimal vectors, more than %u",
+                       (unsigned long long)r->min_count, TFHE_MIN_CAP);
+    case TFHE_FAULT_DEPTH:
+      return diag_fail(m->diag, "INTERNAL", r->name, "the circuit depth D is above its bound B");
+    case TFHE_FAULT_SHAPE:
+      return diag_fail(m->diag, "INTERNAL", r->name, "the circuit output is a constant, or the minimal list is short");
+    case TFHE_OOM:
+      return diag_fail(m->diag, "OOM", r->name, "the circuit does not fit");
+  }
+  return 0;
+}
+
+int report_tfhe(Machine *m, FILE *file) {
+  JsonOut out = {m->arena, m->diag, "tfhe", NULL, 0, 0};
+  TfheCircuit *c = arena_alloc(m->arena, ((size_t)m->rule_fact_count + 1u) * sizeof *c);
+  uint32_t i;
+  int ok = c != NULL || diag_fail(m->diag, "OOM", NULL, "the circuit table does not fit");
+  for (i = 0; ok && i < m->rule_fact_count; i++)
+    ok = tfhe_circuit(m, &m->rule_facts[i], &c[i]);
+  ok = ok && out_text(&out, "{\"kind\":\"program\",\"ratify\":1") &&
+       out_key_int(&out, "circuits", (int64_t)m->rule_fact_count) && out_key_int(&out, "gate_max", TFHE_GATE_MAX) &&
+       out_key_int(&out, "min_cap", TFHE_MIN_CAP) && out_text(&out, "}") && out_line(&out, file);
+  for (i = 0; ok && i < m->rule_fact_count; i++) {
+    JsonOut line = {m->arena, m->diag, m->rule_facts[i].name, NULL, 0, 0};
+    ok = out_circuit(&m->rule_facts[i], &c[i], &line) && out_line(&line, file);
+  }
   return ok;
 }

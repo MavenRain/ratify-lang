@@ -314,9 +314,13 @@ typedef struct HostRow {
    KIND 0 is Rule, 1 Honest, 2 ForkFree. N holds the K class sizes. LEAST
    (KIND 1, 2) is the least total of an accepted vector and OVERLAP (KIND
    2) the least overlap of two accepted vectors; each is INT64_MAX when the
-   kind does not decide it. MIN holds the first MIN_LISTED minimal accepting
-   vectors (K counts each) in index order; MIN_COUNT counts all of them. */
+   kind does not decide it. MIN holds the first MIN_KEPT minimal accepting
+   vectors (K counts each) in index order, at most TFHE_MIN_CAP (S12,
+   Q-S12-2 (a): the T2 circuit needs the full list); the report lists the
+   first MIN_LISTED = min(MIN_KEPT, RULE_FACTS_MIN_CAP) of them. MIN_COUNT
+   counts all of them. */
 #define RULE_FACTS_MIN_CAP 64u
+#define TFHE_MIN_CAP 4096u
 typedef struct {
   const char *name;
   int kind;
@@ -329,6 +333,7 @@ typedef struct {
   uint64_t accept;
   uint64_t min_count;
   uint32_t min_listed;
+  uint32_t min_kept;
   uint32_t *min;
 } RuleFacts;
 

@@ -1,0 +1,2 @@
+{"circuits":1,"gate_max":65536,"kind":"program","min_cap":4096,"ratify":1}
+{"bound":6,"classes":[3,2],"depth":4,"gate_count":8,"gates":[["XOR",0,1],["AND",0,1],["XOR",5,2],["AND",5,2],["XOR",6,8],["XOR",3,4],["AND",3,4],["AND",9,11]],"inputs":5,"kind":"circuit","min":[[2,2]],"min_count":1,"name":"minLast","nots":0,"out":12,"ratify":1,"type":"Rule"}
