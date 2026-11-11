@@ -65,15 +65,43 @@ void diag_init(Diag *diag) {
   memset(diag, 0, sizeof *diag);
 }
 
-int diag_fail(Diag *diag, const char *code, const char *def, const char *fmt, ...) {
-  if (diag->set) return 0;
+/* The one writer of a Diag (S15): only the first failure writes, and it
+   writes every field. */
+static void diag_put(Diag *diag, const char *code, const char *def, const char *file, int line, int col, const char *expected, const char *found, const char *fmt, va_list args) {
+  if (diag->set) return;
   diag->set = 1;
   diag->code = code;
   snprintf(diag->def, sizeof diag->def, "%s", def == NULL ? "-" : def);
+  vsnprintf(diag->msg, sizeof diag->msg, fmt, args);
+  diag->file = file;
+  diag->line = line;
+  diag->col = col;
+  snprintf(diag->expected, sizeof diag->expected, "%s", expected == NULL ? "" : expected);
+  snprintf(diag->found, sizeof diag->found, "%s", found == NULL ? "" : found);
+}
+
+int diag_fail(Diag *diag, const char *code, const char *def, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  vsnprintf(diag->msg, sizeof diag->msg, fmt, args);
+  diag_put(diag, code, def, NULL, 0, 0, NULL, NULL, fmt, args);
   va_end(args);
+  return 0;
+}
+
+int diag_fail_at(Diag *diag, const char *code, const char *def, const char *file, int line, int col, const char *expected, const char *found, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  diag_put(diag, code, def, file, line, col, expected, found, fmt, args);
+  va_end(args);
+  return 0;
+}
+
+int diag_span(Diag *diag, const char *file, int line, int col) {
+  if (diag->set && diag->line == 0) {
+    diag->file = file;
+    diag->line = line;
+    diag->col = col;
+  }
   return 0;
 }
 

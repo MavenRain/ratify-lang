@@ -84,6 +84,9 @@ typedef struct {
   int is_law;    /* `law def` (S5): the def is law-only (rule O7) */
   int line;
   int col;
+  /* The source name of the text of the declaration (S15): the span file of
+     a check code. */
+  const char *source;
   const char *name;
   const Term *type;
   const Term *body;

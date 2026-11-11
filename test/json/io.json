@@ -1,0 +1,1 @@
+{"diagnostics":[{"code":"IO","expected":null,"fix":"Make sure that the program file exists and that langc can read it.","found":null,"message":"cannot open test/json/no\"such.lang","span":null}],"progress":{"laws_assumed":0,"laws_at_target":0,"laws_discharged":0,"laws_external":0,"laws_total":0,"parsed":0,"typed":0}}

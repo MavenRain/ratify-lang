@@ -70,8 +70,8 @@ static int oom(Parser *p) {
 }
 
 static int fail_at(Parser *p, const Token *tok, const char *what) {
-  return diag_fail(p->diag, "PARSE_EXPECT", p->def, "%s:%d:%d: expected %s, found %s",
-                   p->source, tok->line, tok->col, what, tok_kind_name(tok->kind));
+  return diag_fail_at(p->diag, "PARSE_EXPECT", p->def, p->source, tok->line, tok->col, what, tok_kind_name(tok->kind), "%s:%d:%d: expected %s, found %s",
+                      p->source, tok->line, tok->col, what, tok_kind_name(tok->kind));
 }
 
 static int expect(Parser *p, TokKind kind, const char *what) {
@@ -81,8 +81,9 @@ static int expect(Parser *p, TokKind kind, const char *what) {
 static int enter(Parser *p) {
   p->depth++;
   if (p->depth <= PARSE_MAX_DEPTH) return 1;
-  return diag_fail(p->diag, "PARSE_DEPTH", p->def, "%s:%d:%d: terms nest deeper than %d levels",
-                   p->source, cur(p)->line, cur(p)->col, PARSE_MAX_DEPTH);
+  return diag_fail_at(p->diag, "PARSE_DEPTH", p->def, p->source, cur(p)->line, cur(p)->col, NULL, NULL,
+                      "%s:%d:%d: terms nest deeper than %d levels", p->source, cur(p)->line, cur(p)->col,
+                      PARSE_MAX_DEPTH);
 }
 
 static const char *token_text(Parser *p, const Token *tok) {
@@ -572,6 +573,7 @@ static int parse_and(Parser *p, Decl *d) {
   d->origin = p->origin;
   d->line = tok->line;
   d->col = tok->col;
+  d->source = p->source;
   d->is_state = 0;
   d->is_sealed = 0;
   d->is_law = 0;
@@ -584,6 +586,7 @@ static int parse_decl(Parser *p, Decl *d) {
   d->origin = p->origin;
   d->line = tok->line;
   d->col = tok->col;
+  d->source = p->source;
   d->is_state = tok->kind == TOK_KW_STATE;
   d->is_sealed = 0;
   d->is_law = 0;

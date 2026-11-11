@@ -1,0 +1,2 @@
+-- S15 U3 json row (Q-S15-6 (a)): LEX_CHAR at a '"' byte.
+def bad : Size := "one"

@@ -92,9 +92,11 @@ of x that is not empty. Thus a file with no declaration cannot pass by
 accident (N-U2-5).
 
 The corpus is `rg --files -g '*.lang' domain examples test` (N-U2-4):
-284 files. fmt accepts 267. It refuses 17: 16 rows of `test/parse/`
-with a `LEX_` or `PARSE_` code (N-U2-3), and
-`test/fmt/refuse/trailing.lang` with `FMT_TRAILING_COMMENT`.
+291 files. fmt accepts 272. It refuses 19: 16 rows of `test/parse/`
+with a `LEX_` or `PARSE_` code (N-U2-3), 2 rows of `test/json/`
+(`lexchar.lang` with `LEX_CHAR` and `parseexpect.lang` with
+`PARSE_EXPECT`; S15), and `test/fmt/refuse/trailing.lang` with
+`FMT_TRAILING_COMMENT`.
 
 Q-S14-2 (a): the parser keeps the two forms of each syntax, and fmt
 prints one. No refusal changes. `langc fmt PROG --check` on each
@@ -132,8 +134,8 @@ The gate lines of S14:
 ```
 fmt rows: 10 checked
 fmt refusals: 1 checked
-fmt idempotent: 267 checked, 17 refused
-fmt ast: 267 checked
+fmt idempotent: 272 checked, 19 refused
+fmt ast: 272 checked
 fmt examples: 37 checked
 ```
 

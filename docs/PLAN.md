@@ -33,7 +33,7 @@ Q-S5-3 (a), Q-S6-1 to Q-S6-4 (a), Q-S7-1 to Q-S7-6 (a), Q-S8-1 to Q-S8-5
 Q-S10-1 to Q-S10-7, Q-S10-U2-1 to Q-S10-U2-4, Q-S10-U3-1 to Q-S10-U3-4
 and Q-S10-U3-6 (a), Q-S10-U3-L (c), Q-S11-1 to Q-S11-10 (a), Q-S12-1 to
 Q-S12-8 (a), Q-S13-1, Q-S13-2 and Q-S13-4 to Q-S13-8 (a), Q-S13-3 (c),
-Q-S14-1 to Q-S14-8 (a)).
+Q-S14-1 to Q-S14-8 (a), Q-S15-1 to Q-S15-8 (a)).
 `src/crypto/` has the crypto C of quorum-lang and
 Schnorr on BN254 G1, and `build/cryptotool` runs the crypto rows and the
 certificate rows, and writes the host table. The T1 module calls six
@@ -43,8 +43,9 @@ S10 adds `ratifyd`, the Wasm engine of `host/` and the demo of section
 (`docs/REPORT-JSON.md`). S12 adds the T2 TFHE tally circuit `langc
 tfhe` (`docs/TFHE-CIRCUIT.md`). S13 adds the T3 relations R_ballot and
 R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). S14 adds
-`langc fmt`, the canonical printer (`docs/FMT.md`). Next: S15 (section
-12).
+`langc fmt`, the canonical printer (`docs/FMT.md`). S15 adds
+`langc check --json`, the JSON report of the checker
+(`docs/CHECK-JSON.md`). Next: S16 (section 12).
 
 ## 1. Rulings
 
@@ -155,6 +156,15 @@ R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). S14 adds
 | 2026-11-10 | Q-S14-6 (a) "One row per rule": `test/fmt/NAME.lang` and `NAME.fmt`, byte equal: 10 rows (Sigma star, binder group, chained fun, comments, the 100-column break, family constructors, the other declaration forms, interval terms, systems, parentheses) and 1 refusal row (trailing comment). Edits: section 10. | USER, S14 |
 | 2026-11-10 | Q-S14-7 (a) "6 printer mutants": M1 Sigma printed as `*`, M2 no group split, M3 a comment dropped, M4 a needed paren dropped on an app argument, M5 `--check` exits 0 always, M6 break at 99 columns. The gate kills each one. Edits: section 10. | USER, S14 |
 | 2026-11-10 | Q-S14-8 (a) "U1, U2, U3": U1 the printer, `langc fmt` and `--check`, the rows; U2 the corpus laws, the `examples/` rewrite and the gate lines; U3 the mutants, the docs and the close. Edits: section 12. | USER, S14 |
+| 2026-11-10 | Q-S15-1 (a): `langc check PROG --json` writes one JSON object in the RFC 8785 form to stdout. `diagnostics` has 0 or 1 object with the keys `code`, `expected`, `fix`, `found`, `message` and `span`. In the `--json` mode stderr has no text. The exit codes 0, 1 and 2 do not change; a `USAGE` error stays text with exit 2. Edits: section 9 (row A2). | USER, S15 |
+| 2026-11-10 | Q-S15-2 (a): `span` is `{"col":C,"file":PATH,"line":L}`, the start position only; it is `null` for `IO` and for a code with no position. The text mode does not change: the 181 check rows keep their bytes. Edits: `docs/CHECK-JSON.md`. | USER, S15 |
+| 2026-11-10 | Q-S15-3 (a): `src/front/fix.c` has one static fix string for each code. The 11 codes of section 7 take the section 7 text. A gate line checks that each code string has a fix row. `expected` and `found` have values at the `PARSE_EXPECT` and `TYPE_MISMATCH` sites. Edits: `docs/CHECK-JSON.md`. | USER, S15 |
+| 2026-11-10 | Q-S15-4 (a): `progress` has `parsed` and `typed`. `laws_total` is the number of DISCHARGED rows that apply to the program; `laws_discharged` is `laws_total` on ok and 0 on a refusal. The table is in `docs/CHECK-JSON.md`. Edits: `docs/CHECK-JSON.md`. | USER, S15 |
+| 2026-11-10 | Q-S15-5 (a): the law rows apply by the triggers R, H, F and L. DISCHARGED: TCM-A, TCM-B, O2 and O3 on R; O4 on H; O5 on F; TCM-E and O10 on L. ASSUMED: TCM-C, TCM-D, View 1 to 3, O7 and O8 on R; O9 on L. AT TARGET: O6 on R. EXTERNAL: O1 on R; O11 on L. The totals are 8, 8, 1 and 2. Edits: `docs/CHECK-JSON.md`. | USER, S15 |
+| 2026-11-10 | Q-S15-6 (a): `test/json/rows.txt` has 21 rows. `build/checkjsontool` writes 3 gate lines (`json rows`, `json fix rows`, `json fix table`), thus the gate goes from 49 to 52 count lines. Edits: section 10. | USER, S15 |
+| 2026-11-10 | Q-S15-7 (a): the gate must kill the mutants M1 to M7. Result: 7 of 7. Edits: section 10. | USER, S15 |
+| 2026-11-10 | Q-S15-8 (a): the units U1, U2, U3 and CLOSE. U1 the diagnostic record (the span, `expected`, `found`); U2 the fix table, the law counts and the JSON writer; U3 the rows of `test/json/`, `build/checkjsontool` and the mutants; CLOSE `docs/PLAN.md` and `docs/STATUS.md`, the record, staging. Edits: section 12. | USER, S15 |
+| 2026-11-10 | D-CLOSE-1 "Widen the rows now": one code has one fix text, and a code can have 2 or more sites. Each fix text of `src/front/fix.c` must be true at each site of its code. 14 rows get a more general text; the row of a section 7 code keeps the section 7 text first. 3 rows of `test/json/` change in the `fix` value only. Edits: `docs/CHECK-JSON.md`. | USER, S15 |
 
 The S13 decisions D-U1-1 to D-U1-5, D-U2-1 to D-U2-6 and D-U3-1 to D-U3-3
 are not USER rulings; the USER can overturn each. They are in
@@ -163,6 +173,12 @@ are not USER rulings; the USER can overturn each. They are in
 The S14 decisions N-1 to N-3, N-U1-1 to N-U1-8 and N-U2-1 to N-U2-7 are
 not USER rulings; the USER can overturn each. They are in `docs/FMT.md`
 section 6.
+
+The S15 decisions D-U1-1 to D-U1-6, D-U2-1 to D-U2-7, D-U3-1 to D-U3-4
+and D-CLOSE-2 are not USER rulings; the USER can overturn each.
+`docs/CHECK-JSON.md` cites D-U1-2, D-U1-3, D-U2-1, D-U2-2, D-U2-6,
+D-U3-1 and D-U3-2. D-CLOSE-2: the S14 row of section 12 keeps its S14
+counts.
 
 S13 review (2026-11-10) aligns public point decoding with T1: each
 coordinate is canonical in the base field, and (0, 0) encodes the
@@ -586,8 +602,8 @@ fits. Each item has one deliverable, one slice and one gate.
 
 | Item | Pasted line | Deliverable | Slice | Gate |
 |---|---|---|---|---|
-| A1 | "one canonical form per operation and a langc fmt canonical printer" | No aliases, no second syntax. `langc fmt FILE` prints the canonical form. `langc fmt --check` exits 1 when a file is not canonical. | S14 | `fmt` is idempotent; `parse (fmt x)` has the same core term as `x`; each example is canonical. S14: DONE. The gate lines `fmt idempotent`, `fmt ast` and `fmt examples` hold the laws over the 284 `.lang` files of the corpus (`docs/FMT.md`). |
-| A2 | "langc check --json, giving fix hints and progress counts (parsed, typed, laws discharged)" | One JSON object: `diagnostics` (code, span, expected, found, `fix`) and `progress` (`parsed`, `typed`, `laws_discharged`, `laws_total`, `laws_assumed`, `laws_at_target`, `laws_external`). Schema in `docs/CHECK-JSON.md`. | S15 | Rows in `test/json/`, byte equal. Each code of section 7 has a `fix` row. |
+| A1 | "one canonical form per operation and a langc fmt canonical printer" | No aliases, no second syntax. `langc fmt FILE` prints the canonical form. `langc fmt --check` exits 1 when a file is not canonical. | S14 | `fmt` is idempotent; `parse (fmt x)` has the same core term as `x`; each example is canonical. S14: DONE. The gate lines `fmt idempotent`, `fmt ast` and `fmt examples` hold the laws over the 291 `.lang` files of the corpus (S14: 284; `docs/FMT.md`). |
+| A2 | "langc check --json, giving fix hints and progress counts (parsed, typed, laws discharged)" | One JSON object: `diagnostics` (code, span, expected, found, `fix`) and `progress` (`parsed`, `typed`, `laws_discharged`, `laws_total`, `laws_assumed`, `laws_at_target`, `laws_external`). Schema in `docs/CHECK-JSON.md`. | S15 | Rows in `test/json/`, byte equal. Each code of section 7 has a `fix` row. S15: DONE. The gate lines `json rows`, `json fix rows` and `json fix table` hold the 21 rows and the fix table (`docs/CHECK-JSON.md`). |
 | A3 | "a SKILL.md with 3 to 5 graded examples" | `skills/ratify-lang/SKILL.md` with five graded examples: G1 a plain t-of-n policy, G2 two classes and a veto, G3 an amendment that changes the amend rule, G4 a log replay with `policyAt`, G5 the demo. | S17 | Each example checks; each SKILL.md block and its file are byte equal. |
 | A4 | "an MCP server written in TinyCC (langc mcp)" | An MCP server over stdio (JSON-RPC 2.0, one message on each line), in C, in the same `langc`. Tools: section 8.3. The MCP spec version is pinned in `docs/MCP.md`. | S16 | `test/mcptool.c` sends `test/mcp/*.in` and compares the replies with `*.out`. |
 | A5 | "AGENTS.md and a README table saying when to use the language" | `AGENTS.md` and the README table "When to reach for ratify-lang". Both exist at S0 as DRAFT; S17 makes them final. | S0, S17 | Review only. |
@@ -633,11 +649,17 @@ fits. Each item has one deliverable, one slice and one gate.
   and the 7 emitter mutants are KILLED (Q-S13-5 (a)).
 - `langc fmt` (S14, `docs/FMT.md`): the 10 rows of `test/fmt/` (`fmt
   rows: 10 checked`), 1 refusal row (`fmt refusals: 1 checked`) and the
-  laws over the 284 `.lang` files of the corpus (`fmt idempotent: 267
-  checked, 17 refused`, `fmt ast: 267 checked`, `fmt examples: 37
-  checked`; Q-S14-5 (a), Q-S14-6 (a)). The gate has 49 count lines (S13:
-  43). The gate kills the 6 printer mutants M1 to M6, 6 of 6 (Q-S14-7
+  laws over the 291 `.lang` files of the corpus (`fmt idempotent: 272
+  checked, 19 refused`, `fmt ast: 272 checked`, `fmt examples: 37
+  checked`; Q-S14-5 (a), Q-S14-6 (a)). At S14 the corpus had 284 files
+  (267 checked, 17 refused); S15 adds the 7 `.lang` files of
+  `test/json/`. At S14 the gate had 49 count lines (S13: 43). The gate kills the 6 printer mutants M1 to M6, 6 of 6 (Q-S14-7
   (a)).
+- `langc check --json` (S15, `docs/CHECK-JSON.md`): the 21 rows of
+  `test/json/` (`json rows: 21 checked`), the section 7 fix rows (`json
+  fix rows: 11 checked`) and the fix table (`json fix table: 69 codes`;
+  Q-S15-6 (a)). The gate has 52 count lines (S14: 49). The gate kills
+  the 7 mutants M1 to M7, 7 of 7 (Q-S15-7 (a)).
 
 ## 11. Port sources
 
@@ -669,7 +691,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S12 | T2: the TFHE tally circuit, `docs/TFHE-CIRCUIT.md`. On the USER commit 591a3f9. `langc [--kit] tfhe PROG` writes JSON Lines in RFC 8785 form (Q-S12-5 (a)): a `program` line and a `circuit` line for each decided rule definition. The circuit has one input bit for each member and gives only the accept bit (Q-S12-1 (a), OI-5): a popcount for each class, a constant comparator chain for each threshold, an AND tree for each minimal vector and an OR tree over the minimal vectors (Q-S12-2 (a)). RuleFacts keeps up to 4096 minimal vectors (`TFHE_MIN_CAP`); T4 still lists 64. The gates are AND, OR, XOR, NAND, NOR and XNOR (one bootstrap each) and NOT (no bootstrap) (Q-S12-3 (a)). Each line gives the depth D and the static bound B from n_j, k and M; D > B is a writer fault, and `REFUSE_DEPTH` at `langc tfhe` only refuses more than 65536 gates or more than 4096 minimal vectors (Q-S12-4 (a)). Gate: 7 tfhe rows, 1 tfhe refusal and 19 tfhe sims (`build/tfhetool`, Q-S12-6 (a)); the 36 count lines of S11 do not change. Mutants M1 (the comparator), M2 (the OR tree cut at 64), M3 (the popcount carry), M5b (B = 0), M6 (m_j = 0 read as 1), M6s (the m_j = 0 skip removed: the golden bytes only) and M8 (no JCS round trip): KILLED. M7a and M7b (the caps off by one): KILLED by a scratch driver, not by the gate, because no guest row is at a cap. M4 (NOT counted in D) and M5 (no D <= B check) are EQUIVALENT: the builder writes no NOT row, and D <= B holds by the bound proof in `src/front/tfhe.h`. | DONE |
 | S13 | T3: R_ballot and R_dec as Noir, `docs/NOIR-RELATIONS.md`. On the USER commit 26b94d7. `langc [--kit] noir PROG` writes one Noir library text (Q-S13-3 (c)): a `K_<DEF>` global for each decided rule definition (Q-S13-8 (a)) and the two relations over BN254 G1 with noir_bigcurve v0.15.0 and noir-bignum v0.11.0 (Q-S13-1 (a), Q-S13-7 (a)). R_ballot: b in {0, 1}, c1 = r G, c2 = b G + r PK, j < k; R_dec: s G = KEY, s C1 = D (Q-S13-2 (a)). `REFUSE_NOIR` at `langc noir` only refuses two decided rule definitions with one K name. The packages are `noir/ratify`, `noir/r_ballot` and `noir/r_dec`; `build/cryptotool noir DIR` writes their KAT files. Gate (bytes only, Q-S13-4 (a)): 7 noir rows, 1 noir refusal, 1 noir package and 4 noir kat files; the 39 count lines of S12 do not change. Validation (nargo 1.0.0-rc.0): check, test, execute and info rc 0 in each package, and 10 + 5 test rows pass. The emitter mutants M1 to M7 (drop each constraint, swap G and PK) are KILLED by the Noir tests, 7 of 7 (Q-S13-5 (a)). The cost is in OI-11. | DONE |
 | S14 | A1: canonical forms and `langc fmt`, `docs/FMT.md`. On the USER commit 8926869. `langc fmt PROG [--check]` writes the canonical text; with `--check` it writes nothing and exits 1 with `FMT_DIFF` when the bytes are different (Q-S14-2 (a)). The canonical form: one declaration on one line, one break after `:=` above 100 columns, each later family constructor on its own line (Q-S14-4 (a)); `Sigma (x : A) B`, one name in each group, merged fun binders (Q-S14-3 (a)); full-line comments kept, a comment after code refused with `FMT_TRAILING_COMMENT` (Q-S14-1 (a)). The laws over the corpus: fmt is idempotent and keeps the AST dump of `test/asttool.c` (Q-S14-5 (a)). `langc fmt` rewrote 34 of the 37 examples once. Gate: 10 fmt rows, 1 fmt refusal, `fmt idempotent: 267 checked, 17 refused`, `fmt ast: 267 checked`, `fmt examples: 37 checked`; 49 count lines. The gate kills the printer mutants M1 to M6, 6 of 6 (Q-S14-7 (a)). | DONE |
-| S15 | A2: `langc check --json`. | |
+| S15 | A2: `langc check --json`, `docs/CHECK-JSON.md`. On the USER commit 05a914d. `langc [--kit] check PROG --json` writes one JSON object in the RFC 8785 form: `diagnostics` (0 or 1 object: `code`, `expected`, `fix`, `found`, `message`, `span`) and `progress` (`parsed`, `typed`, `laws_discharged`, `laws_total`, `laws_assumed`, `laws_at_target`, `laws_external`). In the `--json` mode stderr has no text; the exit codes and the text mode do not change (Q-S15-1 (a), Q-S15-2 (a)). The law counts come from the triggers R, H, F and L (Q-S15-4 (a), Q-S15-5 (a)). `src/front/fix.c` has 69 rows, one fix text for each code, sorted by code (Q-S15-3 (a)); each text is true at each site of its code (D-CLOSE-1). Gate: `json rows: 21 checked`, `json fix rows: 11 checked`, `json fix table: 69 codes`; 52 count lines. The 7 `.lang` files of `test/json/` are in the fmt laws: `fmt idempotent: 272 checked, 19 refused`, `fmt ast: 272 checked`. The gate kills the mutants M1 to M7, 7 of 7 (Q-S15-7 (a)). | DONE |
 | S16 | A4: `langc mcp`. | |
 | S17 | A3 and A5: SKILL.md, G1 to G5, AGENTS.md and the README table final. | |
 | S18 | A6: the token comparison. | |

@@ -67,7 +67,7 @@ static const struct {
 };
 
 static int usage(FILE *err) {
-  fputs("usage: langc [--kit] check PROG\n"
+  fputs("usage: langc [--kit] check PROG [--json]\n"
         "       langc [--kit] eval PROG NAME [ARGS...]\n"
         "       langc [--kit] ir PROG\n"
         "       langc [--kit] abi PROG [--text]\n"
@@ -110,6 +110,10 @@ static int parse_options(int argc, char **argv, Options *opt, Diag *diag) {
   opt->prog_path = argv[2];
   switch (opt->command) {
     case CMD_CHECK:
+      /* S15 A2: --json gives the one line of docs/CHECK-JSON.md. */
+      opt->json = argc == 4;
+      return argc == 3 || (argc == 4 && strcmp(argv[3], "--json") == 0) ? 1
+                                                                          : diag_fail(diag, "USAGE", NULL, "too many arguments");
     case CMD_IR:
     case CMD_REPORT:
     case CMD_TFHE:
@@ -187,9 +191,32 @@ static int run_target(const Options *opt, Machine *machine, Diag *diag) {
   return fclose(out) == 0 && ok ? 0 : 1;
 }
 
+/* S15 A2 (Q-S15-1 (a)): `langc [--kit] check PROG --json`. The exit code is
+   the one of `langc check`; the diagnostic goes into the JSON line on
+   stdout, and no text goes to stderr. Only a failure of the writer itself
+   gives text on stderr (exit 2). */
+static int run_check_json(const Options *opt, Arena *arena, Diag *diag) {
+  char *text = NULL;
+  size_t len = 0;
+  DeclList decls;
+  Machine machine;
+  Diag own;
+  int read = read_source(arena, opt->prog_path, &text, &len, diag);
+  int loaded = read && front_load(arena, opt->prog_path, text, len, &decls, diag);
+  int checked = loaded && check_program_facts(arena, &decls, &machine, diag, opt->mode);
+  diag_init(&own);
+  if (!report_check(arena, loaded ? &machine : NULL, diag, loaded ? check_program_count(&decls, decls.count) : 0u, &own,
+                    stdout)) {
+    diag_print(&own, stderr);
+    return 2;
+  }
+  return read ? !checked : 2;
+}
+
 static int run(const Options *opt, Arena *arena, Diag *diag) {
   char *text = NULL;
   size_t len = 0;
+  if (opt->command == CMD_CHECK && opt->json) return run_check_json(opt, arena, diag);
   if (!read_source(arena, opt->prog_path, &text, &len, diag)) return 2;
   /* S14 A1: fmt lexes and parses the program as check does, and checks nothing. */
   if (opt->command == CMD_FMT) return fmt_program(arena, opt->prog_path, text, len, opt->check, stdout, diag);
@@ -240,6 +267,6 @@ int main(int argc, char **argv) {
   arena_init(&arena, ARENA_LIMIT_BYTES);
   int status = run(&opt, &arena, &diag);
   arena_release(&arena);
-  if (status != 0) diag_print(&diag, stderr);
+  if (status != 0 && !(opt.command == CMD_CHECK && opt.json)) diag_print(&diag, stderr);
   return status;
 }

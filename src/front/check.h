@@ -30,6 +30,9 @@ int check_program(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, C
 /* S11 (Q-S11-4 (a)): as check_program, and keeps a RuleFacts record on M
    for each decided rule def (Machine.rule_facts) for `langc report`. */
 int check_program_facts(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, CheckMode mode);
+/* S15 (Q-S15-4 (a)): the program declarations (ORIGIN_PROGRAM) among the
+   first N of DECLS. `langc check --json` gives it as `parsed` (N = all). */
+uint32_t check_program_count(const DeclList *decls, size_t n);
 /* S11: decides the rule value RULE at the closed committee COMMITTEE as
    KIND (0 Rule, 1 Honest, 2 ForkFree) at the fault bound F, and fills OUT
    from the arena of M (name NULL). Returns 1 when the rule passes O3 (and

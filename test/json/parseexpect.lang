@@ -1,0 +1,2 @@
+-- S15 U3 json row (Q-S15-6 (a)): PARSE_EXPECT (no ':' after the name).
+def bad Size := sz0

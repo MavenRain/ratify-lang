@@ -22,6 +22,8 @@
 #define NO_DEF UINT32_MAX
 
 #define FAIL(c, code, ...) diag_fail((c)->m->diag, (code), (c)->m->def, __VA_ARGS__)
+/* As FAIL, with the expected / found pair (S15). */
+#define FAIL_PAIR(c, code, want, found, ...) diag_fail_at((c)->m->diag, (code), (c)->m->def, NULL, 0, 0, (want), (found), __VA_ARGS__)
 
 typedef struct Scope Scope;
 struct Scope {
@@ -477,7 +479,9 @@ static int expect(Checker *c, const Value *found, const Value *want) {
     return 0;
   if (conv_values(c->m, c->level, found, want))
     return 1;
-  return FAIL(c, "TYPE_MISMATCH", "expected a term of type %s, found a term of type %s", show(c, want), show(c, found));
+  const char *want_text = show(c, want);
+  const char *found_text = show(c, found);
+  return FAIL_PAIR(c, "TYPE_MISMATCH", want_text, found_text, "expected a term of type %s, found a term of type %s", want_text, found_text);
 }
 
 static const Scope *find_local(const Checker *c, const char *name) {
@@ -565,8 +569,10 @@ static const Core *check_type(Checker *c, const Term *t, uint64_t *level) {
   const Core *k = infer(c, t, &type);
   if (k == NULL)
     return NULL;
-  if (type == NULL || type->kind != VAL_UNIV)
-    return nul(FAIL(c, "TYPE_MISMATCH", "expected a type, found a term of type %s", show(c, type)));
+  if (type == NULL || type->kind != VAL_UNIV) {
+    const char *found_text = show(c, type);
+    return nul(FAIL_PAIR(c, "TYPE_MISMATCH", "a type", found_text, "expected a type, found a term of type %s", found_text));
+  }
   *level = type->nat;
   return k;
 }
@@ -5167,6 +5173,14 @@ static int check_decl(Checker *c, const Decl *d) {
   return check_def(c, d);
 }
 
+uint32_t check_program_count(const DeclList *decls, size_t n) {
+  uint32_t count = 0;
+  size_t i;
+  for (i = 0; i < n; i++)
+    count += decls->items[i].origin == ORIGIN_PROGRAM ? 1u : 0u;
+  return count;
+}
+
 static int check_run(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, CheckMode mode, int keep);
 
 int check_program(Arena *arena, const DeclList *decls, Machine *m, Diag *diag, CheckMode mode) {
@@ -5210,12 +5224,17 @@ static int check_run(Arena *arena, const DeclList *decls, Machine *m, Diag *diag
   c.mode = mode;
   for (i = 0; i < decls->count; i++) {
     checker_reset(&c, i, decls->items[i].name);
-    if (!check_decl(&c, &decls->items[i]))
-      return 0;
+    /* A check code takes the span of its declaration (S15). */
+    if (!check_decl(&c, &decls->items[i])) {
+      /* S15: typed = the program declarations before the failing one. */
+      m->typed = check_program_count(decls, i);
+      return diag_span(diag, decls->items[i].source, decls->items[i].line, decls->items[i].col);
+    }
     /* The other sorts of a block are checked with its first sort (S6). */
     i += decls->items[i].kind == DECL_FAMILY && decls->items[i].block_count > 1u ? decls->items[i].block_count - 1u : 0u;
   }
   m->def = NULL;
+  m->typed = check_program_count(decls, decls->count);
   return 1;
 }
 

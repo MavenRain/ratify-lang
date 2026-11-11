@@ -366,6 +366,10 @@ typedef struct {
      check ran as check_program_facts. NULL otherwise. */
   RuleFacts *rule_facts;
   uint32_t rule_fact_count;
+  /* S15 (Q-S15-4 (a)): the program declarations checked before the first
+     failure, all of them on ok. Set by check_program and
+     check_program_facts. */
+  uint32_t typed;
 } Machine;
 
 /* The name of host import J and its word count, or NULL after the last

@@ -1,0 +1,20 @@
+-- S15 U3 json row (Q-S15-6 (a)), guest mode: the demo prelude
+-- (test/demo/demo.lang lines 7 to 21) and a Rule and an Honest def, no ForkFree def:
+-- triggers R and H.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def yes : Decision := inr unit
+def no : Decision := inl unit
+-- The bars: a value of Pos (szS n) is a count 0 to n.
+def c1of1 : Pos (szS one) := posNext one (posFirst sz0)
+def c2of3 : Pos (szS three) := posNext three (posNext two (posFirst one))
+def c3of3 : Pos (szS three) := posNext three (posNext two (posNext one (posFirst sz0)))
+def c2of4 : Pos (szS four) := posNext four (posNext three (posFirst two))
+def c3of4 : Pos (szS four) := posNext four (posNext three (posNext two (posFirst one)))
+def aud : Committee := cmClass one cmNil
+def dc : Committee := cmClass three aud
+def dc4 : Committee := cmClass four aud
+def auth2 : Rule dc := rlMin dc (ctClass three aud c2of3 (ctClass one cmNil c1of1 ctNil))
+def auth2Honest : Honest dc one := hoRule dc one auth2

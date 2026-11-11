@@ -1,0 +1,32 @@
+# S15 U3 (Q-S15-6 (a)): the rows of `langc check --json`, one per line:
+# MODE RC PROG NAME. MODE guest or kit (kit runs `langc --kit`), RC the
+# exit code, PROG the path from the repo root (the span file), NAME the
+# golden test/json/NAME.json (the stdout bytes). build/checkjsontool runs
+# each row from the repo root.
+# The 11 PLAN section 7 rows (test/check programs). REFUSE_FORMER has no
+# program: the guest-list row gives REFUSE_CELL (D-U3-2).
+guest 1 test/check/arrow-three.lang arrow-three
+guest 1 test/check/orbit-elim.lang orbit-elim
+guest 1 test/check/approx-ckks.lang approx-ckks
+kit 1 test/check/time-block.lang time-block
+kit 1 test/check/rec.lang rec
+guest 1 test/check/rule-zero.lang rule-zero
+guest 1 test/check/honest-edge.lang honest-edge
+guest 1 test/check/fork-even.lang fork-even
+guest 1 test/check/bound-over.lang bound-over
+kit 1 test/check/partial-name.lang partial-name
+guest 1 test/check/guest-list.lang guest-list
+# The 6 ok rows: the law triggers R, H, F and L (Q-S15-5 (a)). The log row
+# has all four (D-U3-1), the kit demo row L only (D-U2-6).
+guest 0 test/json/norule.lang norule
+guest 0 test/json/rule.lang rule
+guest 0 test/json/honest.lang honest
+guest 0 test/json/forkfree.lang forkfree
+guest 0 test/json/log.lang log
+kit 0 test/demo/demo.lang demo
+# LEX_CHAR, PARSE_EXPECT, TYPE_MISMATCH (docs/CHECK-JSON.md example 1)
+# and IO: a missing path with a '"' byte (the message escape).
+guest 1 test/json/lexchar.lang lexchar
+guest 1 test/json/parseexpect.lang parseexpect
+guest 1 test/check/universe.lang universe
+guest 2 test/json/no"such.lang io

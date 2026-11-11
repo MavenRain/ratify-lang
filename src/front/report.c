@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "front/check.h"
+#include "front/fix.h"
 #include "front/report.h"
 #include "front/tfhe.h"
 #include "jsonout.h"
@@ -323,4 +324,85 @@ int report_tfhe(Machine *m, FILE *file) {
     ok = out_circuit(&m->rule_facts[i], &c[i], &line) && out_line(&line, file);
   }
   return ok;
+}
+
+/* The sec 6 law table of `langc check --json` (S15, Q-S15-5 (a)). A row
+   applies when the program has its trigger: R = a decided rule def, H = an
+   Honest or ForkFree rule def, F = a ForkFree rule def, L = a closed Log
+   def. An ASSUMED row is never counted as discharged. docs/CHECK-JSON.md
+   has the same table. */
+typedef enum { LAW_DISCHARGED, LAW_ASSUMED, LAW_AT_TARGET, LAW_EXTERNAL, LAW_KINDS } LawKind;
+typedef enum { ON_R, ON_H, ON_F, ON_L, LAW_TRIGGERS } LawTrigger;
+
+typedef struct {
+  const char *name;
+  LawKind kind;
+  LawTrigger on;
+} Law;
+
+static const Law LAWS[] = {
+    {"TCM-A", LAW_DISCHARGED, ON_R}, {"TCM-B", LAW_DISCHARGED, ON_R}, {"O2", LAW_DISCHARGED, ON_R},
+    {"O3", LAW_DISCHARGED, ON_R},    {"O4", LAW_DISCHARGED, ON_H},    {"O5", LAW_DISCHARGED, ON_F},
+    {"TCM-E", LAW_DISCHARGED, ON_L}, {"O10", LAW_DISCHARGED, ON_L},   {"TCM-C", LAW_ASSUMED, ON_R},
+    {"TCM-D", LAW_ASSUMED, ON_R},    {"View 1", LAW_ASSUMED, ON_R},   {"View 2", LAW_ASSUMED, ON_R},
+    {"View 3", LAW_ASSUMED, ON_R},   {"O7", LAW_ASSUMED, ON_R},       {"O8", LAW_ASSUMED, ON_R},
+    {"O9", LAW_ASSUMED, ON_L},       {"O6", LAW_AT_TARGET, ON_R},     {"O1", LAW_EXTERNAL, ON_R},
+    {"O11", LAW_EXTERNAL, ON_L},
+};
+
+/* The triggers of M into SEEN: its rule facts (KIND 0 Rule, 1 Honest, 2
+   ForkFree) and the closed Log defs that collect finds. On a refusal, M
+   holds the definitions checked before the failure. Returns 1, or 0 after
+   a diagnostic on OWN. */
+static int law_triggers(Machine *m, Diag *own, int *seen) {
+  Item *items = arena_alloc(m->arena, ((size_t)m->def_count + 1u) * sizeof *items);
+  uint32_t count = items != NULL ? collect(m, items) : 0u;
+  uint32_t i;
+  for (i = 0; i < m->rule_fact_count; i++) {
+    seen[ON_R] = 1;
+    seen[ON_H] = seen[ON_H] || m->rule_facts[i].kind != 0;
+    seen[ON_F] = seen[ON_F] || m->rule_facts[i].kind == 2;
+  }
+  for (i = 0; i < count; i++)
+    seen[ON_L] = seen[ON_L] || items[i].log;
+  return items != NULL ? 1 : diag_fail(own, "OOM", "check", "out of memory");
+}
+
+/* Adds ,"KEY": and TEXT as a JSON string, or null when TEXT is NULL or
+   empty. */
+static int out_key_text(JsonOut *out, const char *key, const char *text) {
+  return out_text(out, ",\"") && out_text(out, key) && out_text(out, "\":") &&
+         out_string(out, text != NULL && text[0] != '\0' ? text : NULL);
+}
+
+/* The diagnostic object of DIAG (Q-S15-1 (a), Q-S15-2 (a)): span = the
+   start FILE:LINE:COL, or null when DIAG has no span (LINE 0). */
+static int out_diagnostic(JsonOut *out, const Diag *diag) {
+  int span = diag->line != 0 && diag->file != NULL;
+  int ok = out_text(out, "{\"code\":") && out_string(out, diag->code) &&
+           out_key_text(out, "expected", diag->expected) && out_key_text(out, "fix", fix_of(diag->code)) &&
+           out_key_text(out, "found", diag->found) && out_text(out, ",\"message\":") && out_string(out, diag->msg) &&
+           out_text(out, ",\"span\":");
+  return ok &&
+         (span ? out_text(out, "{\"col\":") && out_int(out, diag->col) && out_text(out, ",\"file\":") &&
+                     out_string(out, diag->file) && out_key_int(out, "line", diag->line) && out_text(out, "}")
+               : out_text(out, "null")) &&
+         out_text(out, "}");
+}
+
+int report_check(Arena *arena, Machine *m, const Diag *diag, uint32_t parsed, Diag *own, FILE *file) {
+  JsonOut out = {arena, own, "check", NULL, 0, 0};
+  int seen[LAW_TRIGGERS] = {0, 0, 0, 0};
+  int64_t counts[LAW_KINDS] = {0, 0, 0, 0};
+  size_t i;
+  int ok = m == NULL || law_triggers(m, own, seen);
+  for (i = 0; i < sizeof LAWS / sizeof LAWS[0]; i++)
+    counts[LAWS[i].kind] += seen[LAWS[i].on] ? 1 : 0;
+  return ok && out_text(&out, "{\"diagnostics\":[") && (!diag->set || out_diagnostic(&out, diag)) &&
+         out_text(&out, "],\"progress\":{\"laws_assumed\":") && out_int(&out, counts[LAW_ASSUMED]) &&
+         out_key_int(&out, "laws_at_target", counts[LAW_AT_TARGET]) &&
+         out_key_int(&out, "laws_discharged", diag->set ? 0 : counts[LAW_DISCHARGED]) &&
+         out_key_int(&out, "laws_external", counts[LAW_EXTERNAL]) &&
+         out_key_int(&out, "laws_total", counts[LAW_DISCHARGED]) && out_key_int(&out, "parsed", (int64_t)parsed) &&
+         out_key_int(&out, "typed", m != NULL ? (int64_t)m->typed : 0) && out_text(&out, "}}") && out_line(&out, file);
 }

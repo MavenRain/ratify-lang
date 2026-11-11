@@ -129,6 +129,13 @@ next slice is S9: the Wasm module and the crypto import ABI.
   domain, path and crypto regressions. The C runner also checks the
   restored unused-field and proof-transport fixtures; each differential
   module passes `build/notraptool`.
+- `langc check PROG --json` (S15, `docs/CHECK-JSON.md`): one JSON object
+  in the RFC 8785 form with `diagnostics` (0 or 1 object: `code`,
+  `expected`, `fix`, `found`, `message`, `span`) and `progress` (the
+  `parsed` and `typed` flags and the law counts). `src/front/fix.c` has
+  one fix text for each code (69 rows). In `make check`,
+  `build/checkjsontool` checks the 21 rows of `test/json/` and the fix
+  table.
 
 ## Laws
 
@@ -171,6 +178,12 @@ hashes, the curve code and Schnorr on BN254 G1.
   the real keccak-256 hash and the real Schnorr signature.
 - `REFUSE_APPROX` reads names only. A name that is not in its list of
   five is not refused.
+- `REFUSE_FORMER` has a fix row in `src/front/fix.c` and a row in
+  section 7 of `docs/PLAN.md`, but no site of the checker gives it.
+  `REFUSE_CELL` is the code of that refusal today.
+- In the kit mode, `langc check --json` decides no rule definition.
+  Thus a kit program has the L trigger only, and the kit demo row has
+  the law counts 2, 1, 0 and 1 (`docs/CHECK-JSON.md`).
 
 ## Internal boundaries
 

@@ -5,7 +5,7 @@ TCC ?= tcc
 CC ?= cc
 CFLAGS = -std=c99 -Wall -Werror -Isrc
 CLANG_FLAGS = -std=c99 -Wall -Wextra -Wswitch-enum -Werror -fsyntax-only -Isrc
-FRONT = src/front/base.c src/front/lexer.c src/front/parser.c src/front/front.c src/front/eval.c src/front/check.c src/front/lower.c
+FRONT = src/front/base.c src/front/lexer.c src/front/parser.c src/front/front.c src/front/eval.c src/front/check.c src/front/lower.c src/front/fix.c
 TARGET = src/wasm.c
 # The JSON report (S11, Q-S11-3 (a)): src/jsonout.c, host/jsonin.c and host/jcs.c
 # are copies of permit-lang; src/front/report.c writes the report lines.
@@ -41,12 +41,14 @@ REPORT_TOOL = test/reporttool.c
 JSON_TOOL = test/jsontool.c src/jsonout.c host/jsonin.c host/jcs.c src/front/base.c
 # The T2 circuit simulator (S12 U3, Q-S12-6 (a)).
 TFHE_TOOL = test/tfhetool.c host/jsonin.c src/front/base.c
+# The rows of langc check --json and the fix table (S15 U3, Q-S15-6 (a)).
+CHECK_JSON_TOOL = test/checkjsontool.c src/front/fix.c host/jsonin.c host/jcs.c src/front/base.c
 HOST_HEADERS = $(wildcard host/*.h)
 HEADERS = $(wildcard src/*.h src/front/*.h src/crypto/*.h)
 
 .PHONY: build check check-clang clean
 
-build: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool
+build: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool
 
 build/domain.c: domain/domain.lang gen/embed.c
 	mkdir -p build
@@ -102,6 +104,10 @@ build/tfhetool: $(TFHE_TOOL) $(HOST_HEADERS) $(HEADERS)
 	mkdir -p build
 	$(TCC) $(CFLAGS) -Ihost -o build/tfhetool $(TFHE_TOOL)
 
+build/checkjsontool: $(CHECK_JSON_TOOL) $(HOST_HEADERS) $(HEADERS)
+	mkdir -p build
+	$(TCC) $(CFLAGS) -Ihost -o build/checkjsontool $(CHECK_JSON_TOOL)
+
 check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(SRC) build/domain.c
 	$(CC) $(CLANG_FLAGS) $(FRONT_TOOL)
@@ -116,14 +122,16 @@ check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) $(REPORT_TOOL)
 	$(CC) $(CLANG_FLAGS) -Ihost $(JSON_TOOL)
 	$(CC) $(CLANG_FLAGS) -Ihost $(TFHE_TOOL)
+	$(CC) $(CLANG_FLAGS) -Ihost $(CHECK_JSON_TOOL)
 
-check: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool check-clang
+check: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool check-clang
 	sh test/gate.sh
 	sh test/review.sh
 	build/engineapitool
 	build/fronttool
 	build/pathtool
 	build/cryptotool
+	build/checkjsontool
 
 clean:
 	rm -rf build

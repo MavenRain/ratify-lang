@@ -150,10 +150,10 @@ static int lex_nat(Lexer *lx) {
     advance(lx, 1);
   }
   if (overflow) {
-    return diag_fail(lx->diag, "LEX_NAT_RANGE", NULL, "%s:%d:%d: a Nat literal is larger than 2^64 - 1", lx->source, line, col);
+    return diag_fail_at(lx->diag, "LEX_NAT_RANGE", NULL, lx->source, line, col, NULL, NULL, "%s:%d:%d: a Nat literal is larger than 2^64 - 1", lx->source, line, col);
   }
   if (is_ident_start(peek(lx, 0))) {
-    return diag_fail(lx->diag, "LEX_CHAR", NULL, "%s:%d:%d: a letter follows a Nat literal", lx->source, lx->line, lx->col);
+    return diag_fail_at(lx->diag, "LEX_CHAR", NULL, lx->source, lx->line, lx->col, NULL, NULL, "%s:%d:%d: a letter follows a Nat literal", lx->source, lx->line, lx->col);
   }
   push(lx, TOK_NAT, start, line, col)->nat = value;
   return 1;
@@ -200,7 +200,7 @@ static int lex_symbol(Lexer *lx) {
     default: break;
   }
   if (kind == TOK_EOF) {
-    return diag_fail(lx->diag, "LEX_CHAR", NULL, "%s:%d:%d: unexpected byte 0x%02x", lx->source, line, col, (unsigned)(unsigned char)c);
+    return diag_fail_at(lx->diag, "LEX_CHAR", NULL, lx->source, line, col, NULL, NULL, "%s:%d:%d: unexpected byte 0x%02x", lx->source, line, col, (unsigned)(unsigned char)c);
   }
   advance(lx, width);
   push(lx, kind, start, line, col);
