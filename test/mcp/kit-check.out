@@ -1,0 +1,3 @@
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"ratify-lang","version":"S16"}}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\"diagnostics\":[],\"progress\":{\"laws_assumed\":0,\"laws_at_target\":0,\"laws_discharged\":0,\"laws_external\":0,\"laws_total\":0,\"parsed\":7,\"typed\":7}}\n"}],"isError":false}}
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\"diagnostics\":[],\"progress\":{\"laws_assumed\":0,\"laws_at_target\":0,\"laws_discharged\":0,\"laws_external\":0,\"laws_total\":0,\"parsed\":50,\"typed\":50}}\n"}],"isError":false}}

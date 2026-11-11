@@ -16,7 +16,7 @@ TFHE = src/front/tfhe.c
 NOIR = src/front/noir.c
 # S14 (Q-S14-8 (a)): src/front/fmt.c prints the canonical text of `langc fmt`.
 FMT = src/front/fmt.c
-SRC = src/main.c $(FRONT) $(TARGET) $(REPORT) $(TFHE) $(NOIR) $(FMT)
+SRC = src/main.c src/mcp.c $(FRONT) $(TARGET) $(REPORT) $(TFHE) $(NOIR) $(FMT)
 FRONT_TOOL = test/fronttool.c $(filter-out src/front/front.c,$(FRONT))
 # The AST dump of the fmt laws (S14 U2).
 AST_TOOL = test/asttool.c $(filter-out src/front/front.c src/front/lower.c,$(FRONT))
@@ -43,12 +43,14 @@ JSON_TOOL = test/jsontool.c src/jsonout.c host/jsonin.c host/jcs.c src/front/bas
 TFHE_TOOL = test/tfhetool.c host/jsonin.c src/front/base.c
 # The rows of langc check --json and the fix table (S15 U3, Q-S15-6 (a)).
 CHECK_JSON_TOOL = test/checkjsontool.c src/front/fix.c host/jsonin.c host/jcs.c src/front/base.c
+# The rows of langc mcp (S16 U3, Q-S16-8 (a)).
+MCP_TOOL = test/mcptool.c
 HOST_HEADERS = $(wildcard host/*.h)
 HEADERS = $(wildcard src/*.h src/front/*.h src/crypto/*.h)
 
 .PHONY: build check check-clang clean
 
-build: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool
+build: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool build/mcptool
 
 build/domain.c: domain/domain.lang gen/embed.c
 	mkdir -p build
@@ -108,6 +110,10 @@ build/checkjsontool: $(CHECK_JSON_TOOL) $(HOST_HEADERS) $(HEADERS)
 	mkdir -p build
 	$(TCC) $(CFLAGS) -Ihost -o build/checkjsontool $(CHECK_JSON_TOOL)
 
+build/mcptool: $(MCP_TOOL)
+	mkdir -p build
+	$(TCC) $(CFLAGS) -o build/mcptool $(MCP_TOOL)
+
 check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(SRC) build/domain.c
 	$(CC) $(CLANG_FLAGS) $(FRONT_TOOL)
@@ -123,8 +129,9 @@ check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(JSON_TOOL)
 	$(CC) $(CLANG_FLAGS) -Ihost $(TFHE_TOOL)
 	$(CC) $(CLANG_FLAGS) -Ihost $(CHECK_JSON_TOOL)
+	$(CC) $(CLANG_FLAGS) $(MCP_TOOL)
 
-check: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool check-clang
+check: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool build/mcptool check-clang
 	sh test/gate.sh
 	sh test/review.sh
 	build/engineapitool

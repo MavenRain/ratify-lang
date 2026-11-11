@@ -30,4 +30,9 @@ int report_tfhe(Machine *m, FILE *out);
    Returns 1, or 0 after a diagnostic on OWN. */
 int report_check(Arena *arena, Machine *m, const Diag *diag, uint32_t parsed, Diag *own, FILE *out);
 
+/* S16 U1: `langc show-law [ROW]`. Writes one line `NAME: STATEMENT (KIND,
+   trigger T)` for the law row with the name ROW, or for each of the rows
+   when ROW is NULL. Returns the number of lines: 0 = no row has the name. */
+int report_laws(const char *row, FILE *out);
+
 #endif

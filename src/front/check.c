@@ -5465,3 +5465,23 @@ static uint32_t find_family(const Machine *m, const char *name) {
 static int is_family(const Value *t, uint32_t family) {
   return t != NULL && val_is(t, OP_FAMILY) && t->inst == family;
 }
+
+/* S16 U1: `langc list-base` (src/main.c). One line `NAME builtin -` for each
+   guest builtin, in the table order. */
+void check_list_builtins(FILE *out) {
+  size_t i;
+  for (i = 0; i < sizeof BUILTINS / sizeof BUILTINS[0]; i++) {
+    int shown = BUILTINS[i].name != NULL && BUILTINS[i].vis == VIS_GUEST;
+    if (shown) fprintf(out, "%s builtin -\n", BUILTINS[i].name);
+  }
+}
+
+/* S16 U1: `langc --kit list-base`. One line `NAME SORT KIND` for each row of
+   the kit signature, in the table order. */
+void check_list_signature(FILE *out) {
+  static const char *const sort_words[] = {"type", "op"};
+  static const char *const kind_words[] = {"slot", "defined", "primitive"};
+  size_t i;
+  for (i = 0; i < sizeof SIGNATURE / sizeof SIGNATURE[0]; i++)
+    fprintf(out, "%s %s %s\n", SIGNATURE[i].name, sort_words[SIGNATURE[i].sort], kind_words[SIGNATURE[i].kind]);
+}

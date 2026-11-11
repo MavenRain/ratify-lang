@@ -338,16 +338,29 @@ typedef struct {
   const char *name;
   LawKind kind;
   LawTrigger on;
+  const char *statement; /* S16 U1: the Statement column of docs/PLAN.md section 6 */
 } Law;
 
 static const Law LAWS[] = {
-    {"TCM-A", LAW_DISCHARGED, ON_R}, {"TCM-B", LAW_DISCHARGED, ON_R}, {"O2", LAW_DISCHARGED, ON_R},
-    {"O3", LAW_DISCHARGED, ON_R},    {"O4", LAW_DISCHARGED, ON_H},    {"O5", LAW_DISCHARGED, ON_F},
-    {"TCM-E", LAW_DISCHARGED, ON_L}, {"O10", LAW_DISCHARGED, ON_L},   {"TCM-C", LAW_ASSUMED, ON_R},
-    {"TCM-D", LAW_ASSUMED, ON_R},    {"View 1", LAW_ASSUMED, ON_R},   {"View 2", LAW_ASSUMED, ON_R},
-    {"View 3", LAW_ASSUMED, ON_R},   {"O7", LAW_ASSUMED, ON_R},       {"O8", LAW_ASSUMED, ON_R},
-    {"O9", LAW_ASSUMED, ON_L},       {"O6", LAW_AT_TARGET, ON_R},     {"O1", LAW_EXTERNAL, ON_R},
-    {"O11", LAW_EXTERNAL, ON_L},
+    {"TCM-A", LAW_DISCHARGED, ON_R, "authorize is invariant under G_P"},
+    {"TCM-B", LAW_DISCHARGED, ON_R, "and, or are pointwise"},
+    {"O2", LAW_DISCHARGED, ON_R, "each decision is binary"},
+    {"O3", LAW_DISCHARGED, ON_R, "monotone, accept(0) = false, accept(n) = true"},
+    {"O4", LAW_DISCHARGED, ON_H, "each accepting set holds an honest party"},
+    {"O5", LAW_DISCHARGED, ON_F, "fork freedom of the amend rule"},
+    {"TCM-E", LAW_DISCHARGED, ON_L, "nil is the unit, append is associative"},
+    {"O10", LAW_DISCHARGED, ON_L, "causality of the log"},
+    {"TCM-C", LAW_ASSUMED, ON_R, "dec(eval g cs) = g(dec cs)"},
+    {"TCM-D", LAW_ASSUMED, ON_R, "composition of protocols, up to indistinguishability"},
+    {"View 1", LAW_ASSUMED, ON_R, "the three view equations of design sec 5"},
+    {"View 2", LAW_ASSUMED, ON_R, "the three view equations of design sec 5"},
+    {"View 3", LAW_ASSUMED, ON_R, "the three view equations of design sec 5"},
+    {"O7", LAW_ASSUMED, ON_R, "threshold decryption matches the ideal"},
+    {"O8", LAW_ASSUMED, ON_R, "ZK for R_ballot and R_dec"},
+    {"O9", LAW_ASSUMED, ON_L, "resharing on a committee change"},
+    {"O6", LAW_AT_TARGET, ON_R, "FHE exactness for accept . count"},
+    {"O1", LAW_EXTERNAL, ON_R, "each rule is orbit-constant under G_P"},
+    {"O11", LAW_EXTERNAL, ON_L, "at most one entry per height"},
 };
 
 /* The triggers of M into SEEN: its rule facts (KIND 0 Rule, 1 Honest, 2
@@ -405,4 +418,22 @@ int report_check(Arena *arena, Machine *m, const Diag *diag, uint32_t parsed, Di
          out_key_int(&out, "laws_external", counts[LAW_EXTERNAL]) &&
          out_key_int(&out, "laws_total", counts[LAW_DISCHARGED]) && out_key_int(&out, "parsed", (int64_t)parsed) &&
          out_key_int(&out, "typed", m != NULL ? (int64_t)m->typed : 0) && out_text(&out, "}}") && out_line(&out, file);
+}
+
+/* S16 U1: `langc show-law [ROW]` (src/main.c). One line `NAME: STATEMENT
+   (KIND, trigger T)` for the row with the name ROW, or for each row when ROW
+   is NULL. Returns the number of lines. */
+int report_laws(const char *row, FILE *out) {
+  static const char *const kind_words[LAW_KINDS] = {"DISCHARGED", "ASSUMED", "AT TARGET", "EXTERNAL"};
+  static const char *const trigger_words[LAW_TRIGGERS] = {"R", "H", "F", "L"};
+  size_t i;
+  int count = 0;
+  for (i = 0; i < sizeof LAWS / sizeof LAWS[0]; i++) {
+    int shown = row == NULL || strcmp(LAWS[i].name, row) == 0;
+    if (shown)
+      fprintf(out, "%s: %s (%s, trigger %s)\n", LAWS[i].name, LAWS[i].statement, kind_words[LAWS[i].kind],
+              trigger_words[LAWS[i].on]);
+    count += shown;
+  }
+  return count;
 }

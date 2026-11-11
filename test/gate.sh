@@ -955,6 +955,175 @@ for prog in $(printf '%s\n' examples/*.lang | LC_ALL=C sort); do
 done
 echo "fmt examples: $fmt_examples checked"
 
+# mcp rows: begin
+# S16 U3 (Q-S16-8 (a); the model is the mcp block of accrue-lang
+# test/gate.sh). Each test/mcp/NAME.in is a row: build/mcptool runs `langc
+# mcp` (`langc --kit mcp` when NAME starts with kit-) with NAME.in on stdin.
+# The stdout equals test/mcp/NAME.out byte for byte, the stderr is empty and
+# the exit is 0. The rows call each of the 6 tools. build/mcptool exits 1 on
+# each of 3 bad inputs: a changed .out, a missing .out and no rows (its FAIL
+# lines go to $tmp, not to the log). The build row writes
+# build/mcp-bagorbit.main and build/mcp-bagorbit.runtime from
+# examples/bagorbit.lang: each file equals the file of `langc build` with -o
+# or with -o --runtime. The 2 parts are the same bytes on T1 (Q-U3-1 (a)),
+# so this check sees a target swap only when the parts differ. A line of
+# 1048576 bytes (MCP_LINE_MAX_BYTES of src/mcp.h) gets its reply, a line of
+# 1048577 bytes gets the -32700 reply with id null, and the ping on the next
+# line gets its reply. For each row of the fix table (src/front/fix.c, 71),
+# `langc explain CODE` writes one line `CODE: ...` and nothing on stderr.
+# For row i of the law list below (docs/PLAN.md sec 6, 19 rows), `langc
+# show-law NAME` writes line i of `langc show-law`, and that line ends with
+# the kind and the trigger of the list.
+rm -f build/mcp-bagorbit.main build/mcp-bagorbit.runtime build/mcp-algebra.main build/mcp-errors.out
+status=0
+build/mcptool test/mcp/*.in || status=$?
+[ "$status" -eq 0 ] || { echo "FAIL mcp: build/mcptool exit $status"; fail=$((fail + 1)); }
+mkdir -p "$tmp/neg"
+cp test/mcp/explain.in test/mcp/explain.out "$tmp/neg/"
+printf x >>"$tmp/neg/explain.out"
+neg=0
+status=0
+build/mcptool "$tmp/neg/explain.in" >"$tmp/neg.out" 2>&1 || status=$?
+if [ "$status" -eq 1 ]; then
+  neg=$((neg + 1))
+else
+  echo "FAIL mcp negative changed .out: exit $status"
+  fail=$((fail + 1))
+fi
+cp test/mcp/explain.out "$tmp/neg/explain.out"
+cp test/mcp/explain.in "$tmp/neg/kit-explain.in"
+status=0
+build/mcptool "$tmp/neg/explain.in" "$tmp/neg/kit-explain.in" >"$tmp/neg.out" 2>&1 || status=$?
+if [ "$status" -eq 1 ]; then
+  neg=$((neg + 1))
+else
+  echo "FAIL mcp negative missing .out: exit $status"
+  fail=$((fail + 1))
+fi
+status=0
+build/mcptool >"$tmp/neg.out" 2>&1 || status=$?
+if [ "$status" -eq 1 ]; then
+  neg=$((neg + 1))
+else
+  echo "FAIL mcp negative no rows: exit $status"
+  fail=$((fail + 1))
+fi
+echo "mcp negatives: $neg of 3"
+tools=0
+for t in check fmt explain list-base show-law build; do
+  if rg -qF -- "\"method\":\"tools/call\",\"params\":{\"name\":\"$t\"" test/mcp/*.in; then
+    tools=$((tools + 1))
+  else
+    echo "FAIL mcp tools: no row of test/mcp calls $t"
+    fail=$((fail + 1))
+  fi
+done
+echo "mcp tools: $tools of 6"
+mkdir -p "$tmp/mcpb"
+mbuilds=0
+for t in main runtime; do
+  flag=
+  [ "$t" = main ] || flag=--runtime
+  status=0
+  build/langc build examples/bagorbit.lang -o "$tmp/mcpb/bagorbit.$t" $flag >"$tmp/mcpb.out" 2>&1 || status=$?
+  if [ "$status" -eq 0 ] && cmp -s "build/mcp-bagorbit.$t" "$tmp/mcpb/bagorbit.$t"; then
+    mbuilds=$((mbuilds + 1))
+  else
+    echo "FAIL mcp build $t: langc build exit $status, or build/mcp-bagorbit.$t is not the file of the CLI"
+    fail=$((fail + 1))
+  fi
+done
+echo "mcp builds: $mbuilds of 2"
+mhead='{"jsonrpc":"2.0","id":'
+mtail=',"method":"ping","params":{"pad":"'
+mfix=$((${#mhead} + 1 + ${#mtail} + 3))
+{
+  printf '%s7%s' "$mhead" "$mtail"
+  head -c $((1048576 - mfix)) /dev/zero | tr '\0' a
+  printf '"}}\n%s8%s' "$mhead" "$mtail"
+  head -c $((1048577 - mfix)) /dev/zero | tr '\0' a
+  printf '"}}\n{"jsonrpc":"2.0","id":9,"method":"ping"}\n'
+} >"$tmp/long.in"
+printf '%s\n' '{"jsonrpc":"2.0","id":7,"result":{}}' \
+  '{"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"Parse error"}}' \
+  '{"jsonrpc":"2.0","id":9,"result":{}}' >"$tmp/long.want"
+mlong=0
+mlen=$(($(head -n 1 "$tmp/long.in" | wc -c)))
+mlen2=$(($(head -n 2 "$tmp/long.in" | wc -c) - mlen))
+status=0
+build/langc mcp <"$tmp/long.in" >"$tmp/long.out" 2>"$tmp/long.err" || status=$?
+if [ "$mlen" -eq 1048577 ] && [ "$mlen2" -eq 1048578 ] && [ "$status" -eq 0 ] && cmp -s "$tmp/long.want" "$tmp/long.out" && [ ! -s "$tmp/long.err" ]; then
+  mlong=$((mlong + 1))
+else
+  echo "FAIL mcp long line: lines of $mlen and $mlen2 bytes, exit $status, or the reply is not $tmp/long.want"
+  fail=$((fail + 1))
+fi
+echo "mcp long line: $mlong of 1"
+awk -F '"' '$1 == "    {" {print $2}' src/front/fix.c | sort -u >"$tmp/codes.rows"
+[ -s "$tmp/codes.rows" ] || { echo "FAIL explain codes: no row of src/front/fix.c"; fail=$((fail + 1)); }
+codes=0
+for code in $(cat "$tmp/codes.rows"); do
+  status=0
+  build/langc explain "$code" >"$tmp/explain.out" 2>"$tmp/explain.err" </dev/null || status=$?
+  lines=$(($(wc -l <"$tmp/explain.out")))
+  if [ "$status" -eq 0 ] && [ "$lines" -eq 1 ] && rg -q "^$code: " "$tmp/explain.out" && [ ! -s "$tmp/explain.err" ]; then
+    codes=$((codes + 1))
+  else
+    echo "FAIL explain $code: exit $status, $lines lines"
+    fail=$((fail + 1))
+  fi
+done
+echo "explain codes: $codes of $(($(wc -l <"$tmp/codes.rows")))"
+cat >"$tmp/laws.want" <<'LAWS'
+TCM-A|DISCHARGED|R
+TCM-B|DISCHARGED|R
+O2|DISCHARGED|R
+O3|DISCHARGED|R
+O4|DISCHARGED|H
+O5|DISCHARGED|F
+TCM-E|DISCHARGED|L
+O10|DISCHARGED|L
+TCM-C|ASSUMED|R
+TCM-D|ASSUMED|R
+View 1|ASSUMED|R
+View 2|ASSUMED|R
+View 3|ASSUMED|R
+O7|ASSUMED|R
+O8|ASSUMED|R
+O9|ASSUMED|L
+O6|AT TARGET|R
+O1|EXTERNAL|R
+O11|EXTERNAL|L
+LAWS
+lawn=$(($(wc -l <"$tmp/laws.want")))
+status=0
+build/langc show-law >"$tmp/laws.all" 2>"$tmp/laws.err" </dev/null || status=$?
+lines=$(($(wc -l <"$tmp/laws.all")))
+if [ "$status" -ne 0 ] || [ "$lines" -ne "$lawn" ] || [ -s "$tmp/laws.err" ]; then
+  echo "FAIL law rows: langc show-law: exit $status, $lines lines, want $lawn"
+  fail=$((fail + 1))
+fi
+laws=0
+lawi=0
+while IFS='|' read -r name kind trigger; do
+  lawi=$((lawi + 1))
+  status=0
+  build/langc show-law "$name" >"$tmp/law.out" 2>"$tmp/law.err" </dev/null || status=$?
+  lines=$(($(wc -l <"$tmp/law.out")))
+  line=$(cat "$tmp/law.out")
+  want=$(awk -v i="$lawi" 'NR == i' "$tmp/laws.all")
+  rest=${line#"$name: "}
+  body=${rest%" ($kind, trigger $trigger)"}
+  if [ "$status" -eq 0 ] && [ "$lines" -eq 1 ] && [ "$rest" != "$line" ] && [ "$body" != "$rest" ] && [ "$line" = "$want" ] && [ ! -s "$tmp/law.err" ]; then
+    laws=$((laws + 1))
+  else
+    echo "FAIL law $name: exit $status, $lines lines, or the line is not line $lawi of langc show-law with ($kind, trigger $trigger)"
+    fail=$((fail + 1))
+  fi
+done <"$tmp/laws.want"
+echo "law rows: $laws of $lawn"
+# mcp rows: end
+
 status=0
 build/langc 2>/dev/null || status=$?
 [ "$status" -eq 2 ] || { echo "FAIL usage: want exit 2, got $status"; fail=$((fail + 1)); }

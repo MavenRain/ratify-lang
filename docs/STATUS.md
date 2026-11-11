@@ -133,9 +133,15 @@ next slice is S9: the Wasm module and the crypto import ABI.
   in the RFC 8785 form with `diagnostics` (0 or 1 object: `code`,
   `expected`, `fix`, `found`, `message`, `span`) and `progress` (the
   `parsed` and `typed` flags and the law counts). `src/front/fix.c` has
-  one fix text for each code (69 rows). In `make check`,
+  one fix text for each code (71 rows; S15: 69). In `make check`,
   `build/checkjsontool` checks the 21 rows of `test/json/` and the fix
   table.
+- `langc mcp` (S16, `docs/MCP.md`): an MCP server on stdin and stdout
+  (MCP `2025-11-25`) with the 6 tools `check`, `fmt`, `explain`,
+  `list-base`, `show-law` and `build`. Each tool is a CLI verb; S16 adds
+  the verbs `langc explain CODE`, `langc list-base` and `langc show-law
+  [ROW]`. In `make check`, `build/mcptool` checks the 10 rows of
+  `test/mcp/`.
 
 ## Laws
 
@@ -184,6 +190,12 @@ hashes, the curve code and Schnorr on BN254 G1.
 - In the kit mode, `langc check --json` decides no rule definition.
   Thus a kit program has the L trigger only, and the kit demo row has
   the law counts 2, 1, 0 and 1 (`docs/CHECK-JSON.md`).
+- `langc mcp` supports MCP `2025-11-25` only: it does not support
+  2026-07-28. The tools do not include `tfhe`, `noir`, `report`, `ir`,
+  `abi` or `fmt --check`: these are CLI only (`docs/MCP.md`).
+- The `main` and `runtime` targets of the `build` tool give the same
+  bytes today. Thus the gate line `mcp builds` cannot see a swap of the
+  2 targets (Q-U3-1 (a)).
 
 ## Internal boundaries
 

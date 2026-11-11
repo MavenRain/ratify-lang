@@ -85,7 +85,7 @@ A diagnostic object has 6 keys (Q-S15-1 (a)).
 
 ### The fix table
 
-- `src/front/fix.c` has the fix table: 69 rows, sorted by code
+- `src/front/fix.c` has the fix table: 71 rows, sorted by code
   (Q-S15-3 (a), D-U2-1). `fix_of(code)` gives the hint, `fix_count()`
   and `fix_code(i)` give the rows.
 - The rule: each code string at a `diag_fail`, `diag_fail_at`, `FAIL`,
@@ -186,7 +186,7 @@ runs in `make check` and writes 3 count lines. A failed check writes a
 - `json fix rows: 11 checked`. The tool reads the section 7 table of
   `docs/PLAN.md`, less the `REFUSE_DEPTH` and `REFUSE_NOIR` rows. The
   fix row of each code must start with the section 7 text.
-- `json fix table: 69 codes`. The count is `fix_count()`. The rows must
+- `json fix table: 71 codes`. The count is `fix_count()`. The rows must
   be sorted by code. At each `diag_fail`, `diag_fail_at`, `FAIL`,
   `FAIL_PAIR` and `kit_refused` site of `src/front` and `src/main.c`,
   the first string literal before the next `;` is the code when it has

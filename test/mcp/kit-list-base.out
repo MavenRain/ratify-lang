@@ -1,0 +1,2 @@
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"ratify-lang","version":"S16"}}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"Member type slot\nChoice type slot\nOutcome type slot\nGroup type slot\nConfig type defined\nOrbit type defined\nConstitution type defined\nAggregation type defined\nTally type defined\norbitProj op defined\nact op slot\noutcomeSet op slot\nmenu op slot\naggregate op defined\ngov op defined\namend op defined\n"}],"isError":false}}

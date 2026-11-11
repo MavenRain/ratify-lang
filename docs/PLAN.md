@@ -33,7 +33,8 @@ Q-S5-3 (a), Q-S6-1 to Q-S6-4 (a), Q-S7-1 to Q-S7-6 (a), Q-S8-1 to Q-S8-5
 Q-S10-1 to Q-S10-7, Q-S10-U2-1 to Q-S10-U2-4, Q-S10-U3-1 to Q-S10-U3-4
 and Q-S10-U3-6 (a), Q-S10-U3-L (c), Q-S11-1 to Q-S11-10 (a), Q-S12-1 to
 Q-S12-8 (a), Q-S13-1, Q-S13-2 and Q-S13-4 to Q-S13-8 (a), Q-S13-3 (c),
-Q-S14-1 to Q-S14-8 (a), Q-S15-1 to Q-S15-8 (a)).
+Q-S14-1 to Q-S14-8 (a), Q-S15-1 to Q-S15-8 (a), Q-S16-1 to Q-S16-10
+(a), Q-U2-1 (a), Q-U3-1 (a)).
 `src/crypto/` has the crypto C of quorum-lang and
 Schnorr on BN254 G1, and `build/cryptotool` runs the crypto rows and the
 certificate rows, and writes the host table. The T1 module calls six
@@ -45,7 +46,8 @@ tfhe` (`docs/TFHE-CIRCUIT.md`). S13 adds the T3 relations R_ballot and
 R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). S14 adds
 `langc fmt`, the canonical printer (`docs/FMT.md`). S15 adds
 `langc check --json`, the JSON report of the checker
-(`docs/CHECK-JSON.md`). Next: S16 (section 12).
+(`docs/CHECK-JSON.md`). S16 adds `langc mcp`, the MCP server
+(`docs/MCP.md`). Next: S17 (section 12).
 
 ## 1. Rulings
 
@@ -165,6 +167,18 @@ R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). S14 adds
 | 2026-11-10 | Q-S15-7 (a): the gate must kill the mutants M1 to M7. Result: 7 of 7. Edits: section 10. | USER, S15 |
 | 2026-11-10 | Q-S15-8 (a): the units U1, U2, U3 and CLOSE. U1 the diagnostic record (the span, `expected`, `found`); U2 the fix table, the law counts and the JSON writer; U3 the rows of `test/json/`, `build/checkjsontool` and the mutants; CLOSE `docs/PLAN.md` and `docs/STATUS.md`, the record, staging. Edits: section 12. | USER, S15 |
 | 2026-11-10 | D-CLOSE-1 "Widen the rows now": one code has one fix text, and a code can have 2 or more sites. Each fix text of `src/front/fix.c` must be true at each site of its code. 14 rows get a more general text; the row of a section 7 code keeps the section 7 text first. 3 rows of `test/json/` change in the `fix` value only. Edits: `docs/CHECK-JSON.md`. | USER, S15 |
+| 2026-11-10 | Q-S16-1 (a): `docs/MCP.md` pins MCP `2025-11-25`, as the six sibling repos (accrue, cairn, lien, permit, relay, tranche). The methods are `initialize`, `ping`, `tools/list` and `tools/call`. The server starts as a copy of the accrue-lang server (a copy of the cairn-lang 60768e8 server). `docs/MCP.md` says that 2026-07-28 is not supported; a move of the whole family to 2026-07-28 is an open item (OI-S16-1). Edits: `docs/MCP.md`. | USER, S16 |
+| 2026-11-10 | Q-S16-2 (a): 6 tools with the section 8.3 names: `check`, `fmt`, `explain`, `list-base`, `show-law` and `build`. Each tool is a CLI verb. S16 adds 3 verbs: `langc explain CODE` (the fix row of the code, `src/front/fix.c`), `langc list-base` (the embedded domain definitions and the guest builtins; with `--kit`, the kit signature) and `langc show-law [ROW]` (name, kind, trigger and the section 6 statement). The gate tests each verb directly. There is no `eval` tool. Edits: section 9 (row A4), `docs/MCP.md`. | USER, S16 |
+| 2026-11-10 | Q-S16-3 (a): `build` takes `path`, `target` (`main` or `runtime`) and `out`: `langc build PATH -o OUT`, with `--runtime` for `runtime`. T2 to T4 (`tfhe`, `noir`, `report`) stay CLI verbs; `docs/MCP.md` records this limit. Edits: `docs/MCP.md`. | USER, S16 |
+| 2026-11-10 | Q-S16-4 (a): a tool result is `{"content":[{"type":"text","text":STDOUT},{"type":"text","text":STDERR}],"isError":BOOL}`. The second item is there only when the stderr is not empty. `isError` is true when the exit code is not 0. `check` runs `langc check PATH --json`, so its first item is the one-line object. There is no `structuredContent` and no `outputSchema`. Edits: `docs/MCP.md`. | USER, S16 |
+| 2026-11-10 | Q-S16-5 (a): one process. `src/mcp.c` gets the verbs from `src/main.c` as a callback. Each message gets a fresh arena (1 GiB limit), fresh options and a fresh diagnostic. The stdout and the stderr of the verb go to `open_memstream` buffers; each verb of `src/main.c` writes to given streams. There is no state between messages. Edits: `docs/MCP.md`. | USER, S16 |
+| 2026-11-10 | Q-S16-6 (a): `check`, `fmt` and `build` take `path` (a string with no NUL byte). A relative path starts at the working directory of the server. No tool takes the source text. `build` writes the file `out`. The server has the rights of the user who starts it, the same as `langc` on the command line. Edits: `docs/MCP.md`. | USER, S16 |
+| 2026-11-10 | Q-S16-7 (a): the error codes follow the 2025-11-25 text. -32700: not JSON, or a line above 1 MiB (id null). -32600: not a valid request. -32601: an unknown method. -32602: `initialize` with no `protocolVersion` string, `tools/call` with no `name` string, `arguments` that is not an object, or an unknown tool. -32603: the server cannot run the tool. A known tool with a missing argument, a wrong type, an unknown `target` or a NUL byte gives a result with `isError` true and a text that names the argument. A verb with an exit code that is not 0 gives `isError` true. The sibling servers give -32602 in the argument cases (OI-S16-2). Edits: `docs/MCP.md`. | USER, S16 |
+| 2026-11-10 | Q-S16-8 (a): 10 rows in `test/mcp/` (`X.in`, `X.out`): lifecycle, check, fmt, explain, list-base, show-law, build, errors, kit-check and kit-list-base. `build/mcptool` (`test/mcptool.c`) sends each `X.in` to `langc mcp` (`langc --kit mcp` for a `kit-` row): the stdout equals `X.out` byte for byte, the stderr is empty and the exit code is 0. 7 gate lines: `mcp rows: 10 passed`, `mcp negatives: 3 of 3`, `mcp tools: 6 of 6`, `mcp builds: 2 of 2`, `mcp long line: 1 of 1`, `explain codes: 71 of 71` (69 at the time of the ruling; S16 adds the codes `EXPLAIN` and `LAW`) and `law rows: 19 of 19`. Thus the gate goes from 52 to 59 count lines. The rows use programs that are in the repo: there is no new `.lang` file, and the fmt law counts do not change. Edits: section 10. | USER, S16 |
+| 2026-11-10 | Q-S16-9 (a): the gate must kill the mutants M1 to M8. M1: `isError` is always false. M2: no stderr text item. M3: a notification gets a reply. M4: an unknown method gives -32602. M5: a line of 1 MiB + 1 byte is accepted. M6: a missing tool argument gives -32602. M7: `explain` of an unknown code exits 0. M8: `show-law` shows one ASSUMED row as DISCHARGED. Result: 8 of 8. Edits: section 10. | USER, S16 |
+| 2026-11-10 | Q-S16-10 (a): the units U1, U2, U3 and CLOSE. U1 the streams of the `src/main.c` verbs and the 3 new verbs; U2 `src/mcp.c`, `src/mcp.h`, the `mcp` command and `docs/MCP.md`; U3 `test/mcptool.c`, the 10 rows, the 7 gate lines and the mutants; CLOSE `docs/PLAN.md` and `docs/STATUS.md`, the record, staging. Edits: section 12. | USER, S16 |
+| 2026-11-10 | Q-U2-1 (a): an argument failure of a known tool (Q-S16-7) is a plain line that `src/mcp.c` writes to the stderr capture. The call ends as a CLI usage failure (exit 2). Item 1 is the empty stdout, item 2 is the line, and `isError` is true: the Q-S16-4 form with no special case. The failure has no diagnostic code, and the fix table stays at 71 codes. Edits: `docs/MCP.md`. | USER, S16 |
+| 2026-11-10 | Q-U3-1 (a): `mcp builds: 2 of 2` stays as Q-S16-8 says. The gate compares each file that the tool writes with the CLI file, for `main` and `runtime`. The 2 targets give the same bytes on T1, so a swap of the targets has no effect today; the same gate line sees a swap when the parts differ. Edits: `docs/MCP.md`. | USER, S16 |
 
 The S13 decisions D-U1-1 to D-U1-5, D-U2-1 to D-U2-6 and D-U3-1 to D-U3-3
 are not USER rulings; the USER can overturn each. They are in
@@ -179,6 +193,15 @@ and D-CLOSE-2 are not USER rulings; the USER can overturn each.
 `docs/CHECK-JSON.md` cites D-U1-2, D-U1-3, D-U2-1, D-U2-2, D-U2-6,
 D-U3-1 and D-U3-2. D-CLOSE-2: the S14 row of section 12 keeps its S14
 counts.
+
+The S16 decisions D-S16-1 to D-S16-3, D-U1-1 to D-U1-8, D-U2-1 to
+D-U2-7, D-U3-1 to D-U3-8 and D-C16-1 to D-C16-4 are not USER rulings;
+the USER can overturn each. Q-U3-1 (a) closes D-U2-6. Three items stay
+open: OI-S16-1 (MCP 2026-07-28 for the family of servers), OI-S16-2 (the
+sibling servers give -32602 for a bad tool argument) and OI-S16-4
+(`langc` gives the `USAGE` code for a host table that it cannot open).
+D-C16-1: the S15 row of section 12 keeps its S15 counts. D-C16-2:
+`docs/VALIDATION.md` gets no S16 text.
 
 S13 review (2026-11-10) aligns public point decoding with T1: each
 coordinate is canonical in the base field, and (0, 0) encodes the
@@ -605,7 +628,7 @@ fits. Each item has one deliverable, one slice and one gate.
 | A1 | "one canonical form per operation and a langc fmt canonical printer" | No aliases, no second syntax. `langc fmt FILE` prints the canonical form. `langc fmt --check` exits 1 when a file is not canonical. | S14 | `fmt` is idempotent; `parse (fmt x)` has the same core term as `x`; each example is canonical. S14: DONE. The gate lines `fmt idempotent`, `fmt ast` and `fmt examples` hold the laws over the 291 `.lang` files of the corpus (S14: 284; `docs/FMT.md`). |
 | A2 | "langc check --json, giving fix hints and progress counts (parsed, typed, laws discharged)" | One JSON object: `diagnostics` (code, span, expected, found, `fix`) and `progress` (`parsed`, `typed`, `laws_discharged`, `laws_total`, `laws_assumed`, `laws_at_target`, `laws_external`). Schema in `docs/CHECK-JSON.md`. | S15 | Rows in `test/json/`, byte equal. Each code of section 7 has a `fix` row. S15: DONE. The gate lines `json rows`, `json fix rows` and `json fix table` hold the 21 rows and the fix table (`docs/CHECK-JSON.md`). |
 | A3 | "a SKILL.md with 3 to 5 graded examples" | `skills/ratify-lang/SKILL.md` with five graded examples: G1 a plain t-of-n policy, G2 two classes and a veto, G3 an amendment that changes the amend rule, G4 a log replay with `policyAt`, G5 the demo. | S17 | Each example checks; each SKILL.md block and its file are byte equal. |
-| A4 | "an MCP server written in TinyCC (langc mcp)" | An MCP server over stdio (JSON-RPC 2.0, one message on each line), in C, in the same `langc`. Tools: section 8.3. The MCP spec version is pinned in `docs/MCP.md`. | S16 | `test/mcptool.c` sends `test/mcp/*.in` and compares the replies with `*.out`. |
+| A4 | "an MCP server written in TinyCC (langc mcp)" | An MCP server over stdio (JSON-RPC 2.0, one message on each line), in C, in the same `langc`. Tools: section 8.3. The MCP spec version is pinned in `docs/MCP.md`. | S16 | `test/mcptool.c` sends `test/mcp/*.in` and compares the replies with `*.out`. S16: DONE. The gate lines `mcp rows`, `mcp negatives`, `mcp tools`, `mcp builds`, `mcp long line`, `explain codes` and `law rows` hold the 10 rows and the 6 tools (`docs/MCP.md`). |
 | A5 | "AGENTS.md and a README table saying when to use the language" | `AGENTS.md` and the README table "When to reach for ratify-lang". Both exist at S0 as DRAFT; S17 makes them final. | S0, S17 | Review only. |
 | A6 | "a token-count comparison against Python and Rust" | G1 to G5 and the demo in ratify-lang, Python and Rust, with equal outputs. Report `docs/TOKEN-BASELINE.md`: the tokenizer pin, each count, each file hash (Q-S0-14 (a): the permit-lang ruling, count_tokens and equal outputs). | S18 | `make tokens`, not in `make check`. |
 
@@ -657,9 +680,17 @@ fits. Each item has one deliverable, one slice and one gate.
   (a)).
 - `langc check --json` (S15, `docs/CHECK-JSON.md`): the 21 rows of
   `test/json/` (`json rows: 21 checked`), the section 7 fix rows (`json
-  fix rows: 11 checked`) and the fix table (`json fix table: 69 codes`;
-  Q-S15-6 (a)). The gate has 52 count lines (S14: 49). The gate kills
-  the 7 mutants M1 to M7, 7 of 7 (Q-S15-7 (a)).
+  fix rows: 11 checked`) and the fix table (`json fix table: 71 codes`;
+  Q-S15-6 (a)). At S15 the fix table had 69 codes; S16 adds the codes
+  `EXPLAIN` and `LAW`. At S15 the gate had 52 count lines (S14: 49). The
+  gate kills the 7 mutants M1 to M7, 7 of 7 (Q-S15-7 (a)).
+- `langc mcp` (S16, `docs/MCP.md`): the 10 rows of `test/mcp/` (`mcp
+  rows: 10 passed`, `mcp negatives: 3 of 3`), the 6 tools (`mcp tools: 6
+  of 6`), the files that the `build` tool writes (`mcp builds: 2 of 2`),
+  the line limit (`mcp long line: 1 of 1`), the fix row of each code
+  (`explain codes: 71 of 71`) and the law rows (`law rows: 19 of 19`;
+  Q-S16-8 (a)). The gate has 59 count lines (S15: 52). The gate kills
+  the 8 mutants M1 to M8, 8 of 8 (Q-S16-9 (a)).
 
 ## 11. Port sources
 
@@ -692,7 +723,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S13 | T3: R_ballot and R_dec as Noir, `docs/NOIR-RELATIONS.md`. On the USER commit 26b94d7. `langc [--kit] noir PROG` writes one Noir library text (Q-S13-3 (c)): a `K_<DEF>` global for each decided rule definition (Q-S13-8 (a)) and the two relations over BN254 G1 with noir_bigcurve v0.15.0 and noir-bignum v0.11.0 (Q-S13-1 (a), Q-S13-7 (a)). R_ballot: b in {0, 1}, c1 = r G, c2 = b G + r PK, j < k; R_dec: s G = KEY, s C1 = D (Q-S13-2 (a)). `REFUSE_NOIR` at `langc noir` only refuses two decided rule definitions with one K name. The packages are `noir/ratify`, `noir/r_ballot` and `noir/r_dec`; `build/cryptotool noir DIR` writes their KAT files. Gate (bytes only, Q-S13-4 (a)): 7 noir rows, 1 noir refusal, 1 noir package and 4 noir kat files; the 39 count lines of S12 do not change. Validation (nargo 1.0.0-rc.0): check, test, execute and info rc 0 in each package, and 10 + 5 test rows pass. The emitter mutants M1 to M7 (drop each constraint, swap G and PK) are KILLED by the Noir tests, 7 of 7 (Q-S13-5 (a)). The cost is in OI-11. | DONE |
 | S14 | A1: canonical forms and `langc fmt`, `docs/FMT.md`. On the USER commit 8926869. `langc fmt PROG [--check]` writes the canonical text; with `--check` it writes nothing and exits 1 with `FMT_DIFF` when the bytes are different (Q-S14-2 (a)). The canonical form: one declaration on one line, one break after `:=` above 100 columns, each later family constructor on its own line (Q-S14-4 (a)); `Sigma (x : A) B`, one name in each group, merged fun binders (Q-S14-3 (a)); full-line comments kept, a comment after code refused with `FMT_TRAILING_COMMENT` (Q-S14-1 (a)). The laws over the corpus: fmt is idempotent and keeps the AST dump of `test/asttool.c` (Q-S14-5 (a)). `langc fmt` rewrote 34 of the 37 examples once. Gate: 10 fmt rows, 1 fmt refusal, `fmt idempotent: 267 checked, 17 refused`, `fmt ast: 267 checked`, `fmt examples: 37 checked`; 49 count lines. The gate kills the printer mutants M1 to M6, 6 of 6 (Q-S14-7 (a)). | DONE |
 | S15 | A2: `langc check --json`, `docs/CHECK-JSON.md`. On the USER commit 05a914d. `langc [--kit] check PROG --json` writes one JSON object in the RFC 8785 form: `diagnostics` (0 or 1 object: `code`, `expected`, `fix`, `found`, `message`, `span`) and `progress` (`parsed`, `typed`, `laws_discharged`, `laws_total`, `laws_assumed`, `laws_at_target`, `laws_external`). In the `--json` mode stderr has no text; the exit codes and the text mode do not change (Q-S15-1 (a), Q-S15-2 (a)). The law counts come from the triggers R, H, F and L (Q-S15-4 (a), Q-S15-5 (a)). `src/front/fix.c` has 69 rows, one fix text for each code, sorted by code (Q-S15-3 (a)); each text is true at each site of its code (D-CLOSE-1). Gate: `json rows: 21 checked`, `json fix rows: 11 checked`, `json fix table: 69 codes`; 52 count lines. The 7 `.lang` files of `test/json/` are in the fmt laws: `fmt idempotent: 272 checked, 19 refused`, `fmt ast: 272 checked`. The gate kills the mutants M1 to M7, 7 of 7 (Q-S15-7 (a)). | DONE |
-| S16 | A4: `langc mcp`. | |
+| S16 | A4: `langc mcp`, `docs/MCP.md`. On the USER commit 7f64206. `langc [--kit] mcp` is an MCP server on stdin and stdout (JSON-RPC 2.0, one message on each line; MCP `2025-11-25`; the methods `initialize`, `ping`, `tools/list` and `tools/call`; Q-S16-1 (a)). It has 6 tools, each a CLI verb: `check`, `fmt`, `explain`, `list-base`, `show-law` and `build` (Q-S16-2 (a), Q-S16-3 (a)). S16 adds the verbs `langc explain CODE`, `langc list-base` and `langc show-law [ROW]` and the codes `EXPLAIN` and `LAW`: `src/front/fix.c` has 71 rows. A tool result has the stdout text, the stderr text when it is not empty, and `isError` (Q-S16-4 (a), Q-U2-1 (a)). One process runs each verb with a fresh arena and memory streams (Q-S16-5 (a)). The error codes are in Q-S16-7 (a). Gate: `mcp rows: 10 passed`, `mcp negatives: 3 of 3`, `mcp tools: 6 of 6`, `mcp builds: 2 of 2` (Q-U3-1 (a)), `mcp long line: 1 of 1`, `explain codes: 71 of 71`, `law rows: 19 of 19`; 59 count lines. There is no new `.lang` file: the fmt law counts do not change. The gate kills the mutants M1 to M8, 8 of 8 (Q-S16-9 (a)). | DONE |
 | S17 | A3 and A5: SKILL.md, G1 to G5, AGENTS.md and the README table final. | |
 | S18 | A6: the token comparison. | |
 | S19 | Close: SPEC.md, probe/CAPABILITY.md, VALIDATION.md, final gate. | |

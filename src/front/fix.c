@@ -30,6 +30,9 @@ static const FixRow FIXES[] = {
      "Make the evaluation shorter: use smaller literals or fewer steps."},
     {"EVAL_PRINT",
      "Give an entry whose normal form is a closed value."},
+    {"EXPLAIN",
+     "Give a code of the fix table, for example: langc explain "
+     "TYPE_MISMATCH. A diagnostic of langc shows its code."},
     {"FIN_CASE",
      "Make each case of the Fin elimination check against its case type."},
     {"FIN_RANGE",
@@ -76,6 +79,9 @@ static const FixRow FIXES[] = {
      "Make sure that the program file exists and that langc can read it."},
     {"IO_SIZE",
      "Make the program file smaller than the size limit."},
+    {"LAW",
+     "Give a row name of the law table, for example: langc show-law O4. "
+     "With no name, langc show-law shows each row."},
     {"LEX_CHAR",
      "Remove or change the byte at the span. If a letter follows a "
      "Nat literal, put a space or an operator between them."},
@@ -183,7 +189,8 @@ static const FixRow FIXES[] = {
     {"UNGLUE_TYPE",
      "Apply unglue only to a term of a Glue type."},
     {"USAGE",
-     "Give a command and a program path: langc [--kit] check PROG [--json]."},
+     "Give a command with its arguments as the usage text shows them, for "
+     "example: langc [--kit] check PROG [--json]."},
 };
 
 const char *fix_of(const char *code) {

@@ -36,7 +36,10 @@ adds `langc tfhe PROG`, the T2 TFHE tally circuit
 R_ballot and R_dec as Noir (`docs/NOIR-RELATIONS.md`), and the Nargo
 packages in `noir/`. S14 adds `langc fmt PROG [--check]`, the canonical
 printer (`docs/FMT.md`). S15 adds `langc check PROG --json`, the JSON
-report of the checker (`docs/CHECK-JSON.md`). The other ratify-lang types, refusals and targets do not exist yet.
+report of the checker (`docs/CHECK-JSON.md`). S16 adds `langc mcp`, the
+MCP server (`docs/MCP.md`), and the verbs `langc explain CODE`, `langc
+list-base` and `langc show-law [ROW]`. The other ratify-lang types,
+refusals and targets do not exist yet.
 `docs/PLAN.md` gives the plan, and its section 14 gives the open
 questions.
 

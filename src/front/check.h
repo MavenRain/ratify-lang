@@ -47,4 +47,10 @@ int eval_command(Machine *m, const char *name, char *const *args, int arg_count,
    host_call uses it). Gives 1, or 0 after a diagnostic. */
 int host_table_read(Machine *m, FILE *f);
 
+/* S16 U1: `langc list-base` writes one line `NAME builtin -` for each guest
+   builtin. `langc --kit list-base` writes one line `NAME SORT KIND` for each
+   row of the kit signature. */
+void check_list_builtins(FILE *out);
+void check_list_signature(FILE *out);
+
 #endif

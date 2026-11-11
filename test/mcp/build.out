@@ -1,0 +1,4 @@
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"ratify-lang","version":"S16"}}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":""}],"isError":false}}
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":""}],"isError":false}}
+{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":""},{"type":"text","text":"langc: REFUSE_CELL: sumList: List is a cons-list name, not a cell monad; a guest program uses FreeMon of domain/domain.lang (rule R1)\n"}],"isError":true}}

@@ -1,0 +1,4 @@
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"ratify-lang","version":"S16"}}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"TYPE_MISMATCH: Change the term until its type is the expected type, or change the declared type.\n"}],"isError":false}}
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":""},{"type":"text","text":"langc: EXPLAIN: -: 'NOPE' is not a code of the fix table\n"}],"isError":true}}
+{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"LAW: Give a row name of the law table, for example: langc show-law O4. With no name, langc show-law shows each row.\n"}],"isError":false}}
