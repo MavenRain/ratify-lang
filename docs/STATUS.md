@@ -1,6 +1,6 @@
 # ratify-lang status
 
-The build implements the slices S0 to S17 of `docs/PLAN.md`: the Cubical
+The build implements the slices S0 to S18 of `docs/PLAN.md`: the Cubical
 TT kernel, ported from permit-lang 3d47120, R0 in the kernel and the
 Wasm writer, ported from permit-lang 18deea2, the committee words
 `Committee`, `Party`, `Approvals`, `Counts` and `count` (Q-S4-1 to
@@ -21,9 +21,14 @@ relations `langc noir` (T3). S14 adds `langc fmt`, S15 adds
 `langc explain`, `langc list-base` and `langc show-law`. S17 adds the
 skill `skills/ratify-lang/SKILL.md` with the graded examples G1 to G5,
 `test/skilltool.c`, the final `AGENTS.md` and the final README table.
-The gate has 63 count lines (S16: 59). The affine layer and the permit
-domain are not in the build (Q-S0-10 (a), Q-S2-1 (a)). It does not
-complete M0. The next slice is S18: the token comparison (A6).
+S18 adds the token comparison with Python and Rust (A6):
+`docs/TOKEN-BASELINE.md`, `test/tokcount.c` and the baselines in
+`test/baseline/`. By the offline estimate, the token sum of the 5 Python
+files is 0.40 of the ratify-lang sum, and the Rust sum is 0.58. S18 did
+not run `make tokens` (the count_tokens route). The gate has 65 count
+lines (S17: 63). The affine layer and the permit domain are not in the
+build (Q-S0-10 (a), Q-S2-1 (a)). It does not complete M0. The next slice
+is S19: the close of the plan.
 
 ## Implemented
 

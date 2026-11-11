@@ -4,3 +4,4 @@ scratch/
 __pycache__/
 build/
 noir/*/target/
+test/baseline/rust/target/

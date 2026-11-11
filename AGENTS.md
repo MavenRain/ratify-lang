@@ -58,7 +58,7 @@ server on stdin and stdout (`docs/MCP.md`). Its 6 tools are `check`,
 `eval` tool and no `fmt --check` tool: use the command line for those.
 With `--kit`, each tool runs in the kit mode.
 
-## Status (S17)
+## Status (S18)
 
 The slices S0 to S16 give the Cubical TT kernel with R0 (S2 and S3), the
 domain words (S4 to S8: the committee, the rule, the policy, the crypto
@@ -69,8 +69,10 @@ S12; the Noir relations, T3, S13; the JSON report, T4, S11), `langc fmt`
 `langc list-base` and `langc show-law` (S16). S17 adds
 `skills/ratify-lang/SKILL.md`, the graded examples of `examples/skill/`,
 `test/skilltool.c`, the fixtures of `test/skill/`, this file and the
-README table. The next slice is S18: the token comparison (A6). S19
-closes the plan. `docs/PLAN.md` section 12 gives each slice.
+README table. S18 adds the token comparison with Python and Rust (A6):
+`docs/TOKEN-BASELINE.md`, `test/tokcount.c` and `test/baseline/`. The
+next slice is S19: it closes the plan. `docs/PLAN.md` section 12 gives
+each slice.
 
 ## Commands that work now
 
@@ -147,6 +149,11 @@ on stderr, and exits with code 2. The usage text has all the verbs.
 - `examples/`, `test/`: the gate rows. `test/gate.sh` is the gate.
   `test/skill/` has the 6 negative fixtures of `build/skilltool`
   (`test/skilltool.c`).
+- `test/baseline/`, `test/tokcount.c` and `docs/TOKEN-BASELINE.md`: the
+  token comparison (A6). `test/baseline/` has G1 to G5 in Python and in
+  Rust. `make check` runs the offline check of `build/tokcount`;
+  `make tokens` runs the count_tokens route outside the sandbox, with
+  `ANTHROPIC_API_KEY`.
 - `noir/`: the Nargo packages of the Noir relations.
 - `formers/`, `probe/`: the type formers and the host probe.
 - `docs/`: `STATUS.md`, `FMT.md`, `CHECK-JSON.md`, `MCP.md`,

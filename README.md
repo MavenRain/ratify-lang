@@ -10,7 +10,7 @@ log and checks the certificates. No program can have a runtime error. The
 design is a denotational design over Unified Aggregation Theory
 (`design/DESIGN.md`).
 
-ratify-lang comes from lang-template with the tcc-wasm host. Status: S17
+ratify-lang comes from lang-template with the tcc-wasm host. Status: S18
 (the skill and the agent docs): the Cubical TT kernel of permit-lang
 3d47120 and R0 from permit-lang 18deea2: total Nat operations,
 `REFUSE_PARTIAL`, and a Wasm writer that emits no trap form
@@ -42,10 +42,12 @@ the JSON report of the checker (`docs/CHECK-JSON.md`). S16 adds
 `langc explain CODE`, `langc list-base` and `langc show-law [ROW]`. S17
 adds the skill `skills/ratify-lang/SKILL.md`, its 5 graded examples G1
 to G5 (`examples/skill/`), the test tool `build/skilltool`, the table
-below and the final `AGENTS.md`. The next slice is S18: the token
-comparison with Python and Rust (A6). S19 closes the plan.
-`docs/PLAN.md` gives the plan, and its section 14 gives the open
-questions.
+below and the final `AGENTS.md`. S18 adds the token comparison with
+Python and Rust (A6, `docs/TOKEN-BASELINE.md`). By the offline estimate,
+the token sum of the 5 Python files is 0.40 of the ratify-lang sum, and
+the Rust sum is 0.58. S18 did not run `make tokens` (the count_tokens
+route). The next slice is S19: it closes the plan. `docs/PLAN.md` gives
+the plan, and its section 14 gives the open questions.
 
 ## When to reach for ratify-lang
 
@@ -82,6 +84,13 @@ and the rules for a change.
   test tool `build/skilltool`. The gate lines of the skill are
   `skill checks: 5 of 5`, `skill quotes: 5 of 5`,
   `skill outputs: 21 of 21` and `skill negatives: 6 of 6`.
+- `docs/TOKEN-BASELINE.md`: the token comparison (A6): the offline
+  estimate, the SHA-256 pin of the 15 counted files and the count_tokens
+  route of `make tokens`.
+- `test/baseline/` and `test/tokcount.c`: G1 to G5 in Python and in Rust
+  (1 crate in `test/baseline/rust/`), and the tool `build/tokcount`.
+  `make check` prints `token report hashes: 15 of 15` and
+  `token estimate: passed`.
 - `SPEC.md`: the specification. Slice S19 fills it.
 - `formers/FORMERS.md`: the type formers. `formers/tcc-wasm.md` gives their
   status on the tcc-wasm host.
