@@ -45,12 +45,13 @@ TFHE_TOOL = test/tfhetool.c host/jsonin.c src/front/base.c
 CHECK_JSON_TOOL = test/checkjsontool.c src/front/fix.c host/jsonin.c host/jcs.c src/front/base.c
 # The rows of langc mcp (S16 U3, Q-S16-8 (a)).
 MCP_TOOL = test/mcptool.c
+SKILL_TOOL = test/skilltool.c
 HOST_HEADERS = $(wildcard host/*.h)
 HEADERS = $(wildcard src/*.h src/front/*.h src/crypto/*.h)
 
 .PHONY: build check check-clang clean
 
-build: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool build/mcptool
+build: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool build/mcptool build/skilltool
 
 build/domain.c: domain/domain.lang gen/embed.c
 	mkdir -p build
@@ -114,6 +115,10 @@ build/mcptool: $(MCP_TOOL)
 	mkdir -p build
 	$(TCC) $(CFLAGS) -o build/mcptool $(MCP_TOOL)
 
+build/skilltool: $(SKILL_TOOL)
+	mkdir -p build
+	$(TCC) $(CFLAGS) -o build/skilltool $(SKILL_TOOL)
+
 check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(SRC) build/domain.c
 	$(CC) $(CLANG_FLAGS) $(FRONT_TOOL)
@@ -130,8 +135,9 @@ check-clang: build/domain.c
 	$(CC) $(CLANG_FLAGS) -Ihost $(TFHE_TOOL)
 	$(CC) $(CLANG_FLAGS) -Ihost $(CHECK_JSON_TOOL)
 	$(CC) $(CLANG_FLAGS) $(MCP_TOOL)
+	$(CC) $(CLANG_FLAGS) $(SKILL_TOOL)
 
-check: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool build/mcptool check-clang
+check: build/langc build/fronttool build/asttool build/pathtool build/notraptool build/cryptotool build/enginetool build/engineapitool build/ratifyd build/demotool build/reporttool build/jsontool build/tfhetool build/checkjsontool build/mcptool build/skilltool check-clang
 	sh test/gate.sh
 	sh test/review.sh
 	build/engineapitool

@@ -1,0 +1,39 @@
+-- G2: two classes and a veto. The committee has a class of 3 parties
+-- and a veto class of 1 party. The rule is an and of 2 bars: 2 of the
+-- 3 parties, and the veto party.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def yes : Decision := inr unit
+def no : Decision := inl unit
+def veto : Committee := cmClass three (cmClass one cmNil)
+-- A Counts value has one count for each class: need2 = (2, 0),
+-- needVeto = (0, 1), both = (2, 1).
+def need2 : Counts veto :=
+  ctClass three (cmClass one cmNil) (posNext three (posNext two (posFirst one))) (ctClass one cmNil (posFirst one) ctNil)
+def needVeto : Counts veto :=
+  ctClass three (cmClass one cmNil) (posFirst three) (ctClass one cmNil (posNext one (posFirst sz0)) ctNil)
+def both : Counts veto :=
+  ctClass three (cmClass one cmNil) (posNext three (posNext two (posFirst one))) (ctClass one cmNil (posNext one (posFirst sz0)) ctNil)
+def vetoRule : Rule veto := rlAnd veto (rlMin veto need2) (rlMin veto needVeto)
+-- The counts (2, 0) are not accepted: the veto party did not approve.
+-- The counts (2, 1) are accepted.
+def vetoNo : Decision := accept veto vetoRule need2
+def vetoYes : Decision := accept veto vetoRule both
+def vetoNoIsNo : Path Decision vetoNo no := refl
+def vetoYesIsYes : Path Decision vetoYes yes := refl
+-- The policy: f = 1, and vetoRule is the authorize rule and the amend
+-- rule.
+def vetoHonest : Honest veto one := hoRule veto one vetoRule
+def vetoFork : ForkFree veto one := ffRule veto one vetoRule
+def pVeto : Policy := plOf veto one vetoHonest vetoFork
+-- Approval sets: all 4 parties, and the 3 parties without the veto
+-- party.
+def sAll : Approvals veto :=
+  apClass three (cmClass one cmNil) (fun (p : Pos three) => yes) (apClass one cmNil (fun (p : Pos one) => yes) apNil)
+def sNoVeto : Approvals veto :=
+  apClass three (cmClass one cmNil) (fun (p : Pos three) => yes) (apClass one cmNil (fun (p : Pos one) => no) apNil)
+def okAuth : Decision := authorize pVeto Unit unit sAll
+def noAuth : Decision := authorize pVeto Unit unit sNoVeto
+def okIsYes : Path Decision okAuth yes := refl
+def noIsNo : Path Decision noAuth no := refl

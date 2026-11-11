@@ -1,20 +1,29 @@
 # ratify-lang status
 
-The build implements slice S8 of `docs/PLAN.md`: the Cubical TT kernel,
-ported from permit-lang 3d47120, R0 in the kernel and the Wasm writer,
-ported from permit-lang 18deea2, the committee words `Committee`,
-`Party`, `Approvals`, `Counts` and `count` (Q-S4-1 to Q-S4-4 (a)), the
-rule words `Rule`, `accept`, `Honest` and `ForkFree` with O3, O4 and O5
-(Q-S5-1 to Q-S5-3 (a)), the policy words `Policy`, `Decision`,
-`authorize`, `Amendment`, `Log`, `System` and `policyAt` with TCM-E, O2
-and O10 (Q-S6-1 to Q-S6-4 (a)), the crypto words `Enc`, `eval`,
-`Share`, `Proof` and `Protocol` with the crypto rows and `REFUSE_APPROX`
-(Q-S7-1 to Q-S7-6 (a)), and the certificate words `Reason`, `Verdict`,
-`Evidence`, `EvList`, `equivocates`, `Certificate` and `verify` with the
-certificate rows and a faster O5 pass (Q-S8-1 to Q-S8-5 (a), Q-S8-6
-(b)). The affine layer and the permit domain are not
-in the build (Q-S0-10 (a), Q-S2-1 (a)). It does not complete M0. The
-next slice is S9: the Wasm module and the crypto import ABI.
+The build implements the slices S0 to S17 of `docs/PLAN.md`: the Cubical
+TT kernel, ported from permit-lang 3d47120, R0 in the kernel and the
+Wasm writer, ported from permit-lang 18deea2, the committee words
+`Committee`, `Party`, `Approvals`, `Counts` and `count` (Q-S4-1 to
+Q-S4-4 (a)), the rule words `Rule`, `accept`, `Honest` and `ForkFree`
+with O3, O4 and O5 (Q-S5-1 to Q-S5-3 (a)), the policy words `Policy`,
+`Decision`, `authorize`, `Amendment`, `Log`, `System` and `policyAt`
+with TCM-E, O2 and O10 (Q-S6-1 to Q-S6-4 (a)), the crypto words `Enc`,
+`eval`, `Share`, `Proof` and `Protocol` with the crypto rows and
+`REFUSE_APPROX` (Q-S7-1 to Q-S7-6 (a)), and the certificate words
+`Reason`, `Verdict`, `Evidence`, `EvList`, `equivocates`, `Certificate`
+and `verify` with the certificate rows and a faster O5 pass (Q-S8-1 to
+Q-S8-5 (a), Q-S8-6 (b)). S9 and S10 add the target T1: the Wasm module,
+the crypto import ABI, the verifier host `ratifyd` with its Wasm engine,
+and the demo D1 to D8. S11 adds the JSON report `langc report` (T4), S12
+adds the TFHE tally circuit `langc tfhe` (T2), and S13 adds the Noir
+relations `langc noir` (T3). S14 adds `langc fmt`, S15 adds
+`langc check --json`, and S16 adds `langc mcp` with the verbs
+`langc explain`, `langc list-base` and `langc show-law`. S17 adds the
+skill `skills/ratify-lang/SKILL.md` with the graded examples G1 to G5,
+`test/skilltool.c`, the final `AGENTS.md` and the final README table.
+The gate has 63 count lines (S16: 59). The affine layer and the permit
+domain are not in the build (Q-S0-10 (a), Q-S2-1 (a)). It does not
+complete M0. The next slice is S18: the token comparison (A6).
 
 ## Implemented
 

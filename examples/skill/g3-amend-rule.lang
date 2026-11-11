@@ -1,0 +1,33 @@
+-- G3: an amendment that changes the amend rule. The policy p0 has the
+-- amend bar t = 3. The policy p1 has the amend bar t = 4. The
+-- authorize bar stays t = 3.
+def one : Size := szS sz0
+def two : Size := szS one
+def three : Size := szS two
+def four : Size := szS three
+def yes : Decision := inr unit
+def no : Decision := inl unit
+def k3 : Pos (szS four) := posNext four (posNext three (posNext two (posFirst one)))
+def k4 : Pos (szS four) := posNext four (posNext three (posNext two (posNext one (posFirst sz0))))
+def fig : Committee := cmClass four cmNil
+def maj : Rule fig := rlMin fig (ctClass four cmNil k3 ctNil)
+def all4 : Rule fig := rlMin fig (ctClass four cmNil k4 ctNil)
+def majHonest : Honest fig one := hoRule fig one maj
+def majFork : ForkFree fig one := ffRule fig one maj
+def allFork : ForkFree fig one := ffRule fig one all4
+def p0 : Policy := plOf fig one majHonest majFork
+def p1 : Policy := plOf fig one majHonest allFork
+-- Approval sets: 3 of 4 (no approval at the first position), and all 4.
+def s3 : Approvals fig :=
+  apClass four cmNil (fun (p : Pos four) => elim (fun (k : Size) (q : Pos k) => Sum Unit Unit) (fun (m : Size) => no) (fun (m : Size) (q : Pos m) (ih : Sum Unit Unit) => yes) p) apNil
+def s4 : Approvals fig := apClass four cmNil (fun (p : Pos four) => yes) apNil
+-- An amendment must pass the amend rule of the policy that it
+-- replaces. p0 -> p1 passes with 3 approvals. After that step the
+-- amend bar is t = 4, so p1 -> p0 needs all 4 approvals.
+def am01 : Amendment p0 p1 := amOf p0 p1 s3 refl
+def am10 : Amendment p1 p0 := amOf p1 p0 s4 refl
+-- amendOk gives the decision of the amend rule. 3 approvals pass the
+-- amend rule of p0. They do not pass the amend rule of p1.
+def by3P0 : Decision := amendOk p0 s3
+def by3P1 : Decision := amendOk p1 s3
+def by4P1 : Decision := amendOk p1 s4

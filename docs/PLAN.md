@@ -47,7 +47,9 @@ R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). S14 adds
 `langc fmt`, the canonical printer (`docs/FMT.md`). S15 adds
 `langc check --json`, the JSON report of the checker
 (`docs/CHECK-JSON.md`). S16 adds `langc mcp`, the MCP server
-(`docs/MCP.md`). Next: S17 (section 12).
+(`docs/MCP.md`). S17 adds the skill `skills/ratify-lang/SKILL.md`, the
+graded examples G1 to G5 (`examples/skill/`), the final `AGENTS.md` and
+the final README table. Next: S18 (section 12).
 
 ## 1. Rulings
 
@@ -179,6 +181,15 @@ R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). S14 adds
 | 2026-11-10 | Q-S16-10 (a): the units U1, U2, U3 and CLOSE. U1 the streams of the `src/main.c` verbs and the 3 new verbs; U2 `src/mcp.c`, `src/mcp.h`, the `mcp` command and `docs/MCP.md`; U3 `test/mcptool.c`, the 10 rows, the 7 gate lines and the mutants; CLOSE `docs/PLAN.md` and `docs/STATUS.md`, the record, staging. Edits: section 12. | USER, S16 |
 | 2026-11-10 | Q-U2-1 (a): an argument failure of a known tool (Q-S16-7) is a plain line that `src/mcp.c` writes to the stderr capture. The call ends as a CLI usage failure (exit 2). Item 1 is the empty stdout, item 2 is the line, and `isError` is true: the Q-S16-4 form with no special case. The failure has no diagnostic code, and the fix table stays at 71 codes. Edits: `docs/MCP.md`. | USER, S16 |
 | 2026-11-10 | Q-U3-1 (a): `mcp builds: 2 of 2` stays as Q-S16-8 says. The gate compares each file that the tool writes with the CLI file, for `main` and `runtime`. The 2 targets give the same bytes on T1, so a swap of the targets has no effect today; the same gate line sees a swap when the parts differ. Edits: `docs/MCP.md`. | USER, S16 |
+| 2026-11-11 | Q-S17-1 (a): the 5 graded examples are 5 new self-contained files in `examples/skill/`: `g1-threshold.lang`, `g2-veto.lang`, `g3-amend-rule.lang`, `g4-replay.lang` and `g5-demo.lang`. G1 to G4 are guest files cut from `examples/policy.lang`, `examples/rule.lang` and `test/report/log2.lang`. G5 is the `langc fmt` text of `test/demo/demo.lang` (a kit file), and a gate row holds that law. The rows of each example are check, eval and one repair pair (`check --json` on a refused file, then `explain`). Edits: `examples/skill/`, `skills/ratify-lang/SKILL.md`, `test/gate.sh`. | USER, S17 |
+| 2026-11-11 | Q-S17-2 (a): SKILL.md has the bare headings `### G1` to `### G5` and the sentence "The examples go from easy to hard." One prose paragraph for each example says what is new in it. `test/skilltool.c` needs the exact heading `### Gn`. Edits: `skills/ratify-lang/SKILL.md`. | USER, S17 |
+| 2026-11-11 | Q-S17-3 (a): `test/skilltool.c` is the port of the C tool of permit-lang 9ac759a. TinyCC builds it as `build/skilltool`, and `check-clang` compiles it, as `test/mcptool.c` in S16. The gate block is after `# mcp rows: end`, with the fixtures of `test/skill/`. The gate has 4 new count lines: `skill checks`, `skill quotes`, `skill outputs` and `skill negatives` (59 to 63). Edits: `test/skilltool.c`, `Makefile`, `test/gate.sh`, `test/skill/`. | USER, S17 |
+| 2026-11-11 | Q-S17-4 (a): the README table "When to reach for ratify-lang" has the permit form, 3 columns: Task, ratify-lang? and Use instead. It has 5 yes rows, one for each of G1 to G5, then 5 no rows from the right column of the DRAFT with their refusal codes and a use-instead text. The DRAFT line goes, and one sentence names SKILL.md and `AGENTS.md`. Edits: `README.md`. | USER, S17 |
+| 2026-11-11 | Q-S17-5 (a): `AGENTS.md` is a rewrite in the permit shape. Its sections are Routing rule, The loop, Status (S17), Commands that work now, Rules for a change and Files. The 7 rules of the DRAFT stay. The "State at S7" list goes. Edits: `AGENTS.md`. | USER, S17 |
+| 2026-11-11 | Q-S17-6 (a): S17 corrects the head paragraph of `docs/STATUS.md` and the status sentence of the README to the S17 state: the slices that the build has, and the next slice S18 (OBS-C16-1). No other section of `docs/STATUS.md` changes. Edits: `docs/STATUS.md`, `README.md`. | USER, S17 |
+| 2026-11-11 | Q-S17-7 (a): the mutants are the 6 sibling mutants on `test/skilltool.c` and the gate block, 2 new fixtures for M1 and M3 (`changed-quote-g2.md`, a fixture of 2 examples with a changed byte in G2, and `long-block.md`) and one mutant on the G5 fmt row (M7). The count line of this ruling, `skill negatives: 5 of 5`, becomes 6 of 6 by Q-S17-U2-1 (b). The verdicts are in section 12. Edits: `test/skill/`, `test/gate.sh`. | USER, S17 |
+| 2026-11-11 | Q-S17-8 (a): S17 has 3 units, by hand in the main loop, with no agent edits: U1 (the 5 G files and SKILL.md), U2 (`test/skilltool.c`, the Makefile, the gate block, the fixtures and the mutants) and U3 (`AGENTS.md`, the README, `docs/STATUS.md`, the rows of this plan, then the close). Edits: none. | USER, S17 |
+| 2026-11-11 | Q-S17-U2-1 (b): `short-block.md` is a 6th fixture next to `long-block.md`: its program block does not have the last line of its file. M3 and M8 are KILLED: `long-block.md` kills M3, and `short-block.md` kills M8. The count line is `skill negatives: 6 of 6`; this replaces the 5 of 5 of Q-S17-7 (a). Edits: `test/skill/short-block.md`, `test/gate.sh`. | USER, S17 |
 
 The S13 decisions D-U1-1 to D-U1-5, D-U2-1 to D-U2-6 and D-U3-1 to D-U3-3
 are not USER rulings; the USER can overturn each. They are in
@@ -627,9 +638,9 @@ fits. Each item has one deliverable, one slice and one gate.
 |---|---|---|---|---|
 | A1 | "one canonical form per operation and a langc fmt canonical printer" | No aliases, no second syntax. `langc fmt FILE` prints the canonical form. `langc fmt --check` exits 1 when a file is not canonical. | S14 | `fmt` is idempotent; `parse (fmt x)` has the same core term as `x`; each example is canonical. S14: DONE. The gate lines `fmt idempotent`, `fmt ast` and `fmt examples` hold the laws over the 291 `.lang` files of the corpus (S14: 284; `docs/FMT.md`). |
 | A2 | "langc check --json, giving fix hints and progress counts (parsed, typed, laws discharged)" | One JSON object: `diagnostics` (code, span, expected, found, `fix`) and `progress` (`parsed`, `typed`, `laws_discharged`, `laws_total`, `laws_assumed`, `laws_at_target`, `laws_external`). Schema in `docs/CHECK-JSON.md`. | S15 | Rows in `test/json/`, byte equal. Each code of section 7 has a `fix` row. S15: DONE. The gate lines `json rows`, `json fix rows` and `json fix table` hold the 21 rows and the fix table (`docs/CHECK-JSON.md`). |
-| A3 | "a SKILL.md with 3 to 5 graded examples" | `skills/ratify-lang/SKILL.md` with five graded examples: G1 a plain t-of-n policy, G2 two classes and a veto, G3 an amendment that changes the amend rule, G4 a log replay with `policyAt`, G5 the demo. | S17 | Each example checks; each SKILL.md block and its file are byte equal. |
+| A3 | "a SKILL.md with 3 to 5 graded examples" | `skills/ratify-lang/SKILL.md` with five graded examples: G1 a plain t-of-n policy, G2 two classes and a veto, G3 an amendment that changes the amend rule, G4 a log replay with `policyAt`, G5 the demo. | S17 | Each example checks; each SKILL.md block and its file are byte equal. S17: DONE. The gate lines `skill checks`, `skill quotes`, `skill outputs` and `skill negatives` hold the 5 examples, the 21 outputs and the 6 fixtures (`test/skilltool.c`). |
 | A4 | "an MCP server written in TinyCC (langc mcp)" | An MCP server over stdio (JSON-RPC 2.0, one message on each line), in C, in the same `langc`. Tools: section 8.3. The MCP spec version is pinned in `docs/MCP.md`. | S16 | `test/mcptool.c` sends `test/mcp/*.in` and compares the replies with `*.out`. S16: DONE. The gate lines `mcp rows`, `mcp negatives`, `mcp tools`, `mcp builds`, `mcp long line`, `explain codes` and `law rows` hold the 10 rows and the 6 tools (`docs/MCP.md`). |
-| A5 | "AGENTS.md and a README table saying when to use the language" | `AGENTS.md` and the README table "When to reach for ratify-lang". Both exist at S0 as DRAFT; S17 makes them final. | S0, S17 | Review only. |
+| A5 | "AGENTS.md and a README table saying when to use the language" | `AGENTS.md` and the README table "When to reach for ratify-lang". Both exist at S0 as DRAFT; S17 makes them final. | S0, S17 | Review only. S17: DONE. `AGENTS.md` has the permit shape (Q-S17-5 (a)), and the table has 3 columns, 5 yes rows and 5 no rows (Q-S17-4 (a)). |
 | A6 | "a token-count comparison against Python and Rust" | G1 to G5 and the demo in ratify-lang, Python and Rust, with equal outputs. Report `docs/TOKEN-BASELINE.md`: the tokenizer pin, each count, each file hash (Q-S0-14 (a): the permit-lang ruling, count_tokens and equal outputs). | S18 | `make tokens`, not in `make check`. |
 
 ## 10. Tests
@@ -670,14 +681,15 @@ fits. Each item has one deliverable, one slice and one gate.
   (`noir kat: 4 checked`). The gate compares bytes only (Q-S13-4 (a)).
   Outside the gate, validation runs nargo: 10 + 5 `nargo test` rows pass,
   and the 7 emitter mutants are KILLED (Q-S13-5 (a)).
-- `langc fmt` (S14, `docs/FMT.md`): the 10 rows of `test/fmt/` (`fmt
-  rows: 10 checked`), 1 refusal row (`fmt refusals: 1 checked`) and the
-  laws over the 291 `.lang` files of the corpus (`fmt idempotent: 272
-  checked, 19 refused`, `fmt ast: 272 checked`, `fmt examples: 37
-  checked`; Q-S14-5 (a), Q-S14-6 (a)). At S14 the corpus had 284 files
-  (267 checked, 17 refused); S15 adds the 7 `.lang` files of
-  `test/json/`. At S14 the gate had 49 count lines (S13: 43). The gate kills the 6 printer mutants M1 to M6, 6 of 6 (Q-S14-7
-  (a)).
+- `langc fmt` (S14, `docs/FMT.md`): the 10 rows of `test/fmt/`
+  (`fmt rows: 10 checked`), 1 refusal row (`fmt refusals: 1 checked`)
+  and the laws over the 296 `.lang` files of the corpus
+  (`fmt idempotent: 277 checked, 19 refused`, `fmt ast: 277 checked`,
+  `fmt examples: 37 checked`; Q-S14-5 (a), Q-S14-6 (a)). At S14 the
+  corpus had 284 files (267 checked, 17 refused); S15 adds the 7 `.lang`
+  files of `test/json/`, and S17 adds the 5 `.lang` files of
+  `examples/skill/`. At S14 the gate had 49 count lines (S13: 43). The
+  gate kills the 6 printer mutants M1 to M6, 6 of 6 (Q-S14-7 (a)).
 - `langc check --json` (S15, `docs/CHECK-JSON.md`): the 21 rows of
   `test/json/` (`json rows: 21 checked`), the section 7 fix rows (`json
   fix rows: 11 checked`) and the fix table (`json fix table: 71 codes`;
@@ -689,8 +701,21 @@ fits. Each item has one deliverable, one slice and one gate.
   of 6`), the files that the `build` tool writes (`mcp builds: 2 of 2`),
   the line limit (`mcp long line: 1 of 1`), the fix row of each code
   (`explain codes: 71 of 71`) and the law rows (`law rows: 19 of 19`;
-  Q-S16-8 (a)). The gate has 59 count lines (S15: 52). The gate kills
-  the 8 mutants M1 to M8, 8 of 8 (Q-S16-9 (a)).
+  Q-S16-8 (a)). At S16 the gate had 59 count lines (S15: 52). The gate
+  kills the 8 mutants M1 to M8, 8 of 8 (Q-S16-9 (a)).
+- The skill (S17, `skills/ratify-lang/SKILL.md`): `build/skilltool`
+  (`test/skilltool.c`) checks the 5 example files of `examples/skill/`
+  (`skill checks: 5 of 5`), compares each program block of SKILL.md with
+  its file, byte for byte (`skill quotes: 5 of 5`), runs each command of
+  SKILL.md and compares the output and the exit code with the text
+  (`skill outputs: 21 of 21`), and gets a failure from each of the 6
+  fixtures of `test/skill/` (`skill negatives: 6 of 6`; Q-S17-3 (a),
+  Q-S17-U2-1 (b)). One gate row holds the law that
+  `examples/skill/g5-demo.lang` is the `langc fmt` text of
+  `test/demo/demo.lang` (Q-S17-1 (a)). The gate has 63 count lines (S16:
+  59). The mutants ran on the skill block, not on the full gate: M1, M2,
+  M3, M4 and M8 are KILLED, and M5, M6 and M7 are LIVE on a clean tree
+  (Q-S17-7 (a), section 12).
 
 ## 11. Port sources
 
@@ -724,7 +749,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S14 | A1: canonical forms and `langc fmt`, `docs/FMT.md`. On the USER commit 8926869. `langc fmt PROG [--check]` writes the canonical text; with `--check` it writes nothing and exits 1 with `FMT_DIFF` when the bytes are different (Q-S14-2 (a)). The canonical form: one declaration on one line, one break after `:=` above 100 columns, each later family constructor on its own line (Q-S14-4 (a)); `Sigma (x : A) B`, one name in each group, merged fun binders (Q-S14-3 (a)); full-line comments kept, a comment after code refused with `FMT_TRAILING_COMMENT` (Q-S14-1 (a)). The laws over the corpus: fmt is idempotent and keeps the AST dump of `test/asttool.c` (Q-S14-5 (a)). `langc fmt` rewrote 34 of the 37 examples once. Gate: 10 fmt rows, 1 fmt refusal, `fmt idempotent: 267 checked, 17 refused`, `fmt ast: 267 checked`, `fmt examples: 37 checked`; 49 count lines. The gate kills the printer mutants M1 to M6, 6 of 6 (Q-S14-7 (a)). | DONE |
 | S15 | A2: `langc check --json`, `docs/CHECK-JSON.md`. On the USER commit 05a914d. `langc [--kit] check PROG --json` writes one JSON object in the RFC 8785 form: `diagnostics` (0 or 1 object: `code`, `expected`, `fix`, `found`, `message`, `span`) and `progress` (`parsed`, `typed`, `laws_discharged`, `laws_total`, `laws_assumed`, `laws_at_target`, `laws_external`). In the `--json` mode stderr has no text; the exit codes and the text mode do not change (Q-S15-1 (a), Q-S15-2 (a)). The law counts come from the triggers R, H, F and L (Q-S15-4 (a), Q-S15-5 (a)). `src/front/fix.c` has 69 rows, one fix text for each code, sorted by code (Q-S15-3 (a)); each text is true at each site of its code (D-CLOSE-1). Gate: `json rows: 21 checked`, `json fix rows: 11 checked`, `json fix table: 69 codes`; 52 count lines. The 7 `.lang` files of `test/json/` are in the fmt laws: `fmt idempotent: 272 checked, 19 refused`, `fmt ast: 272 checked`. The gate kills the mutants M1 to M7, 7 of 7 (Q-S15-7 (a)). | DONE |
 | S16 | A4: `langc mcp`, `docs/MCP.md`. On the USER commit 7f64206. `langc [--kit] mcp` is an MCP server on stdin and stdout (JSON-RPC 2.0, one message on each line; MCP `2025-11-25`; the methods `initialize`, `ping`, `tools/list` and `tools/call`; Q-S16-1 (a)). It has 6 tools, each a CLI verb: `check`, `fmt`, `explain`, `list-base`, `show-law` and `build` (Q-S16-2 (a), Q-S16-3 (a)). S16 adds the verbs `langc explain CODE`, `langc list-base` and `langc show-law [ROW]` and the codes `EXPLAIN` and `LAW`: `src/front/fix.c` has 71 rows. A tool result has the stdout text, the stderr text when it is not empty, and `isError` (Q-S16-4 (a), Q-U2-1 (a)). One process runs each verb with a fresh arena and memory streams (Q-S16-5 (a)). The error codes are in Q-S16-7 (a). Gate: `mcp rows: 10 passed`, `mcp negatives: 3 of 3`, `mcp tools: 6 of 6`, `mcp builds: 2 of 2` (Q-U3-1 (a)), `mcp long line: 1 of 1`, `explain codes: 71 of 71`, `law rows: 19 of 19`; 59 count lines. There is no new `.lang` file: the fmt law counts do not change. The gate kills the mutants M1 to M8, 8 of 8 (Q-S16-9 (a)). | DONE |
-| S17 | A3 and A5: SKILL.md, G1 to G5, AGENTS.md and the README table final. | |
+| S17 | A3 and A5: `skills/ratify-lang/SKILL.md`, G1 to G5, `AGENTS.md` and the README table. On the USER commit 28cec11. SKILL.md has the routing rule, the loop, the verbs and 5 graded examples under the headings `### G1` to `### G5` (Q-S17-2 (a)). The examples are 5 new files in `examples/skill/` (Q-S17-1 (a)): G1 to G4 are guest files, and G5 is a kit file (`examples/skill/kit.txt`), the `langc fmt` text of `test/demo/demo.lang`; one gate row holds that law. `test/skilltool.c` is the port of the permit-lang tool (Q-S17-3 (a)): it checks each example, compares each program block of SKILL.md with its file, and runs each command. `AGENTS.md` is a rewrite in the permit shape (Q-S17-5 (a)). The README table has 3 columns, 5 yes rows and 5 no rows (Q-S17-4 (a)). The heads of `docs/STATUS.md` and the README give the S17 state (Q-S17-6 (a)). Gate: `skill checks: 5 of 5`, `skill quotes: 5 of 5`, `skill outputs: 21 of 21`, `skill negatives: 6 of 6` (Q-S17-U2-1 (b)); 63 count lines. Mutants (Q-S17-7 (a)), on the skill block and not on the full gate: M1, M2, M3, M4 and M8 are KILLED (`changed-quote-g2` kills M1, `bad-exit` kills M2, `long-block` kills M3, `short-block` kills M8, and M4, the block without `--kit`, gives `REFUSE_KIT` on `g5-demo.lang`). M5 (the block skips `fmt --check`), M6 (a passing negative adds no failure) and M7 (the block skips the G5 law row) are LIVE on a clean tree. The pairs: M5 with one more newline in `g1-threshold.lang` is KILLED by the G1 quote row and `long-block`, not by fmt; M2 with M6 gives exit 0 with a FAIL line, and only the compare of the count lines sees it (`skill negatives: 5 of 6`); M7 with one more comment line in `demo.lang` is LIVE, and without M7 the G5 law row finds that drift. | DONE |
 | S18 | A6: the token comparison. | |
 | S19 | Close: SPEC.md, probe/CAPABILITY.md, VALIDATION.md, final gate. | |
 

@@ -1123,6 +1123,64 @@ while IFS='|' read -r name kind trigger; do
 done <"$tmp/laws.want"
 echo "law rows: $laws of $lawn"
 # mcp rows: end
+# skill rows: begin
+# The skill rows (S17, Q-S17-3 (a), Q-S17-7 (a)). Each examples/skill/*.lang
+# checks to ok (`langc --kit check` when it is a line of
+# examples/skill/kit.txt) and `langc fmt PROG --check` accepts it with no
+# output. The G5 law: the output of `langc fmt test/demo/demo.lang` is
+# examples/skill/g5-demo.lang byte for byte. build/skilltool compares the
+# program block of each example of skills/ratify-lang/SKILL.md with its file
+# and runs each row: the output equals the text block and the exit code
+# equals the sentence. build/skilltool exits 1 with the FAIL line of the
+# change on each of the 6 fixtures of test/skill/ (the G1 section with a
+# changed program byte, with one more empty line at the end of the
+# program block, with a program block that does not have the last line
+# of its file, with no text block and with a wrong exit code; the G1 and
+# G2 sections with a changed program byte in G2); their lines go to
+# $tmp, not to the log.
+checked=0
+for prog in examples/skill/*.lang; do
+  out=$(build/langc $(kit examples/skill/kit.txt "${prog#examples/skill/}") check "$prog" 2>&1) || true
+  status=0
+  build/langc fmt "$prog" --check >"$tmp/skill.fmt" 2>&1 || status=$?
+  if [ "$out" = "ok" ] && [ "$status" -eq 0 ] && [ ! -s "$tmp/skill.fmt" ]; then
+    checked=$((checked + 1))
+  else
+    echo "FAIL skill check $prog: $out; fmt --check exit $status"
+    fail=$((fail + 1))
+  fi
+done
+echo "skill checks: $checked of 5"
+status=0
+build/langc fmt test/demo/demo.lang >"$tmp/skill.g5" 2>"$tmp/skill.err" || status=$?
+if [ "$status" -ne 0 ] || [ -s "$tmp/skill.err" ] || ! cmp -s "$tmp/skill.g5" examples/skill/g5-demo.lang; then
+  echo "FAIL skill: examples/skill/g5-demo.lang is not the output of langc fmt test/demo/demo.lang"
+  fail=$((fail + 1))
+fi
+status=0
+build/skilltool || status=$?
+[ "$status" -eq 0 ] || { echo "FAIL skill: build/skilltool exit $status"; fail=$((fail + 1)); }
+# skill_negative NAME N LINE: build/skilltool test/skill/NAME.md N exits 1 and
+# writes the line LINE.
+skill_negative() {
+  status=0
+  build/skilltool "test/skill/$1.md" "$2" >"$tmp/skill.out" 2>&1 || status=$?
+  if [ "$status" -eq 1 ] && rg -q -x -F -- "$3" "$tmp/skill.out"; then
+    neg=$((neg + 1))
+  else
+    echo "FAIL skill negative $1: exit $status"
+    fail=$((fail + 1))
+  fi
+}
+neg=0
+skill_negative changed-quote 1 "FAIL: skill: G1: the program block is not examples/skill/g1-threshold.lang"
+skill_negative long-block 1 "FAIL: skill: G1: the program block is not examples/skill/g1-threshold.lang"
+skill_negative short-block 1 "FAIL: skill: G1: the program block is not examples/skill/g1-threshold.lang"
+skill_negative no-text 1 "FAIL: skill: G1: the row at line 43 has no command, text block or exit sentence"
+skill_negative bad-exit 1 "FAIL: skill: G1: \`build/langc check examples/skill/g1-threshold.lang\` exits 0, the sentence gives '1.'"
+skill_negative changed-quote-g2 2 "FAIL: skill: G2: the program block is not examples/skill/g2-veto.lang"
+echo "skill negatives: $neg of 6"
+# skill rows: end
 
 status=0
 build/langc 2>/dev/null || status=$?
