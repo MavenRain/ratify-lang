@@ -1,6 +1,6 @@
 # ratify-lang status
 
-The build implements the slices S0 to S18 of `docs/PLAN.md`: the Cubical
+The build implements the slices S0 to S19 of `docs/PLAN.md`: the Cubical
 TT kernel, ported from permit-lang 3d47120, R0 in the kernel and the
 Wasm writer, ported from permit-lang 18deea2, the committee words
 `Committee`, `Party`, `Approvals`, `Counts` and `count` (Q-S4-1 to
@@ -27,8 +27,10 @@ S18 adds the token comparison with Python and Rust (A6):
 files is 0.40 of the ratify-lang sum, and the Rust sum is 0.58. S18 did
 not run `make tokens` (the count_tokens route). The gate has 65 count
 lines (S17: 63). The affine layer and the permit domain are not in the
-build (Q-S0-10 (a), Q-S2-1 (a)). It does not complete M0. The next slice
-is S19: the close of the plan.
+build (Q-S0-10 (a), Q-S2-1 (a)). S19 is the close: `SPEC.md`,
+`probe/CAPABILITY.md`, `docs/VALIDATION.md` and the final gate. S19
+completes M0, and the plan is CLOSED. `docs/PLAN.md` section 13 gives
+the open items.
 
 ## Implemented
 
@@ -176,9 +178,8 @@ hashes, the curve code and Schnorr on BN254 G1.
 
 ## Remaining M0 work
 
-1. S9 to S19: the targets T1 to T4 (S9: the Wasm module, the crypto
-   import ABI and the notrap rows), A1 to A6 and the close. S9 needs the
-   S8 commit first, and each slice needs the slice before it.
+1. None: the plan is CLOSED. `docs/PLAN.md` section 13 gives the open
+   items.
 
 ## Known limits
 

@@ -58,7 +58,7 @@ server on stdin and stdout (`docs/MCP.md`). Its 6 tools are `check`,
 `eval` tool and no `fmt --check` tool: use the command line for those.
 With `--kit`, each tool runs in the kit mode.
 
-## Status (S18)
+## Status (S19)
 
 The slices S0 to S16 give the Cubical TT kernel with R0 (S2 and S3), the
 domain words (S4 to S8: the committee, the rule, the policy, the crypto
@@ -70,9 +70,10 @@ S12; the Noir relations, T3, S13; the JSON report, T4, S11), `langc fmt`
 `skills/ratify-lang/SKILL.md`, the graded examples of `examples/skill/`,
 `test/skilltool.c`, the fixtures of `test/skill/`, this file and the
 README table. S18 adds the token comparison with Python and Rust (A6):
-`docs/TOKEN-BASELINE.md`, `test/tokcount.c` and `test/baseline/`. The
-next slice is S19: it closes the plan. `docs/PLAN.md` section 12 gives
-each slice.
+`docs/TOKEN-BASELINE.md`, `test/tokcount.c` and `test/baseline/`. S19
+closes the plan: `SPEC.md`, `probe/CAPABILITY.md`, `docs/VALIDATION.md`
+and the final gate. `docs/PLAN.md` section 12 gives each slice. The plan
+is CLOSED, and section 13 gives the open items.
 
 ## Commands that work now
 

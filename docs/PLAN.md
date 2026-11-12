@@ -50,7 +50,10 @@ R_dec as Noir, `langc noir` (`docs/NOIR-RELATIONS.md`). S14 adds
 (`docs/MCP.md`). S17 adds the skill `skills/ratify-lang/SKILL.md`, the
 graded examples G1 to G5 (`examples/skill/`), the final `AGENTS.md` and
 the final README table. S18 adds the token comparison A6
-(`docs/TOKEN-BASELINE.md`). Next: S19 (section 12).
+(`docs/TOKEN-BASELINE.md`). S19 is the close: `SPEC.md`,
+`probe/CAPABILITY.md`, `docs/VALIDATION.md` and the final gate (the S19
+row of section 12). The plan is CLOSED (Q-S19-3 (a)): OI-1 to OI-5, OI-7
+to OI-11 and OI-16 to OI-20 stay OPEN (section 13).
 
 ## 1. Rulings
 
@@ -196,6 +199,13 @@ the final README table. S18 adds the token comparison A6
 | 2026-11-11 | Q-S18-3 (a): `test/tokcount.c` is a copy of the permit-lang tool (the modes `--check`, `--estimate`, `--model`, `--request` and `--table`) with the ratify SHA-256 source. `test/baseline/` has `g1-threshold.py` to `g5-demo.py` (stdlib only) and 1 Rust crate, `test/baseline/rust/` (bins g1 to g5, `Cargo.lock`). `make check` prints `token report hashes: 15 of 15` and `token estimate: passed`. | USER, S18 |
 | 2026-11-11 | Q-S18-4 (a): 3 units: U1 the baselines and the equal outputs, U2 the tool, the Makefile rows and `docs/TOKEN-BASELINE.md`, U3 the docs. Then the gate and the close. The close has 2 hand probes: 1 changed byte in a counted file fails the hash check, and 1 changed estimate line fails the compare. No new gate rows. | USER, S18 |
 | 2026-11-11 | Q-S18-5 (a): `test/review.sh` has the token block of the permit-lang `test/review.sh`: `make -n tokens` with stub producers. It refuses a producer that prints the right bytes and then fails. `test/review.sh` is not `test/gate.sh`: no new gate row (Q-S18-4 (a)). | USER, S18 |
+| 2026-11-11 | Q-S19-1 (a): `SPEC.md` fills all 10 sections at the S18 state in the permit-lang S17 form, with a `src/`, `test/` or `docs/` cite for each claim. `docs/VALIDATION.md` gets the header and one paragraph for each slice S0 to S18. | USER, S19 |
+| 2026-11-11 | Q-S19-2 (a): `probe/CAPABILITY.md` comes from new runs of the 10 questions on the host under the existing `probe/guard.py`, in the permit-lang S17 form: the guard rows, the cost at 2 sizes, a replay block and the consequences. It is a probe, not a test harness: no new gate row. | USER, S19 |
+| 2026-11-11 | Q-S19-3 (a): the open OI rows of section 13 get a standing mark, OPEN at the close. New section 13 rows, OPEN: `make tokens` (OI-18, the count_tokens route of A6; the USER runs it outside the sandbox with `ANTHROPIC_API_KEY`) and OPEN-U2-2 of S17 (OI-19). The decisions D-U3-1 to D-U3-6 of the S18 close and D-U3-4 to D-U3-9 of the S17 close are accepted. A record only, with no edit in this repo: OBS-U1-1 (the description in the permit-lang `SKILL.md` has a colon and a space in a plain YAML scalar) and the relay-lang PLAN line O34 (a short block kills M3; the mutant table of this repo contradicts it). | USER, S19 |
+| 2026-11-11 | Q-S19-4 (a): 3 units and the close. U1 `SPEC.md`. U2 `probe/CAPABILITY.md`, the probe runs. U3 `docs/VALIDATION.md`, `docs/STATUS.md`, `AGENTS.md`, `README.md` and this plan: the section 1 rows, row S19, section 13 and the plan CLOSED sentence. Each unit and the close run the S18 gate form: 65 count lines, SAME. A doc slice: no code change and no mutants. | USER, S19 |
+| 2026-11-11 | Q-S19-5 (c): U3 edits the 4 kit cites in `formers/tcc-wasm.md` (the F12, F13 and F15 rows and the F9 note) so that they fit this repo. The repo copy then differs from the kit file. The note in section 3 of `SPEC.md` changes to match. | USER, S19 |
+| 2026-11-11 | Q-S19-6 (a): FMT_DIFF gets a new section 13 row, OPEN (OI-20): `test/demo/demo.lang`, `test/demo/policies.lang` and `test/report/log2.lang` are not `langc fmt` canonical (OBS-S17-1 of S17). U3 does not change the test files. | USER, S19 |
+| 2026-11-11 | Q-S19-7 (a): the main loop writes the draft of `docs/VALIDATION.md` by hand, and U3 has no agent. The builder agent (fable) stopped at the usage limit (429), and the one opus relaunch stopped on a classifier error. U3 gives section 1 the rows Q-S19-1 to Q-S19-7. | USER, S19 |
 
 The S13 decisions D-U1-1 to D-U1-5, D-U2-1 to D-U2-6 and D-U3-1 to D-U3-3
 are not USER rulings; the USER can overturn each. They are in
@@ -768,7 +778,7 @@ One session for each slice: scope, gate, mutants, docs, close.
 | S16 | A4: `langc mcp`, `docs/MCP.md`. On the USER commit 7f64206. `langc [--kit] mcp` is an MCP server on stdin and stdout (JSON-RPC 2.0, one message on each line; MCP `2025-11-25`; the methods `initialize`, `ping`, `tools/list` and `tools/call`; Q-S16-1 (a)). It has 6 tools, each a CLI verb: `check`, `fmt`, `explain`, `list-base`, `show-law` and `build` (Q-S16-2 (a), Q-S16-3 (a)). S16 adds the verbs `langc explain CODE`, `langc list-base` and `langc show-law [ROW]` and the codes `EXPLAIN` and `LAW`: `src/front/fix.c` has 71 rows. A tool result has the stdout text, the stderr text when it is not empty, and `isError` (Q-S16-4 (a), Q-U2-1 (a)). One process runs each verb with a fresh arena and memory streams (Q-S16-5 (a)). The error codes are in Q-S16-7 (a). Gate: `mcp rows: 10 passed`, `mcp negatives: 3 of 3`, `mcp tools: 6 of 6`, `mcp builds: 2 of 2` (Q-U3-1 (a)), `mcp long line: 1 of 1`, `explain codes: 71 of 71`, `law rows: 19 of 19`; 59 count lines. There is no new `.lang` file: the fmt law counts do not change. The gate kills the mutants M1 to M8, 8 of 8 (Q-S16-9 (a)). | DONE |
 | S17 | A3 and A5: `skills/ratify-lang/SKILL.md`, G1 to G5, `AGENTS.md` and the README table. On the USER commit 28cec11. SKILL.md has the routing rule, the loop, the verbs and 5 graded examples under the headings `### G1` to `### G5` (Q-S17-2 (a)). The examples are 5 new files in `examples/skill/` (Q-S17-1 (a)): G1 to G4 are guest files, and G5 is a kit file (`examples/skill/kit.txt`), the `langc fmt` text of `test/demo/demo.lang`; one gate row holds that law. `test/skilltool.c` is the port of the permit-lang tool (Q-S17-3 (a)): it checks each example, compares each program block of SKILL.md with its file, and runs each command. `AGENTS.md` is a rewrite in the permit shape (Q-S17-5 (a)). The README table has 3 columns, 5 yes rows and 5 no rows (Q-S17-4 (a)). The heads of `docs/STATUS.md` and the README give the S17 state (Q-S17-6 (a)). Gate: `skill checks: 5 of 5`, `skill quotes: 5 of 5`, `skill outputs: 21 of 21`, `skill negatives: 6 of 6` (Q-S17-U2-1 (b)); 63 count lines. Mutants (Q-S17-7 (a)), on the skill block and not on the full gate: M1, M2, M3, M4 and M8 are KILLED (`changed-quote-g2` kills M1, `bad-exit` kills M2, `long-block` kills M3, `short-block` kills M8, and M4, the block without `--kit`, gives `REFUSE_KIT` on `g5-demo.lang`). M5 (the block skips `fmt --check`), M6 (a passing negative adds no failure) and M7 (the block skips the G5 law row) are LIVE on a clean tree. The pairs: M5 with one more newline in `g1-threshold.lang` is KILLED by the G1 quote row and `long-block`, not by fmt; M2 with M6 gives exit 0 with a FAIL line, and only the compare of the count lines sees it (`skill negatives: 5 of 6`); M7 with one more comment line in `demo.lang` is LIVE, and without M7 the G5 law row finds that drift. | DONE |
 | S18 | A6: the token comparison, `docs/TOKEN-BASELINE.md`. On the USER commit 8d8a527. G1 to G5 of `examples/skill/` in Python (`test/baseline/*.py`, stdlib only) and in Rust (1 crate, `test/baseline/rust/`, bins g1 to g5), with equal outputs (Q-S18-1 (a)). The report has the offline estimate ceil(bytes / 4) and the SHA-256 pin of the 15 counted files (Q-S18-2 (a)). `test/tokcount.c` is a copy of the permit-lang tool (Q-S18-3 (a)). By the offline estimate, the token sum of the 5 Python files is 0.40 of the ratify-lang sum, and the Rust sum is 0.58. `make check` prints `token report hashes: 15 of 15` and `token estimate: passed`. The gate has 65 count lines. `make tokens` holds the count_tokens route; S18 did not run it (the USER runs it outside the sandbox with `ANTHROPIC_API_KEY`). `test/review.sh` has the token block (Q-S18-5 (a)). 3 units and 2 hand probes (Q-S18-4 (a)). | DONE |
-| S19 | Close: SPEC.md, probe/CAPABILITY.md, VALIDATION.md, final gate. | |
+| S19 | Close: `SPEC.md`, `probe/CAPABILITY.md`, `docs/VALIDATION.md` and the final gate. On the USER commit 22caa70. A doc slice in 3 units and the close (Q-S19-4 (a)): no code change and no mutants. U1: `SPEC.md` fills its 10 sections at the S18 state, with a cite for each claim (Q-S19-1 (a)); section 9 gives O1 to O20. U2: `probe/CAPABILITY.md` from new runs of the 10 questions under `probe/guard.py` (Q-S19-2 (a)). U3: `docs/VALIDATION.md` (the header, the gate and one paragraph for each slice S0 to S18), `docs/STATUS.md`, `README.md`, `AGENTS.md`, the 4 kit cites of `formers/tcc-wasm.md` (Q-S19-5 (c)) and this plan: the section 1 rows Q-S19-1 to Q-S19-7, this row, the standing marks of section 13 and OI-18 to OI-20 (Q-S19-3 (a), Q-S19-6 (a)). Each unit and the close run the S18 gate form: 65 count lines, SAME, and `gate: 0 failures`. The plan is CLOSED. | DONE |
 
 ## 13. Open items
 
@@ -776,50 +786,53 @@ The design obligations are O1 to O11. The open items of this plan are
 OI-1 onward, so the two lists do not clash. OI-1 to OI-5 are the items of
 design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
 
-- OI-1 Committee loss can freeze the system (design sec 13). Recovery needs
-  a clock. Not a v1 feature.
-- OI-2 Stale certificates (design sec 13). `verify` takes the latest
-  verified height as an input; the freshness rule is a later ruling.
-- OI-3 Agenda control (design sec 13). The log records the order only.
-- OI-4 Receipts (design sec 13). ZK and FHE give ballot secrecy, not
-  receipt-freeness.
-- OI-5 The output leaks what the rule implies (design sec 13). T4 states it
-  for each rule. At T1 the output also leaks the count vector c (Q-S1-2
-  (a)). T2 gives the one-bit output. S11: each `rule` line of T4 has
-  `leak_t1`, `accept_vectors`, `reject_vectors`, `accept_reveals_all`
-  and `reject_reveals_all` (Q-S11-6 (a), `docs/REPORT-JSON.md`). S12: the
-  T2 circuit gives only the accept bit, and the count vector c stays
-  inside the circuit (Q-S12-1 (a), `docs/TFHE-CIRCUIT.md`).
+- OI-1 OPEN. Committee loss can freeze the system (design sec 13).
+  Recovery needs a clock. Not a v1 feature.
+- OI-2 OPEN. Stale certificates (design sec 13). `verify` takes the
+  latest verified height as an input; the freshness rule is a later
+  ruling.
+- OI-3 OPEN. Agenda control (design sec 13). The log records the order
+  only.
+- OI-4 OPEN. Receipts (design sec 13). ZK and FHE give ballot secrecy,
+  not receipt-freeness.
+- OI-5 OPEN. The output leaks what the rule implies (design sec 13). T4
+  states it for each rule. At T1 the output also leaks the count vector
+  c (Q-S1-2 (a)). T2 gives the one-bit output. S11: each `rule` line of
+  T4 has `leak_t1`, `accept_vectors`, `reject_vectors`,
+  `accept_reveals_all` and `reject_reveals_all` (Q-S11-6 (a),
+  `docs/REPORT-JSON.md`). S12: the T2 circuit gives only the accept bit,
+  and the count vector c stays inside the circuit (Q-S12-1 (a),
+  `docs/TFHE-CIRCUIT.md`).
 - OI-6 CLOSED at S3. The kit row "a trap is equal to a trap" (section 2)
   is gone: in the Wasm and differential rows a `trap` line is a FAIL. The
   row `pick 2 4 9` gives 4 and does not trap: the entry sets a Flag
   argument of 2 or more to 1 (`flag_norm`, mutant M4 kills it).
-- OI-7 The view equations hold only up to indistinguishability and need a
-  computational model (design sec 13). They stay ASSUMED.
-- OI-8 The class-preserving group action is new Lean work on the UAT side
-  (design sec 3, O1). Lean export is not a target.
-- OI-9 Availability and the MPC tally route (design sec 9 and sec 10) are
-  implementation choices. No target emits them in v1.
-- OI-10 The node and wasmtime oracles of the differential rows need the
-  crypto imports (Q-S1-1 (a)). S9 (Q-S9-4 (a)): node takes the answers
-  from the host table (`test/run-wasm.mjs --host FILE`). S10 (Q-S10-1,
-  Q-S10-2 and Q-S10-6 (a)): the operand bytes are in the host region below
-  the heap (section 8.2), the engine of `ratifyd` gives the real import
-  bodies, and wasmtime CLI rows cover each module without imports. Open:
-  wasmtime for a module with imports.
-- OI-11 The native field of Noir is the BN254 scalar field. The
+- OI-7 OPEN. The view equations hold only up to indistinguishability and
+  need a computational model (design sec 13). They stay ASSUMED.
+- OI-8 OPEN. The class-preserving group action is new Lean work on the
+  UAT side (design sec 3, O1). Lean export is not a target.
+- OI-9 OPEN. Availability and the MPC tally route (design sec 9 and
+  sec 10) are implementation choices. No target emits them in v1.
+- OI-10 OPEN. The node and wasmtime oracles of the differential rows
+  need the crypto imports (Q-S1-1 (a)). S9 (Q-S9-4 (a)): node takes the
+  answers from the host table (`test/run-wasm.mjs --host FILE`). S10
+  (Q-S10-1, Q-S10-2 and Q-S10-6 (a)): the operand bytes are in the host
+  region below the heap (section 8.2), the engine of `ratifyd` gives the
+  real import bodies, and wasmtime CLI rows cover each module without
+  imports. Open: wasmtime for a module with imports.
+- OI-11 OPEN. The native field of Noir is the BN254 scalar field. The
   coordinates of a BN254 G1 point are in the base field, so the Noir
-  R_ballot and R_dec of the ElGamal route need non-native field arithmetic
-  (Q-S0-13 (b)). S13 measured the cost (nargo 1.0.0-rc.0, `nargo info`,
-  function main): r_ballot 68506 ACIR opcodes and 145210 Brillig
-  opcodes; r_dec 45398 ACIR opcodes and 115084 Brillig opcodes. The
-  original `nargo test` peak memory footprint of r_ballot was 4.04e9 bytes with its
-  6 tests in parallel and 1.93e9 bytes or less with 2 threads. N-U2-1:
-  `nargo execute` of r_ballot prints a `bug:` note on the `+` of
-  noir_bigcurve v0.15.0 (`src/bigcurve.nr:371`); the upstream comment
-  says that `add_with_hint` checks the result. Open: the soundness of
-  that `+`, and a proof backend run (`docs/NOIR-RELATIONS.md` section
-  10).
+  R_ballot and R_dec of the ElGamal route need non-native field
+  arithmetic (Q-S0-13 (b)). S13 measured the cost (nargo 1.0.0-rc.0,
+  `nargo info`, function main): r_ballot 68506 ACIR opcodes and 145210
+  Brillig opcodes; r_dec 45398 ACIR opcodes and 115084 Brillig opcodes.
+  The original `nargo test` peak memory footprint of r_ballot was 4.04e9
+  bytes with its 6 tests in parallel and 1.93e9 bytes or less with 2
+  threads. N-U2-1: `nargo execute` of r_ballot prints a `bug:` note on
+  the `+` of noir_bigcurve v0.15.0 (`src/bigcurve.nr:371`); the upstream
+  comment says that `add_with_hint` checks the result. Open: the
+  soundness of that `+`, and a proof backend run
+  (`docs/NOIR-RELATIONS.md` section 10).
 - OI-12 The gate gap from S2 to S3 (Q-S2-1 (a)). `src/front/lower.c`,
   `src/wasm.c` and `src/ir.h` are out of the build, and `langc build` gives
   `REFUSE_LOWER` "target pending S3". Until S3 the gate has no IR rows, no
@@ -833,7 +846,7 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
   so a definition that is not a law and has `count c S` in its type gives
   `REFUSE_ORBIT` (S4 probe). (a), recommended: S5 `Rule` does not put
   `count c S` in the type of a definition that is not a law. (b): S5
-  drops the quoted-type walk of `REFUSE_ORBIT`. Closed by Q-S5-3 (a)
+  drops the quoted-type walk of `REFUSE_ORBIT`. CLOSED by Q-S5-3 (a)
   (S5): the walk stays, and no S5 rule puts `count c S` in the type of a
   definition that is not a law.
 - OI-14 The O5 walk (S5) is quadratic in the minimal accepting vectors:
@@ -846,13 +859,24 @@ design sec 13. They stay open items, not v1 features (Q-S0-15 (a)).
   Sigma binders in their bodies while checking each binder's own type
   outside its scope. C regressions cover shadowing and constructor uses
   in binder annotations.
-- OI-16 `verify` does not lower: the kit lowering of `verify` gives a
-  stuck elim with a function motive (S10 survey L, option (a)). So the demo
-  is split (Q-S10-U3-L (c)): the Wasm entry `demo` gives W, and `demoV`
-  runs `verify` in the evaluator only (section 8.4). Open.
-- OI-17 `demoV` on a large height word reaches the arena limit of the
-  evaluator (`langc: OOM`, S10 mutant u8). `demotool` then gives exit 1,
-  not `wrongHeight`. Open.
+- OI-16 OPEN. `verify` does not lower: the kit lowering of `verify`
+  gives a stuck elim with a function motive (S10 survey L, option (a)).
+  So the demo is split (Q-S10-U3-L (c)): the Wasm entry `demo` gives W,
+  and `demoV` runs `verify` in the evaluator only (section 8.4). Open.
+- OI-17 OPEN. `demoV` on a large height word reaches the arena limit of
+  the evaluator (`langc: OOM`, S10 mutant u8). `demotool` then gives
+  exit 1, not `wrongHeight`. Open.
+- OI-18 OPEN (Q-S19-3 (a)). `make tokens` (the count_tokens route of A6)
+  has no run in the repo: the USER runs it outside the sandbox with
+  `ANTHROPIC_API_KEY` (S18). `SPEC.md` section 9 has it as O18. Open.
+- OI-19 OPEN (Q-S19-3 (a)). OPEN-U2-2 of S17: the skill mutant M5 (the
+  block skips the fmt check) has no kill of its own, and M6 alone and M7
+  alone are equivalent on a clean tree. `SPEC.md` section 9 has it as
+  O19. Open.
+- OI-20 OPEN (Q-S19-6 (a)). FMT_DIFF: `test/demo/demo.lang`,
+  `test/demo/policies.lang` and `test/report/log2.lang` are not `langc
+  fmt` canonical (OBS-S17-1 of S17). S19 does not change the test files.
+  `SPEC.md` section 9 has it as O20. Open.
 
 ## 14. Questions for the USER (S0)
 

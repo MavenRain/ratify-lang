@@ -22,10 +22,10 @@ time. Types, universes and proof contents erase on Wasm. Each op is total; a val
 | F9 | Non-dependent Pi | DONE. HOST-LIMIT: a function value at run time | `src/front/check.c:3027`, `src/front/lower.c:1252`, `src/front/lower.c:536` | `examples/functions.lang:2`, `examples/functions.lang:4`, `examples/laws.lang:7`, `test/ir/closure.lang:3` |
 | F10 | Dependent Pi | DONE over `Type 0` and over Nat | `src/front/check.c:3027`, `src/front/lower.c:1244` | `examples/functions.lang:8`, `examples/paths.lang:9` |
 | F11 | Sigma | DONE | `src/front/check.c:163`, `src/front/check.c:167`, `src/front/lower.c:1172`, `src/front/lower.c:1175` | `examples/sigma.lang:3`, `examples/sigma.lang:5`, `examples/sigma.lang:6` |
-| F12 | Eq refl/symm/trans | DONE: `refl` and `sym` are builtins; `trans` is a guest def by `hcomp`; a path erases on Wasm | `src/front/check.c:164`, `src/front/check.c:178`, `src/front/check.c:182`, `domain/domain.lang:21`, `src/front/lower.c:1246` | `examples/equality.lang:4`, `examples/equality.lang:5`, `test/check/bad-refl.lang:2` |
-| F13 | Eq transport/cong | DONE: `transport` is a guest def by `transp`; `cong` is a builtin; `langc eval` reduces `transp`, and only a stuck `transp` gets to the lowering | `src/front/check.c:181`, `domain/domain.lang:8`, `src/front/check.c:179`, `src/front/lower.c:1168`, `src/front/lower.c:1246` | `examples/equality.lang:6` |
+| F12 | Eq refl/symm/trans | DONE: `refl` and `sym` are builtins; `trans` is a guest def by `hcomp`; a path erases on Wasm | `src/front/check.c:164`, `src/front/check.c:178`, `src/front/check.c:182`, `domain/domain.lang:22`, `src/front/lower.c:1246` | `examples/equality.lang:4`, `examples/equality.lang:5`, `test/check/bad-refl.lang:2` |
+| F13 | Eq transport/cong | DONE: `transport` is a guest def by `transp`; `cong` is a builtin; `langc eval` reduces `transp`, and only a stuck `transp` gets to the lowering | `src/front/check.c:181`, `domain/domain.lang:9`, `src/front/check.c:179`, `src/front/lower.c:1168`, `src/front/lower.c:1246` | `examples/equality.lang:6` |
 | F14 | Universes | DONE for Type 0 and Type 1, without cumulativity | `src/front/lower.c:1243` | `examples/universes.lang:4`, `test/check/universe.lang:1`, `test/check/universe-range.lang:1` |
-| F15 | Generic indexed family | PARTIAL: only the domain file declares an indexed family | `domain/domain.lang:329` | `examples/bagorbit.lang:7`, `test/check/elim-motive-index.lang:1` |
+| F15 | Generic indexed family | PARTIAL: only the domain file declares an indexed family | `domain/domain.lang:140` | `examples/bagorbit.lang:7`, `test/check/elim-motive-index.lang:1` |
 
 F6: a fold over a family with one recursive field (for example `Stack`)
 lowers to a loop over the spine. A constructor with two or more recursive
@@ -37,7 +37,7 @@ compile time.
 F9: a lambda stays only as the direct function argument of an eliminator.
 When a function value must exist at run time, the lowering refuses it
 with `REFUSE_RUNTIME_CLOSURE`. Both refusals are HOST-LIMIT reasons, not
-defects. `docs/CAPABILITY.md` gives the reasons.
+defects. `docs/host/CAPABILITY.md` gives the reasons.
 
 F15: a domain family can take index parameters, for example
 `family Lot (size : Nat)`. A constructor takes the indices first

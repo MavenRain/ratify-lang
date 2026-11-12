@@ -10,8 +10,8 @@ log and checks the certificates. No program can have a runtime error. The
 design is a denotational design over Unified Aggregation Theory
 (`design/DESIGN.md`).
 
-ratify-lang comes from lang-template with the tcc-wasm host. Status: S18
-(the skill and the agent docs): the Cubical TT kernel of permit-lang
+ratify-lang comes from lang-template with the tcc-wasm host. Status: S19
+(the close of the plan): the Cubical TT kernel of permit-lang
 3d47120 and R0 from permit-lang 18deea2: total Nat operations,
 `REFUSE_PARTIAL`, and a Wasm writer that emits no trap form
 (`test/notraptool.c` checks each built module). S4 adds the domain words
@@ -46,8 +46,9 @@ below and the final `AGENTS.md`. S18 adds the token comparison with
 Python and Rust (A6, `docs/TOKEN-BASELINE.md`). By the offline estimate,
 the token sum of the 5 Python files is 0.40 of the ratify-lang sum, and
 the Rust sum is 0.58. S18 did not run `make tokens` (the count_tokens
-route). The next slice is S19: it closes the plan. `docs/PLAN.md` gives
-the plan, and its section 14 gives the open questions.
+route). The plan is CLOSED: S19 is the last slice. `docs/PLAN.md` gives
+the plan, its section 13 gives the open items, and its section 14 gives
+the open questions.
 
 ## When to reach for ratify-lang
 
@@ -91,7 +92,7 @@ and the rules for a change.
   (1 crate in `test/baseline/rust/`), and the tool `build/tokcount`.
   `make check` prints `token report hashes: 15 of 15` and
   `token estimate: passed`.
-- `SPEC.md`: the specification. Slice S19 fills it.
+- `SPEC.md`: the language specification.
 - `formers/FORMERS.md`: the type formers. `formers/tcc-wasm.md` gives their
   status on the tcc-wasm host.
 - `probe/CAPABILITY.md`: the host probe.
